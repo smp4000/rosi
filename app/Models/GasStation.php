@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\Auditable;
 use App\Traits\BelongsToTenant;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -25,21 +26,36 @@ class GasStation extends Model
         'tenant_id',
         'name',
         'brand_id',
-        'brand',
         'station_number',
+        // Allgemein
+        'sales_channel',
+        'ownership_type',
+        'district',
+        'district_description',
+        'region',
+        'region_manager',
+        'station_number_fuel',
+        'station_number_shop',
+        'has_toll_terminal',
         // Adresse
         'street',
+        'house_number',
         'zip',
         'city',
+        'district_part',
         'state',
         'country',
         // Geo
         'latitude',
         'longitude',
         // Kontakt
+        'academic_title',
+        'contact_first_name',
+        'contact_last_name',
         'phone',
         'fax',
         'email',
+        'website',
         // Geschaeftsdaten
         'tax_id',
         'trade_register',
@@ -48,7 +64,19 @@ class GasStation extends Model
         'has_shop',
         'has_car_wash',
         'opening_hours',
+        'first_opening_ok',
+        'first_opening_dk',
         'services',
+        // Shop
+        'shop_size',
+        'shop_type',
+        'shop_class',
+        'shop_setup_date',
+        'nielsen_area',
+        'price_region',
+        'assortment_level',
+        'shop_partner',
+        'shop_operation_number',
         // Medien
         'logo',
         'photos',
@@ -66,7 +94,11 @@ class GasStation extends Model
             'num_pumps' => 'integer',
             'has_shop' => 'boolean',
             'has_car_wash' => 'boolean',
+            'has_toll_terminal' => 'boolean',
             'opening_hours' => 'array',
+            'first_opening_ok' => 'date',
+            'first_opening_dk' => 'date',
+            'shop_setup_date' => 'date',
             'services' => 'array',
             'photos' => 'array',
             'is_active' => 'boolean',
@@ -82,6 +114,14 @@ class GasStation extends Model
     public function brand(): BelongsTo
     {
         return $this->belongsTo(Brand::class);
+    }
+
+    /**
+     * Bankkonten dieser Tankstelle.
+     */
+    public function bankAccounts(): HasMany
+    {
+        return $this->hasMany(GasStationBankAccount::class);
     }
 
     /**
@@ -137,10 +177,63 @@ class GasStation extends Model
     // --- Hilfsmethoden ---
 
     /**
-     * Vollstaendige Adresse als String.
+     * Vollstaendige Adresse als String (mit Hausnummer).
      */
     public function getFullAddressAttribute(): string
     {
-        return trim("{$this->street}, {$this->zip} {$this->city}");
+        $streetLine = trim("{$this->street} {$this->house_number}");
+
+        return trim("{$streetLine}, {$this->zip} {$this->city}");
+    }
+
+    /**
+     * Anrede-Anschrift zusammengesetzt:
+     * Brand (ausser Sonstige) + Tankstelle + Vorname + Nachname
+     */
+    public function getSalutationAddressAttribute(): string
+    {
+        $parts = [];
+
+        if ($this->brand && strtolower($this->brand->name) !== 'sonstige') {
+            $parts[] = $this->brand->name;
+        }
+
+        $parts[] = 'Tankstelle';
+
+        if ($this->contact_first_name) {
+            $parts[] = $this->contact_first_name;
+        }
+
+        if ($this->contact_last_name) {
+            $parts[] = $this->contact_last_name;
+        }
+
+        return implode(' ', $parts);
+    }
+
+    /**
+     * Berechnet die woechentlichen Oeffnungsstunden aus dem opening_hours JSON.
+     */
+    public function getWeeklyOpeningHoursAttribute(): ?float
+    {
+        if (empty($this->opening_hours)) {
+            return null;
+        }
+
+        $totalMinutes = 0;
+
+        foreach ($this->opening_hours as $day => $hours) {
+            if (! empty($hours['open']) && ! empty($hours['close'])) {
+                try {
+                    $open = Carbon::createFromFormat('H:i', $hours['open']);
+                    $close = Carbon::createFromFormat('H:i', $hours['close']);
+                    $totalMinutes += $open->diffInMinutes($close);
+                } catch (\Exception $e) {
+                    continue;
+                }
+            }
+        }
+
+        return round($totalMinutes / 60, 1);
     }
 }

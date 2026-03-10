@@ -1,59 +1,173 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
-
 <p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
+  <img src="https://img.shields.io/badge/ROSI-SaaS%20Platform-0ea5e9?style=for-the-badge&logoColor=white" alt="ROSI">
 </p>
 
-## About Laravel
+<h1 align="center">ROSI - Tankstellenpartner-Verwaltung</h1>
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+<p align="center">
+  Mandantenfaehige SaaS-Plattform fuer die digitale Verwaltung von Tankstellen, Mitarbeitern, Kunden und Lieferanten.
+</p>
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+<p align="center">
+  <img src="https://img.shields.io/badge/Laravel-12-FF2D20?style=flat-square&logo=laravel&logoColor=white" alt="Laravel 12">
+  <img src="https://img.shields.io/badge/Filament-5-FBBF24?style=flat-square" alt="Filament 5">
+  <img src="https://img.shields.io/badge/PHP-8.2+-777BB4?style=flat-square&logo=php&logoColor=white" alt="PHP 8.2+">
+  <img src="https://img.shields.io/badge/Livewire-3-FB70A9?style=flat-square" alt="Livewire 3">
+  <img src="https://img.shields.io/badge/Tailwind-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" alt="Tailwind CSS 4">
+</p>
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+---
 
-## Learning Laravel
+## Ueberblick
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+ROSI ist eine mandantenfaehige SaaS-Plattform, die Tankstellenpartnern eine zentrale Loesung fuer ihre taeglichen Verwaltungsaufgaben bietet. Jeder Partner (Mandant) verwaltet seine Tankstellen, Mitarbeiter, Kunden und Lieferanten in einem eigenen, abgesicherten Bereich.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+### Kernfunktionen
 
-## Laravel Sponsors
+- **Tankstellen-Verwaltung** - 7-Tab-Formulare mit Stammdaten, Oeffnungszeiten, Bankkonten, interaktiver Karte (Leaflet/OpenStreetMap)
+- **Stations-Import** - Wizard mit PLZ-Suche, automatischer Import von Stationsdaten inkl. Adresse, Marke und Oeffnungszeiten
+- **Mitarbeiter-Verwaltung** - Profile, Vertraege, Dokumente, Schichtplanung
+- **Multi-Tenancy** - Shared Database mit `tenant_id`, vollstaendige Datenisolation
+- **Rollen & Rechte** - Feingranulares Berechtigungssystem mit spatie/laravel-permission
+- **DSGVO-konform** - Audit-Logs, Consent-Tracking, Datenloeschungsantraege, verschluesselte sensible Felder
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## Architektur
 
-### Premium Partners
+```
+ROSI
+├── Admin-Panel (/admin)          Super-Admin: Mandanten, User, Audit-Logs, Marken
+├── Partner-Panel (/dashboard)    Partner: Tankstellen, Mitarbeiter, Widgets
+├── Portal (/portal)              Mitarbeiter-Zugang (geplant)
+└── API                           REST-Schnittstelle (geplant)
+```
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### Tech-Stack
 
-## Contributing
+| Komponente | Technologie |
+|-----------|-------------|
+| Backend | Laravel 12, PHP 8.2+ |
+| Admin UI | Filament 5 (Admin + Partner Panels) |
+| Frontend | Livewire 3, Alpine.js, Tailwind CSS 4 |
+| Datenbank | MySQL / MariaDB |
+| IDs | UUID v7 (zeitbasiert, sortierbar) |
+| Berechtigungen | spatie/laravel-permission v6 (Teams) |
+| Assets | Vite 7 |
+| Karten | Leaflet + OpenStreetMap + Nominatim |
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### Datenmodell
 
-## Code of Conduct
+```
+Tenant (Mandant)
+ ├── User (mit Rollen)
+ ├── GasStation (Tankstelle)
+ │    ├── GasStationBankAccount
+ │    └── Brand (global)
+ ├── EmployeeProfile
+ │    ├── Shift / ShiftTemplate
+ │    └── Document
+ ├── Customer
+ ├── Supplier
+ │    ├── SupplierPriceList
+ │    └── SupplierComplaint
+ ├── AuditLog
+ ├── ConsentLog
+ └── DataDeletionRequest
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Installation
 
-## Security Vulnerabilities
+### Voraussetzungen
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+- PHP 8.2+
+- Composer
+- Node.js 18+ & npm
+- MySQL 8+ oder MariaDB 10.6+
 
-## License
+### Setup
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+# Repository klonen
+git clone https://github.com/smp4000/rosi.git
+cd rosi
+
+# Abhaengigkeiten installieren
+composer install
+npm install
+
+# Umgebung konfigurieren
+cp .env.example .env
+php artisan key:generate
+
+# .env anpassen: DB_DATABASE, DB_USERNAME, DB_PASSWORD
+
+# Datenbank migrieren & seeden
+php artisan migrate
+php artisan db:seed
+
+# Assets bauen
+npm run build
+```
+
+### Entwicklung starten
+
+```bash
+# Alle Services gleichzeitig starten (Server, Queue, Vite, Logs)
+composer run dev
+```
+
+Oder einzeln:
+
+```bash
+php artisan serve          # Laravel Dev-Server
+npm run dev                # Vite HMR
+php artisan queue:listen   # Queue Worker
+```
+
+### Zugang
+
+| Panel | URL | Rolle |
+|-------|-----|-------|
+| Admin | `/admin` | Super-Admin |
+| Partner | `/dashboard` | Partner |
+
+## Projektstruktur
+
+```
+app/
+├── Console/Commands/              # Artisan-Befehle
+├── Filament/
+│   ├── Resources/                 # Admin-Panel (Tenant, User, AuditLog, Brand)
+│   ├── Partner/Resources/         # Partner-Panel (GasStation, Employee)
+│   └── Widgets/                   # Dashboard-Widgets
+├── Http/Middleware/                # Tenant-Scoping, Auth
+├── Livewire/                      # Livewire-Komponenten
+├── Models/                        # 20 Eloquent Models (UUID v7)
+├── Services/                      # BenzinpreisService (Stations-Import)
+└── Listeners/                     # Event-Listener
+
+database/migrations/               # 20+ Migrationen
+lang/de/                           # Deutsche Uebersetzungen
+resources/views/filament/          # Blade-Komponenten (Karte, Oeffnungszeiten)
+docs/PFLICHTENHEFT.md              # Detailliertes Pflichtenheft
+```
+
+## Tankstellen-Import (BenzinpreisService)
+
+Der Wizard-basierte Import ermoeglicht es, bestehende Tankstellen per PLZ-Suche zu finden und deren Daten automatisch zu uebernehmen:
+
+1. **PLZ eingeben** - Nominatim (OpenStreetMap) loest die PLZ in Stadt + Koordinaten auf
+2. **Umkreissuche** - Stadtseiten + Nachbarstaedte werden parallel geladen
+3. **Geo-Validierung** - Haversine-Distanzpruefung filtert gleichnamige Staedte in anderen Regionen
+4. **Daten importieren** - Name, Marke, Adresse, Koordinaten, Oeffnungszeiten werden uebernommen
+
+## Konventionen
+
+- **Sprache**: Code-Attribute auf Englisch, Kommentare auf Deutsch, UI auf Deutsch
+- **IDs**: UUID v7 fuer alle Kern-Entitaeten
+- **Multi-Tenancy**: `BelongsToTenant` Trait + Global Scope
+- **Formulare**: Tab-basiert mit Filament Tabs
+- **Dateien**: PSR-4 Autoloading, Laravel-Konventionen
+
+## Lizenz
+
+Proprietaer - Alle Rechte vorbehalten.

@@ -33,7 +33,7 @@
             {{-- CTA Buttons --}}
             <div class="hidden items-center gap-3 md:flex">
                 @auth
-                    <a href="{{ route('dashboard') }}"
+                    <a href="{{ route('filament.partner.pages.dashboard') }}"
                        class="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-primary-600/25 transition hover:bg-primary-700">
                         Dashboard
                     </a>
@@ -75,7 +75,7 @@
                 <a href="#pricing" class="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">Preise</a>
                 <hr class="border-gray-100">
                 @auth
-                    <a href="{{ route('dashboard') }}" class="rounded-lg bg-primary-600 px-4 py-2.5 text-center text-sm font-semibold text-white">Dashboard</a>
+                    <a href="{{ route('filament.partner.pages.dashboard') }}" class="rounded-lg bg-primary-600 px-4 py-2.5 text-center text-sm font-semibold text-white">Dashboard</a>
                 @else
                     <a href="{{ route('login') }}" class="rounded-lg border border-gray-200 px-4 py-2.5 text-center text-sm font-semibold text-gray-700">Anmelden</a>
                     <a href="{{ route('register') }}" class="rounded-lg bg-primary-600 px-4 py-2.5 text-center text-sm font-semibold text-white">Kostenlos testen</a>

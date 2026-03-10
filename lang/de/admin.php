@@ -110,6 +110,25 @@ return [
         'restricted_notice' => 'Verschluesselte Werte nur mit Level-3-Berechtigung einsehbar.',
     ],
 
+    // --- BrandResource ---
+    'brand' => [
+        'label' => 'Marke',
+        'plural' => 'Tankstellen-Marken',
+        'tabs' => [
+            'stammdaten' => 'Stammdaten',
+            'logo' => 'Logo',
+        ],
+        'fields' => [
+            'name' => 'Markenname',
+            'slug' => 'URL-Kuerzel',
+            'logo' => 'Logo',
+            'is_active' => 'Aktiv',
+            'sort_order' => 'Sortierung',
+            'gas_stations_count' => 'Tankstellen',
+            'created_at' => 'Erstellt am',
+        ],
+    ],
+
     // --- Dashboard ---
     'dashboard' => [
         'heading' => 'ROSI Administration',

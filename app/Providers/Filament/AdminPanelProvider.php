@@ -31,22 +31,26 @@ class AdminPanelProvider extends PanelProvider
             ->login()
             ->brandName('ROSI Admin')
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => Color::Indigo,
                 'danger' => Color::Rose,
                 'info' => Color::Sky,
                 'success' => Color::Emerald,
                 'warning' => Color::Orange,
             ])
+            ->font('Inter')
             ->navigationGroups([
                 NavigationGroup::make('Mandanten-Verwaltung')
                     ->icon('heroicon-o-building-office-2'),
                 NavigationGroup::make('Benutzerverwaltung')
                     ->icon('heroicon-o-users'),
+                NavigationGroup::make('Stammdaten')
+                    ->icon('heroicon-o-circle-stack'),
                 NavigationGroup::make('DSGVO & Audit')
                     ->icon('heroicon-o-shield-check')
                     ->collapsed(),
             ])
             ->sidebarCollapsibleOnDesktop()
+            ->maxContentWidth('full')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([

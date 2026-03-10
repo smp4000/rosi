@@ -10,7 +10,7 @@
 </head>
 <body class="min-h-screen bg-gray-50 font-sans antialiased">
 
-    {{-- Temporaerer Dashboard-Header (wird in Schritt 7 erweitert) --}}
+    {{-- Temporaerer Header (wird spaeter durch Filament-Panel ersetzt) --}}
     <nav class="border-b border-gray-200 bg-white shadow-sm">
         <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div class="flex h-16 items-center justify-between">

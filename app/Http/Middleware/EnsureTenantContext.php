@@ -21,10 +21,9 @@ class EnsureTenantContext
             return $next($request);
         }
 
-        // Super-Admin: Kein Tenant-Kontext (arbeitet im Filament Panel)
+        // Super-Admin gehoert ins Admin-Panel, nicht ins Partner-Panel
         if ($user->isSuperAdmin()) {
-            // Session-Tenant nur setzen wenn Super-Admin explizit einen Mandanten betrachtet
-            return $next($request);
+            return redirect()->route('filament.admin.pages.dashboard');
         }
 
         // Tenant-ID aus dem User-Model in die Session setzen

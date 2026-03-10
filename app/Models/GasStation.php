@@ -7,6 +7,7 @@ use App\Traits\BelongsToTenant;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -23,6 +24,7 @@ class GasStation extends Model
     protected $fillable = [
         'tenant_id',
         'name',
+        'brand_id',
         'brand',
         'station_number',
         // Adresse
@@ -73,6 +75,14 @@ class GasStation extends Model
     }
 
     // --- Beziehungen ---
+
+    /**
+     * Marke der Tankstelle (Aral, Shell, etc.).
+     */
+    public function brand(): BelongsTo
+    {
+        return $this->belongsTo(Brand::class);
+    }
 
     /**
      * Zugewiesene Mitarbeiter (Many-to-Many).

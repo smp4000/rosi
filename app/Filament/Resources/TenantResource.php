@@ -81,7 +81,8 @@ class TenantResource extends Resource
                             TextInput::make('name')
                                 ->label(__('admin.tenant.fields.name'))
                                 ->required()
-                                ->maxLength(255),
+                                ->maxLength(255)
+                                ->columnSpan(2),
                             TextInput::make('slug')
                                 ->label(__('admin.tenant.fields.slug'))
                                 ->required()
@@ -102,14 +103,16 @@ class TenantResource extends Resource
                                 ->label(__('admin.tenant.fields.phone'))
                                 ->tel()
                                 ->maxLength(50),
-                        ]),
+                        ])
+                        ->columns(2),
 
                     Tab::make(__('admin.tenant.tabs.adresse'))
                         ->icon('heroicon-o-map-pin')
                         ->schema([
                             TextInput::make('street')
                                 ->label(__('admin.tenant.fields.street'))
-                                ->maxLength(255),
+                                ->maxLength(255)
+                                ->columnSpan(2),
                             TextInput::make('zip')
                                 ->label(__('admin.tenant.fields.zip'))
                                 ->maxLength(10),
@@ -120,7 +123,8 @@ class TenantResource extends Resource
                                 ->label(__('admin.tenant.fields.country'))
                                 ->default('DE')
                                 ->maxLength(2),
-                        ]),
+                        ])
+                        ->columns(2),
 
                     Tab::make(__('admin.tenant.tabs.abonnement'))
                         ->icon('heroicon-o-credit-card')
@@ -138,7 +142,8 @@ class TenantResource extends Resource
                             Toggle::make('is_active')
                                 ->label(__('admin.tenant.fields.is_active'))
                                 ->default(true),
-                        ]),
+                        ])
+                        ->columns(2),
 
                     Tab::make(__('admin.tenant.tabs.geschaeftsdaten'))
                         ->icon('heroicon-o-document-text')
@@ -149,7 +154,8 @@ class TenantResource extends Resource
                             TextInput::make('trade_register')
                                 ->label(__('admin.tenant.fields.trade_register'))
                                 ->maxLength(100),
-                        ]),
+                        ])
+                        ->columns(2),
                 ])
                 ->columnSpanFull(),
         ]);

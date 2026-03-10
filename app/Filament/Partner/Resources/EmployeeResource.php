@@ -119,8 +119,10 @@ class EmployeeResource extends Resource
                                 ->tel()
                                 ->maxLength(50),
                             Toggle::make('is_active')
-                                ->label(__('partner.employee.fields.is_active')),
-                        ]),
+                                ->label(__('partner.employee.fields.is_active'))
+                                ->columnSpan(2),
+                        ])
+                        ->columns(2),
 
                     Tab::make(__('partner.employee.tabs.beschaeftigung'))
                         ->icon('heroicon-o-briefcase')
@@ -128,24 +130,25 @@ class EmployeeResource extends Resource
                             Select::make('employeeProfile.employment_type')
                                 ->label(__('partner.employee.fields.employment_type'))
                                 ->options(__('partner.employee.employment_types')),
-                            DatePicker::make('employeeProfile.employment_start')
-                                ->label(__('partner.employee.fields.employment_start'))
-                                ->displayFormat('d.m.Y'),
-                            DatePicker::make('employeeProfile.employment_end')
-                                ->label(__('partner.employee.fields.employment_end'))
-                                ->displayFormat('d.m.Y'),
                             TextInput::make('employeeProfile.weekly_hours')
                                 ->label(__('partner.employee.fields.weekly_hours'))
                                 ->numeric()
                                 ->step(0.5)
                                 ->minValue(0)
                                 ->maxValue(48),
+                            DatePicker::make('employeeProfile.employment_start')
+                                ->label(__('partner.employee.fields.employment_start'))
+                                ->displayFormat('d.m.Y'),
+                            DatePicker::make('employeeProfile.employment_end')
+                                ->label(__('partner.employee.fields.employment_end'))
+                                ->displayFormat('d.m.Y'),
                             TextInput::make('employeeProfile.vacation_days')
                                 ->label(__('partner.employee.fields.vacation_days'))
                                 ->numeric()
                                 ->minValue(0)
                                 ->maxValue(60),
-                        ]),
+                        ])
+                        ->columns(2),
                 ])
                 ->columnSpanFull(),
         ]);

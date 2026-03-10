@@ -4,6 +4,11 @@ namespace App\Filament\Partner\Resources;
 
 use App\Filament\Partner\Resources\GasStationResource\Pages;
 use App\Models\GasStation;
+use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
@@ -95,24 +100,45 @@ class GasStationResource extends Resource
                             TextInput::make('name')
                                 ->label(__('partner.gas_station.fields.name'))
                                 ->required()
-                                ->maxLength(255),
-                            TextInput::make('brand')
+                                ->maxLength(255)
+                                ->columnSpan(2),
+                            Select::make('brand_id')
                                 ->label(__('partner.gas_station.fields.brand'))
-                                ->maxLength(100),
+                                ->relationship('brand', 'name')
+                                ->searchable()
+                                ->preload()
+                                ->createOptionForm([
+                                    TextInput::make('name')
+                                        ->label('Markenname')
+                                        ->required()
+                                        ->maxLength(255),
+                                ])
+                                ->createOptionUsing(function (array $data): int {
+                                    return \App\Models\Brand::create($data)->getKey();
+                                }),
                             TextInput::make('station_number')
                                 ->label(__('partner.gas_station.fields.station_number'))
                                 ->maxLength(50),
+                            TextInput::make('tax_id')
+                                ->label(__('partner.gas_station.fields.tax_id'))
+                                ->maxLength(50),
+                            TextInput::make('trade_register')
+                                ->label(__('partner.gas_station.fields.trade_register'))
+                                ->maxLength(100),
                             Toggle::make('is_active')
                                 ->label(__('partner.gas_station.fields.is_active'))
-                                ->default(true),
-                        ]),
+                                ->default(true)
+                                ->columnSpan(2),
+                        ])
+                        ->columns(2),
 
                     Tab::make(__('partner.gas_station.tabs.adresse'))
                         ->icon('heroicon-o-map-pin')
                         ->schema([
                             TextInput::make('street')
                                 ->label(__('partner.gas_station.fields.street'))
-                                ->maxLength(255),
+                                ->maxLength(255)
+                                ->columnSpan(2),
                             TextInput::make('zip')
                                 ->label(__('partner.gas_station.fields.zip'))
                                 ->maxLength(10),
@@ -128,11 +154,14 @@ class GasStationResource extends Resource
                                 ->maxLength(2),
                             TextInput::make('latitude')
                                 ->label(__('partner.gas_station.fields.latitude'))
-                                ->numeric(),
+                                ->numeric()
+                                ->step(0.00000001),
                             TextInput::make('longitude')
                                 ->label(__('partner.gas_station.fields.longitude'))
-                                ->numeric(),
-                        ]),
+                                ->numeric()
+                                ->step(0.00000001),
+                        ])
+                        ->columns(2),
 
                     Tab::make(__('partner.gas_station.tabs.kontakt'))
                         ->icon('heroicon-o-phone')
@@ -149,7 +178,8 @@ class GasStationResource extends Resource
                                 ->label(__('partner.gas_station.fields.email'))
                                 ->email()
                                 ->maxLength(255),
-                        ]),
+                        ])
+                        ->columns(2),
 
                     Tab::make(__('partner.gas_station.tabs.betrieb'))
                         ->icon('heroicon-o-wrench-screwdriver')
@@ -162,10 +192,92 @@ class GasStationResource extends Resource
                                 ->label(__('partner.gas_station.fields.has_shop')),
                             Toggle::make('has_car_wash')
                                 ->label(__('partner.gas_station.fields.has_car_wash')),
-                            TextInput::make('notes')
+                            // Verfuegbare Services als Mehrfachauswahl
+                            CheckboxList::make('services')
+                                ->label(__('partner.gas_station.fields.services'))
+                                ->options([
+                                    'super'       => 'Super (E5)',
+                                    'e10'         => 'E10',
+                                    'diesel'      => 'Diesel',
+                                    'premium'     => 'Super Plus',
+                                    'lpg'         => 'LPG / Autogas',
+                                    'adblue'      => 'AdBlue',
+                                    'cng'         => 'Erdgas (CNG)',
+                                    'h2'          => 'Wasserstoff (H₂)',
+                                    'ev'          => 'Elektro-Laden',
+                                    'tire'        => 'Reifenservice',
+                                    'oil'         => 'Oelwechsel',
+                                    'bakery'      => 'Backshop',
+                                    'cafe'        => 'Café / Restaurant',
+                                    'atm'         => 'Geldautomat',
+                                    'car_rental'  => 'Autovermietung',
+                                ])
+                                ->columns(3)
+                                ->columnSpanFull(),
+                            // Oeffnungszeiten pro Wochentag
+                            Repeater::make('opening_hours')
+                                ->label(__('partner.gas_station.fields.opening_hours'))
+                                ->schema([
+                                    Select::make('day')
+                                        ->label('Tag')
+                                        ->options([
+                                            'monday'    => 'Montag',
+                                            'tuesday'   => 'Dienstag',
+                                            'wednesday' => 'Mittwoch',
+                                            'thursday'  => 'Donnerstag',
+                                            'friday'    => 'Freitag',
+                                            'saturday'  => 'Samstag',
+                                            'sunday'    => 'Sonntag',
+                                        ])
+                                        ->required()
+                                        ->disableOptionsWhenSelectedInSiblingRepeaterItems(),
+                                    TextInput::make('open')
+                                        ->label('Oeffnung')
+                                        ->type('time'),
+                                    TextInput::make('close')
+                                        ->label('Schliessung')
+                                        ->type('time'),
+                                    Toggle::make('closed')
+                                        ->label('Geschlossen')
+                                        ->reactive(),
+                                ])
+                                ->columns(4)
+                                ->defaultItems(0)
+                                ->addActionLabel('Tag hinzufuegen')
+                                ->orderColumn(false)
+                                ->columnSpanFull(),
+                            Textarea::make('notes')
                                 ->label(__('partner.gas_station.fields.notes'))
-                                ->maxLength(1000),
-                        ]),
+                                ->rows(4)
+                                ->maxLength(2000)
+                                ->columnSpanFull(),
+                        ])
+                        ->columns(2),
+
+                    Tab::make(__('partner.gas_station.tabs.fotos'))
+                        ->icon('heroicon-o-photo')
+                        ->schema([
+                            FileUpload::make('logo')
+                                ->label(__('partner.gas_station.fields.logo'))
+                                ->image()
+                                ->disk('public')
+                                ->directory('gas-stations/logos')
+                                ->imagePreviewHeight('150')
+                                ->maxSize(2048)
+                                ->helperText('Empfohlen: Quadratisch, max. 2 MB (JPG/PNG)'),
+                            FileUpload::make('photos')
+                                ->label(__('partner.gas_station.fields.photos'))
+                                ->image()
+                                ->multiple()
+                                ->disk('public')
+                                ->directory('gas-stations/photos')
+                                ->imagePreviewHeight('120')
+                                ->maxFiles(10)
+                                ->maxSize(5120)
+                                ->reorderable()
+                                ->helperText('Bis zu 10 Fotos, max. 5 MB je Bild'),
+                        ])
+                        ->columns(2),
                 ])
                 ->columnSpanFull(),
         ]);
@@ -189,10 +301,10 @@ class GasStationResource extends Resource
                     ->searchable(['street', 'city', 'zip'])
                     ->toggleable(),
 
-                TextColumn::make('brand')
+                TextColumn::make('brand.name')
                     ->label(__('partner.gas_station.fields.brand'))
                     ->sortable()
-                    ->placeholder('-')
+                    ->placeholder('Keine Marke')
                     ->toggleable(),
 
                 BooleanColumn::make('is_active')

@@ -114,7 +114,8 @@ class UserResource extends Resource
                                 ->searchable()
                                 ->preload()
                                 ->nullable(),
-                        ]),
+                        ])
+                        ->columns(2),
 
                     Tab::make('Status')
                         ->icon('heroicon-o-signal')
@@ -127,7 +128,8 @@ class UserResource extends Resource
                             Placeholder::make('created_at_display')
                                 ->label(__('admin.user.fields.created_at'))
                                 ->content(fn (?Model $record) => $record?->created_at?->format('d.m.Y H:i') ?? '-'),
-                        ]),
+                        ])
+                        ->columns(2),
                 ])
                 ->columnSpanFull(),
         ]);

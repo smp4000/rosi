@@ -37,12 +37,13 @@ return [
         'label' => 'Tankstelle',
         'plural' => 'Tankstellen',
         'tabs' => [
-            'allgemein' => 'Allgemein',
             'adresse' => 'Adresse',
+            'allgemein' => 'Allgemein',
             'finanzen' => 'Finanzen',
             'oeffnungszeiten' => 'Oeffnungszeiten',
             'shop' => 'Shop',
             'fotos' => 'Fotos',
+            'wettbewerb' => 'Wettbewerb',
             'karte' => 'Karte',
         ],
         'fields' => [
@@ -111,6 +112,8 @@ return [
             // Medien
             'logo' => 'Logo / Titelfoto',
             'photos' => 'Weitere Fotos',
+            // Wettbewerb
+            'competitors' => 'Wettbewerbstankstellen',
             // Karte / Geo
             'latitude' => 'Breitengrad',
             'longitude' => 'Laengengrad',

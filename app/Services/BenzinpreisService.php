@@ -8,8 +8,7 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Service zum Importieren von Tankstellen-Daten von benzinpreis-aktuell.de.
- * Verwendet Nominatim fuer PLZ→Stadt-Aufloesung und parst die Stationsseiten.
- * Sucht im 25km-Umkreis ueber verlinkte Nachbarstaedte.
+ * Verwendet Nominatim fuer PLZ→Stadt-Aufloesung und die PLZ-basierte Umkreissuche.
  */
 class BenzinpreisService
 {
@@ -18,7 +17,7 @@ class BenzinpreisService
     private const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
     /**
-     * Sucht Tankstellen im 25km-Umkreis einer PLZ.
+     * Sucht Tankstellen im 20km-Umkreis einer PLZ.
      * Gibt Array von ['hash', 'slug', 'name', 'street', 'city'] zurueck.
      */
     public function searchByPlz(string $plz): array
@@ -27,88 +26,36 @@ class BenzinpreisService
             return [];
         }
 
-        return Cache::remember("bp_search25_{$plz}", now()->addMinutes(15), function () use ($plz) {
-            // 1. Stadt + Koordinaten aus PLZ via Nominatim
+        return Cache::remember("bp_plz20_{$plz}", now()->addMinutes(15), function () use ($plz) {
+            // 1. Ortsnamen aus PLZ via Nominatim
             $place = $this->resolvePlace($plz);
             if (! $place) {
                 return [];
             }
 
-            $originLat = $place['lat'];
-            $originLng = $place['lng'];
+            // 2. PLZ-Umkreissuche: {plz}-{city}-aktuelle-e10preise?umkreis=20
+            // Stadtname muss exakt zur PLZ passen, daher Fallback-Kette
+            $candidates = [$place['city'], ...$place['fallbacks']];
+            $result = null;
 
-            // 2. Hauptstadt-Seite laden → Stationen + Nachbarstaedte
-            // Bei kleinen Orten (Ortsteile) Fallback auf Gemeinde/Kreisstadt
-            $mainSlug = $this->cityToSlug($place['city']);
-            $mainResult = $this->fetchCityPage($mainSlug);
-
-            // Fallback: Wenn Hauptort keine Ergebnisse liefert, Gemeinde/Kreisstadt versuchen
-            if (! $mainResult || empty($mainResult['stations'])) {
-                foreach ($place['fallbacks'] as $fallbackCity) {
-                    $fallbackSlug = $this->cityToSlug($fallbackCity);
-                    $mainResult = $this->fetchCityPage($fallbackSlug);
-                    if ($mainResult && ! empty($mainResult['stations'])) {
-                        // Pruefen ob die Seite geografisch passt (gleichnamige Staedte in anderem Bundesland)
-                        if ($this->validateCityPageLocation($mainResult, $originLat, $originLng)) {
-                            $mainSlug = $fallbackSlug;
-                            break;
-                        }
-                        $mainResult = null; // Falsche Stadt, naechsten Fallback probieren
-                    }
+            foreach ($candidates as $city) {
+                $slug = $this->cityToSlug($city);
+                $result = $this->fetchPlzSearchPage($plz, $slug);
+                if ($result && ! empty($result['stations'])) {
+                    break;
                 }
+                $result = null;
             }
 
-            // Auch Hauptergebnis validieren (z.B. "Petersberg" existiert in Hessen + Sachsen-Anhalt)
-            if ($mainResult && ! empty($mainResult['stations'])) {
-                if (! $this->validateCityPageLocation($mainResult, $originLat, $originLng)) {
-                    // Falsche Stadt - Fallbacks versuchen
-                    $mainResult = null;
-                    foreach ($place['fallbacks'] as $fallbackCity) {
-                        $fallbackSlug = $this->cityToSlug($fallbackCity);
-                        $mainResult = $this->fetchCityPage($fallbackSlug);
-                        if ($mainResult && ! empty($mainResult['stations']) &&
-                            $this->validateCityPageLocation($mainResult, $originLat, $originLng)) {
-                            $mainSlug = $fallbackSlug;
-                            break;
-                        }
-                        $mainResult = null;
-                    }
-                }
-            }
-
-            if (! $mainResult) {
+            if (! $result) {
                 return [];
             }
 
-            $allStations = $mainResult['stations'];
-            $nearbySlugs = $mainResult['nearby_slugs'];
-
-            // 3. Nachbarstadt-Seiten parallel laden (Level 1)
-            // Hauptstadt-Slug rausfiltern (ist schon geladen)
-            $nearbySlugs = array_values(array_filter($nearbySlugs, fn ($s) => $s !== $mainSlug));
-
-            if (! empty($nearbySlugs)) {
-                $nearbyStations = $this->fetchMultipleCityPages($nearbySlugs);
-
-                foreach ($nearbyStations as $slug => $result) {
-                    // Geografische Validierung: gleichnamige Staedte in anderem Bundesland filtern
-                    if (! $this->validateCityPageLocation($result, $originLat, $originLng)) {
-                        continue;
-                    }
-
-                    foreach ($result['stations'] as $hash => $station) {
-                        if (! isset($allStations[$hash])) {
-                            $allStations[$hash] = $station;
-                        }
-                    }
-                }
-            }
-
             // Alphabetisch nach Name sortieren
-            $result = array_values($allStations);
-            usort($result, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+            $stations = array_values($result['stations']);
+            usort($stations, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
 
-            return $result;
+            return $stations;
         });
     }
 
@@ -145,8 +92,8 @@ class BenzinpreisService
     }
 
     /**
-     * Loest PLZ in Stadtnamen und Koordinaten auf via Nominatim (OpenStreetMap).
-     * Gibt ['city' => string, 'fallbacks' => string[], 'lat' => float, 'lng' => float] zurueck.
+     * Loest PLZ in Stadtnamen auf via Nominatim (OpenStreetMap).
+     * Gibt ['city' => string, 'fallbacks' => string[]] zurueck.
      * Fallbacks sind alternative Ortsnamen (Gemeinde, Landkreis) falls der Hauptort zu klein ist.
      */
     private function resolvePlace(string $plz): ?array
@@ -171,8 +118,6 @@ class BenzinpreisService
                 return null;
             }
 
-            $lat = (float) ($data[0]['lat'] ?? 0);
-            $lng = (float) ($data[0]['lon'] ?? 0);
             $address = $data[0]['address'] ?? [];
 
             // Hauptstadt: city > town > village
@@ -193,7 +138,7 @@ class BenzinpreisService
             }
 
             if ($city) {
-                return ['city' => $city, 'fallbacks' => $fallbacks, 'lat' => $lat, 'lng' => $lng];
+                return ['city' => $city, 'fallbacks' => $fallbacks];
             }
 
             // Fallback: aus display_name parsen
@@ -202,7 +147,7 @@ class BenzinpreisService
             foreach ($parts as $part) {
                 $part = trim($part);
                 if ($part && ! is_numeric($part) && strlen($part) > 2 && $part !== 'Deutschland') {
-                    return ['city' => $part, 'fallbacks' => $fallbacks, 'lat' => $lat, 'lng' => $lng];
+                    return ['city' => $part, 'fallbacks' => $fallbacks];
                 }
             }
 
@@ -215,15 +160,16 @@ class BenzinpreisService
     }
 
     /**
-     * Laedt eine Stadt-Seite und extrahiert Stationen + Nachbarstaedte.
-     * Gibt ['stations' => [...], 'nearby_slugs' => [...]] zurueck.
+     * Laedt die PLZ-basierte Umkreissuche und extrahiert Stationen.
+     * URL: {plz}-{citySlug}-aktuelle-e10preise?umkreis=20
+     * Gibt ['stations' => [...]] zurueck, null bei 404.
      */
-    private function fetchCityPage(string $citySlug): ?array
+    private function fetchPlzSearchPage(string $plz, string $citySlug): ?array
     {
-        $url = self::BASE_URL . "benzinpreise-{$citySlug}-heute";
+        $url = self::BASE_URL . "{$plz}-{$citySlug}-aktuelle-e10preise?umkreis=20";
 
         try {
-            $response = Http::withoutVerifying()->timeout(12)
+            $response = Http::withoutVerifying()->timeout(15)
                 ->withUserAgent(self::USER_AGENT)
                 ->withHeaders(['Accept-Language' => 'de-DE,de;q=0.9'])
                 ->get($url);
@@ -232,54 +178,30 @@ class BenzinpreisService
                 return null;
             }
 
-            return $this->parseCityPage($response->body());
+            $html = $response->body();
+
+            // 404-Seite erkennen (HTTP 200 aber Titel "401 - Seite leider nicht gefunden")
+            if (preg_match('/<title>[^<]*(?:nicht gefunden|404|401)/i', $html)) {
+                return null;
+            }
+
+            return $this->parseStationBlocks($html);
         } catch (\Exception $e) {
-            Log::error("BenzinpreisService: City-Fehler fuer {$citySlug}: {$e->getMessage()}");
+            Log::error("BenzinpreisService: PLZ-Suche Fehler fuer {$plz}-{$citySlug}: {$e->getMessage()}");
 
             return null;
         }
     }
 
     /**
-     * Laedt mehrere Stadt-Seiten parallel via Http::pool.
+     * Parst Stationsblocks aus HTML.
+     * Gleiche Block-Struktur auf Stadt- und PLZ-Suchseiten:
+     * <div id="station-tHASH-SLUG"> ... <strong>NAME</strong><br>STRASSE ...
      */
-    private function fetchMultipleCityPages(array $citySlugs): array
-    {
-        $results = [];
-
-        $responses = Http::pool(function ($pool) use ($citySlugs) {
-            foreach ($citySlugs as $slug) {
-                $pool->as($slug)->withoutVerifying()->timeout(12)
-                    ->withUserAgent(self::USER_AGENT)
-                    ->withHeaders(['Accept-Language' => 'de-DE,de;q=0.9'])
-                    ->get(self::BASE_URL . "benzinpreise-{$slug}-heute");
-            }
-        });
-
-        foreach ($responses as $slug => $response) {
-            if ($response instanceof \Illuminate\Http\Client\Response && $response->successful()) {
-                $parsed = $this->parseCityPage($response->body());
-                if ($parsed) {
-                    $results[$slug] = $parsed;
-                }
-            }
-        }
-
-        return $results;
-    }
-
-    /**
-     * Parst eine Stadt-Seite: extrahiert Tankstellen (mit Adresse) und Nachbarstadt-Links.
-     * HTML-Struktur: <strong class="isstrong">NAME</strong><br>STRASSE<span...>
-     * gefolgt von: <a href="preise-tHASH-SLUG">
-     */
-    private function parseCityPage(string $html): array
+    private function parseStationBlocks(string $html): array
     {
         $stations = [];
-        $nearbySlugs = [];
 
-        // Jede Station ist ein <div id="station-tHASH-SLUG" class="ns_newsquare..."> Block.
-        // Wir splitten nach diesen Bloecken um Cross-Block-Matches zu vermeiden.
         if (preg_match_all(
             '/<div id="station-t([a-f0-9]+)-([^"]+)"[^>]*>(.+?)(?=<div id="station-t|<div class="sxi"|$)/s',
             $html,
@@ -328,15 +250,7 @@ class BenzinpreisService
             }
         }
 
-        // Nachbarstadt-Links: href="...benzinpreise-SLUG-heute..."
-        if (preg_match_all('/href=["\'][^"\']*benzinpreise-([a-z][a-z0-9\-]+)-heute[^"\']*["\']/i', $html, $cityMatches)) {
-            $nearbySlugs = array_unique($cityMatches[1]);
-        }
-
-        return [
-            'stations' => $stations,
-            'nearby_slugs' => $nearbySlugs,
-        ];
+        return ['stations' => $stations];
     }
 
     /**
@@ -359,10 +273,10 @@ class BenzinpreisService
         // Marke/Brand aus Titel
         if (preg_match('/Spritpreise\s+(\S+)\s+in\s+(\S+)/i', $html, $tm)) {
             $result['brand'] = strip_tags(trim($tm[1]));
-            $result['city'] = strip_tags(trim($tm[2]));
+            $result['city'] = rtrim(strip_tags(trim($tm[2])), ':.,;');
         }
 
-        // Adresse: Flexibles Pattern fuer Strassennamen mit Suffix
+        // Adresse: Strategie 1 - Suffix-basiert (Strasse, Weg, Platz etc.)
         $streetSuffix = 'stra(?:ß|ss)e|str\.|weg|platz|gasse|berg|ring|allee|damm|chaussee|hof|steig';
         if (preg_match(
             '/([A-ZÄÖÜa-zäöüß][^<>]{0,80}?(?:' . $streetSuffix . '))\s+(\d[\d\s\-\/a-z]*?)\s*<br>\s*(\d{5})\s+([A-ZÄÖÜa-zäöüß][^<>]{0,60}?)\s*</iu',
@@ -383,17 +297,56 @@ class BenzinpreisService
             $result['city'] = trim($am[3]);
         }
 
-        // Fallback: Google Maps Link (daddr=Strasse+Nr+PLZ+Stadt)
+        // Adresse: Strategie 2 - "Wo finde ich die Tankstelle?" Section (fuer Strassen ohne Standard-Suffix)
+        if (! $result['street'] && preg_match(
+            '/Wo finde ich die Tankstelle\?\s*<\/h2>\s*<p[^>]*>\s*(.+?)\s+(\d[\d\s\-\/a-z]*?)\s*<br>\s*(\d{5})\s+([^<]+)/iu',
+            $html,
+            $am
+        )) {
+            $result['street'] = trim($am[1]);
+            $result['house_number'] = trim($am[2]);
+            $result['zip'] = trim($am[3]);
+            $result['city'] = trim($am[4]);
+        }
+
+        // Adresse: Strategie 3 - "Wo finde ich" ohne Hausnummer
+        if (! $result['street'] && preg_match(
+            '/Wo finde ich die Tankstelle\?\s*<\/h2>\s*<p[^>]*>\s*(.+?)\s*<br>\s*(\d{5})\s+([^<]+)/iu',
+            $html,
+            $am
+        )) {
+            $result['street'] = trim($am[1]);
+            $result['zip'] = trim($am[2]);
+            $result['city'] = trim($am[3]);
+        }
+
+        // Adresse: Strategie 4 - Google Maps Link (daddr=...+PLZ+Stadt)
         if (! $result['street'] && preg_match('/daddr=([^&"\']+)/i', $html, $gm)) {
-            $addr = urldecode($gm[1]);
-            $parts = preg_split('/\+/', $addr);
+            // Raw-Value VOR urldecode am + splitten (urldecode wandelt + in Leerzeichen)
+            $parts = explode('+', $gm[1]);
+            $parts = array_map(fn ($p) => urldecode(trim($p)), $parts);
+            $parts = array_values(array_filter($parts, fn ($p) => $p !== ''));
+
             foreach ($parts as $i => $part) {
-                if (preg_match('/^\d{5}$/', trim($part))) {
-                    $result['street'] = trim(implode(' ', array_slice($parts, 0, $i)));
-                    $result['zip'] = trim($part);
+                if (preg_match('/^\d{5}$/', $part)) {
+                    // Alles vor PLZ = Strasse (ohne Markenname/Tankstelle)
+                    $streetParts = array_slice($parts, 0, $i);
+                    // "ARAL Tankstelle Fulda" Prefix entfernen
+                    $streetStr = implode(' ', $streetParts);
+                    if (preg_match('/(?:Tankstelle\s+\S+\s+)(.+)$/i', $streetStr, $sp)) {
+                        $streetStr = $sp[1];
+                    }
+                    $result['street'] = trim($streetStr);
+                    $result['zip'] = $part;
                     $result['city'] = trim(implode(' ', array_slice($parts, $i + 1)));
                     break;
                 }
+            }
+
+            // Hausnummer aus Strasse extrahieren (letzte Zahl am Ende)
+            if ($result['street'] && preg_match('/^(.+?)\s+(\d[\d\s\-\/a-z]*)$/iu', $result['street'], $hn)) {
+                $result['street'] = trim($hn[1]);
+                $result['house_number'] = trim($hn[2]);
             }
         }
 
@@ -436,7 +389,7 @@ class BenzinpreisService
         if (preg_match('/<title>\s*([^|<]+)/i', $html, $titleM)) {
             $fullTitle = trim($titleM[1]);
             if (preg_match('/^(\S+)\s+(?:Tankstelle|Preise)\s+(\S+)/i', $fullTitle, $ntm)) {
-                $result['name'] = trim($ntm[1]) . ' ' . trim($ntm[2]);
+                $result['name'] = rtrim(trim($ntm[1]), ':.,') . ' ' . rtrim(trim($ntm[2]), ':.,');
             }
         }
 
@@ -447,6 +400,9 @@ class BenzinpreisService
             $result['name'] = trim("{$brand} {$city}");
         }
 
+        // Stadt bereinigen (Trailing Satzzeichen entfernen)
+        $result['city'] = rtrim($result['city'], ':.,;');
+
         // Name mit Strasse ergaenzen
         if ($result['name'] && $result['street']) {
             $result['name'] .= ' · ' . $result['street'];
@@ -456,45 +412,6 @@ class BenzinpreisService
         }
 
         return $result;
-    }
-
-    /**
-     * Validiert ob eine Stadtseite geografisch zur gesuchten PLZ passt.
-     * Laedt die Detailseite der ersten Station und prueft die Koordinaten-Entfernung.
-     */
-    private function validateCityPageLocation(array $cityResult, float $originLat, float $originLng): bool
-    {
-        if (empty($cityResult['stations'])) {
-            return false;
-        }
-
-        // Erste Station mit Hash/Slug nehmen und Detail-Seite laden
-        $firstStation = reset($cityResult['stations']);
-        $details = $this->fetchStationDetails($firstStation['hash'], $firstStation['slug']);
-
-        if (! $details || ! $details['lat'] || ! $details['lng']) {
-            // Keine Koordinaten verfuegbar - optimistisch annehmen
-            return true;
-        }
-
-        // Entfernung berechnen (Haversine, vereinfacht)
-        $distance = $this->haversineDistance($originLat, $originLng, $details['lat'], $details['lng']);
-
-        // Maximal 50km Toleranz
-        return $distance <= 50;
-    }
-
-    /**
-     * Berechnet die Entfernung zwischen zwei Koordinaten in km (Haversine-Formel).
-     */
-    private function haversineDistance(float $lat1, float $lng1, float $lat2, float $lng2): float
-    {
-        $r = 6371; // Erdradius in km
-        $dLat = deg2rad($lat2 - $lat1);
-        $dLng = deg2rad($lng2 - $lng1);
-        $a = sin($dLat / 2) ** 2 + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLng / 2) ** 2;
-
-        return $r * 2 * atan2(sqrt($a), sqrt(1 - $a));
     }
 
     /**

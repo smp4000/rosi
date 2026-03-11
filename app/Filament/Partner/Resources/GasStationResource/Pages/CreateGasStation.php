@@ -119,6 +119,32 @@ class CreateGasStation extends CreateRecord
                             $importData['latitude'] = $details['lat'];
                             $importData['longitude'] = $details['lng'];
 
+                            // Bundesland + Ortsteil per Reverse Geocoding (Koordinaten vorhanden)
+                            if ($details['lat'] && $details['lng']) {
+                                try {
+                                    $geoResp = \Illuminate\Support\Facades\Http::withoutVerifying()
+                                        ->timeout(5)
+                                        ->withUserAgent('Mozilla/5.0 (ROSI-App)')
+                                        ->get('https://nominatim.openstreetmap.org/reverse', [
+                                            'lat' => $details['lat'],
+                                            'lon' => $details['lng'],
+                                            'format' => 'json',
+                                            'addressdetails' => 1,
+                                        ]);
+                                    if ($geoResp->successful()) {
+                                        $geoAddr = $geoResp->json()['address'] ?? [];
+                                        $importData['state'] = $geoAddr['state'] ?? '';
+                                        $district = $geoAddr['suburb'] ?? $geoAddr['quarter'] ?? $geoAddr['village'] ?? '';
+                                        if ($district && $district !== ($details['city'] ?? '')) {
+                                            $importData['district_part'] = $district;
+                                        }
+                                        $importData['country'] = strtoupper($geoAddr['country_code'] ?? 'DE');
+                                    }
+                                } catch (\Exception $e) {
+                                    // Stille Fehlerbehandlung
+                                }
+                            }
+
                             // Marke zuordnen
                             $brandName = '';
                             if ($details['brand']) {
@@ -129,12 +155,14 @@ class CreateGasStation extends CreateRecord
                                 $brandName = $details['brand'];
                             }
 
-                            // Oeffnungszeiten uebernehmen
+                            // Oeffnungszeiten uebernehmen (keine Zeiten = 24h-Betrieb)
                             if (! empty($details['opening_hours'])) {
                                 foreach ($details['opening_hours'] as $day => $times) {
                                     data_set($importData, "opening_hours.{$day}.open", $times['open'] ?? '');
                                     data_set($importData, "opening_hours.{$day}.close", $times['close'] ?? '');
                                 }
+                            } else {
+                                data_set($importData, 'opening_hours.is_24h', true);
                             }
 
                             // Daten direkt im Livewire-Component setzen (zuverlaessig ueber Wizard-Steps)
@@ -161,7 +189,7 @@ class CreateGasStation extends CreateRecord
                                 }
                                 $lines[] = '<strong>Öffnungszeiten:</strong> ' . e(implode(', ', $ohParts));
                             } else {
-                                $lines[] = '<strong>Öffnungszeiten:</strong> –';
+                                $lines[] = '<strong>Öffnungszeiten:</strong> 24/7 (Rund um die Uhr)';
                             }
 
                             Notification::make()

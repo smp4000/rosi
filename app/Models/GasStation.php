@@ -80,6 +80,8 @@ class GasStation extends Model
         // Medien
         'logo',
         'photos',
+        // Wettbewerb
+        'competitors',
         // Sonstiges
         'notes',
         'is_active',
@@ -101,6 +103,7 @@ class GasStation extends Model
             'shop_setup_date' => 'date',
             'services' => 'array',
             'photos' => 'array',
+            'competitors' => 'array',
             'is_active' => 'boolean',
             'settings' => 'array',
         ];

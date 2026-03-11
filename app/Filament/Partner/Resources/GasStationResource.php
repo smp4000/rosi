@@ -9,6 +9,7 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -26,10 +27,11 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Http;
 
 /**
  * Filament Resource fuer die Tankstellen-Verwaltung im Partner-Panel.
- * 7 Tabs: Allgemein, Adresse, Finanzen, Oeffnungszeiten, Shop, Fotos, Karte.
+ * 8 Tabs: Adresse, Allgemein, Finanzen, Oeffnungszeiten, Shop, Fotos, Wettbewerb, Karte.
  */
 class GasStationResource extends Resource
 {
@@ -116,12 +118,99 @@ class GasStationResource extends Resource
     }
 
     /**
-     * Baut alle 7 Tabs fuer das Tankstellen-Formular.
+     * Baut alle 8 Tabs fuer das Tankstellen-Formular.
      */
     private static function buildFormTabs(): array
     {
         return [
-                    // ========== TAB 1: ALLGEMEIN ==========
+                    // ========== TAB 1: ADRESSE ==========
+                    Tab::make(__('partner.gas_station.tabs.adresse'))
+                        ->icon('heroicon-o-map-pin')
+                        ->schema([
+                            // --- Ansprechpartner ---
+                            Section::make('Ansprechpartner')
+                                ->schema([
+                                    Select::make('academic_title')
+                                        ->label(__('partner.gas_station.fields.academic_title'))
+                                        ->options(__('partner.gas_station.academic_titles'))
+                                        ->searchable(),
+                                    TextInput::make('contact_first_name')
+                                        ->label(__('partner.gas_station.fields.contact_first_name'))
+                                        ->required()
+                                        ->maxLength(255),
+                                    TextInput::make('contact_last_name')
+                                        ->label(__('partner.gas_station.fields.contact_last_name'))
+                                        ->required()
+                                        ->maxLength(255),
+                                ])
+                                ->columns(3)
+                                ->columnSpanFull(),
+
+                            // --- Adresse ---
+                            TextInput::make('street')
+                                ->label(__('partner.gas_station.fields.street'))
+                                ->required()
+                                ->maxLength(255),
+                            TextInput::make('house_number')
+                                ->label(__('partner.gas_station.fields.house_number'))
+                                ->maxLength(20),
+                            TextInput::make('zip')
+                                ->label(__('partner.gas_station.fields.zip'))
+                                ->required()
+                                ->maxLength(10),
+                            TextInput::make('city')
+                                ->label(__('partner.gas_station.fields.city'))
+                                ->required()
+                                ->maxLength(255)
+                                ->live(onBlur: true)
+                                ->afterStateUpdated(function (Get $get, Set $set) {
+                                    self::fillAddressFromNominatim($get, $set);
+                                }),
+                            TextInput::make('district_part')
+                                ->label(__('partner.gas_station.fields.district_part'))
+                                ->maxLength(100),
+                            TextInput::make('state')
+                                ->label(__('partner.gas_station.fields.state'))
+                                ->maxLength(100),
+                            TextInput::make('country')
+                                ->label(__('partner.gas_station.fields.country'))
+                                ->default('DE')
+                                ->maxLength(2),
+
+                            // --- Kontakt ---
+                            Section::make('Kontakt')
+                                ->schema([
+                                    TextInput::make('phone')
+                                        ->label(__('partner.gas_station.fields.phone'))
+                                        ->tel()
+                                        ->required()
+                                        ->maxLength(50),
+                                    TextInput::make('fax')
+                                        ->label(__('partner.gas_station.fields.fax'))
+                                        ->tel()
+                                        ->maxLength(50),
+                                    TextInput::make('email')
+                                        ->label(__('partner.gas_station.fields.email'))
+                                        ->email()
+                                        ->maxLength(255),
+                                    TextInput::make('website')
+                                        ->label(__('partner.gas_station.fields.website'))
+                                        ->url()
+                                        ->maxLength(255)
+                                        ->prefix('https://'),
+                                ])
+                                ->columns(2)
+                                ->columnSpanFull(),
+
+                            // Anrede Anschrift (automatisch zusammengesetzt)
+                            Placeholder::make('salutation_address')
+                                ->label(__('partner.gas_station.fields.salutation_address'))
+                                ->content(fn (?Model $record) => $record?->salutation_address ?? '-')
+                                ->columnSpan(2),
+                        ])
+                        ->columns(2),
+
+                    // ========== TAB 2: ALLGEMEIN ==========
                     Tab::make(__('partner.gas_station.tabs.allgemein'))
                         ->icon('heroicon-o-building-storefront')
                         ->schema([
@@ -220,80 +309,8 @@ class GasStationResource extends Resource
                         ])
                         ->columns(2),
 
-                    // ========== TAB 2: ADRESSE ==========
-                    Tab::make(__('partner.gas_station.tabs.adresse'))
-                        ->icon('heroicon-o-map-pin')
-                        ->schema([
-                            Select::make('academic_title')
-                                ->label(__('partner.gas_station.fields.academic_title'))
-                                ->options(__('partner.gas_station.academic_titles'))
-                                ->searchable(),
-                            Placeholder::make('spacer_title')
-                                ->label('')
-                                ->content(''),
-                            TextInput::make('contact_last_name')
-                                ->label(__('partner.gas_station.fields.contact_last_name'))
-                                ->required()
-                                ->maxLength(255),
-                            TextInput::make('contact_first_name')
-                                ->label(__('partner.gas_station.fields.contact_first_name'))
-                                ->required()
-                                ->maxLength(255),
-                            TextInput::make('street')
-                                ->label(__('partner.gas_station.fields.street'))
-                                ->required()
-                                ->maxLength(255),
-                            TextInput::make('house_number')
-                                ->label(__('partner.gas_station.fields.house_number'))
-                                ->maxLength(20),
-                            TextInput::make('zip')
-                                ->label(__('partner.gas_station.fields.zip'))
-                                ->required()
-                                ->maxLength(10),
-                            TextInput::make('city')
-                                ->label(__('partner.gas_station.fields.city'))
-                                ->required()
-                                ->maxLength(255),
-                            TextInput::make('district_part')
-                                ->label(__('partner.gas_station.fields.district_part'))
-                                ->maxLength(100),
-                            TextInput::make('state')
-                                ->label(__('partner.gas_station.fields.state'))
-                                ->maxLength(100),
-                            TextInput::make('country')
-                                ->label(__('partner.gas_station.fields.country'))
-                                ->default('DE')
-                                ->maxLength(2),
-                            Placeholder::make('spacer_country')
-                                ->label('')
-                                ->content(''),
-                            TextInput::make('phone')
-                                ->label(__('partner.gas_station.fields.phone'))
-                                ->tel()
-                                ->required()
-                                ->maxLength(50),
-                            TextInput::make('fax')
-                                ->label(__('partner.gas_station.fields.fax'))
-                                ->tel()
-                                ->maxLength(50),
-                            TextInput::make('email')
-                                ->label(__('partner.gas_station.fields.email'))
-                                ->email()
-                                ->maxLength(255),
-                            TextInput::make('website')
-                                ->label(__('partner.gas_station.fields.website'))
-                                ->url()
-                                ->maxLength(255)
-                                ->prefix('https://'),
-                            // Anrede Anschrift (automatisch zusammengesetzt)
-                            Placeholder::make('salutation_address')
-                                ->label(__('partner.gas_station.fields.salutation_address'))
-                                ->content(fn (?Model $record) => $record?->salutation_address ?? '-')
-                                ->columnSpan(2),
-                        ])
-                        ->columns(2),
-
                     // ========== TAB 3: FINANZEN ==========
+
                     Tab::make(__('partner.gas_station.tabs.finanzen'))
                         ->icon('heroicon-o-banknotes')
                         ->schema([
@@ -343,10 +360,9 @@ class GasStationResource extends Resource
                             // Montag bis Sonntag (je 2 nebeneinander, nur wenn nicht 24h)
                             ...self::buildOpeningHoursFields(),
 
-                            // Berechnete Wochenstunden (nur wenn nicht 24h)
+                            // Berechnete Wochenstunden
                             View::make('filament.components.gas-station-weekly-hours')
-                                ->columnSpanFull()
-                                ->visible(fn (Get $get): bool => ! $get('opening_hours.is_24h')),
+                                ->columnSpanFull(),
 
                             // Erstoeffnungs-Daten
                             DatePicker::make('first_opening_ok')
@@ -420,7 +436,39 @@ class GasStationResource extends Resource
                         ])
                         ->columns(2),
 
-                    // ========== TAB 7: KARTE ==========
+                    // ========== TAB 7: WETTBEWERB ==========
+                    Tab::make(__('partner.gas_station.tabs.wettbewerb'))
+                        ->icon('heroicon-o-scale')
+                        ->schema([
+                            Repeater::make('competitors')
+                                ->label(__('partner.gas_station.fields.competitors'))
+                                ->schema([
+                                    TextInput::make('name')
+                                        ->label('Name / Marke')
+                                        ->required()
+                                        ->maxLength(255),
+                                    TextInput::make('street')
+                                        ->label('Strasse')
+                                        ->maxLength(255),
+                                    TextInput::make('distance')
+                                        ->label('Entfernung (km)')
+                                        ->numeric()
+                                        ->step(0.1)
+                                        ->suffix('km'),
+                                    Textarea::make('notes')
+                                        ->label('Bemerkungen')
+                                        ->rows(2)
+                                        ->maxLength(500),
+                                ])
+                                ->columns(2)
+                                ->defaultItems(0)
+                                ->addActionLabel('Wettbewerber hinzufuegen')
+                                ->reorderable()
+                                ->collapsible()
+                                ->columnSpanFull(),
+                        ]),
+
+                    // ========== TAB 8: KARTE ==========
                     Tab::make(__('partner.gas_station.tabs.karte'))
                         ->icon('heroicon-o-globe-alt')
                         ->schema([
@@ -476,6 +524,61 @@ class GasStationResource extends Resource
         }
 
         return $fields;
+    }
+
+    /**
+     * Fuellt Ortsteil, Bundesland und Land per Nominatim aus PLZ+Stadt.
+     */
+    private static function fillAddressFromNominatim(Get $get, Set $set): void
+    {
+        $zip = $get('zip');
+        $city = $get('city');
+
+        if (! $zip || ! $city || strlen($zip) < 4) {
+            return;
+        }
+
+        try {
+            $response = Http::withoutVerifying()->timeout(5)
+                ->withUserAgent('Mozilla/5.0 (ROSI-App)')
+                ->get('https://nominatim.openstreetmap.org/search', [
+                    'postalcode' => $zip,
+                    'city' => $city,
+                    'country' => 'de',
+                    'format' => 'json',
+                    'addressdetails' => 1,
+                    'limit' => 1,
+                ]);
+
+            if (! $response->successful()) {
+                return;
+            }
+
+            $data = $response->json();
+            if (empty($data)) {
+                return;
+            }
+
+            $address = $data[0]['address'] ?? [];
+
+            // Bundesland
+            if (! empty($address['state']) && ! $get('state')) {
+                $set('state', $address['state']);
+            }
+
+            // Ortsteil (suburb > quarter > village, nur wenn unterschiedlich zur Stadt)
+            $district = $address['suburb'] ?? $address['quarter'] ?? $address['village'] ?? '';
+            if ($district && $district !== $city && ! $get('district_part')) {
+                $set('district_part', $district);
+            }
+
+            // Land (nur wenn leer)
+            if (! $get('country')) {
+                $set('country', strtoupper($address['country_code'] ?? 'DE'));
+            }
+        } catch (\Exception $e) {
+            // Stille Fehlerbehandlung - Auto-Fill ist optional
+        }
     }
 
     // --- Tabelle ---

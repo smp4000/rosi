@@ -15,10 +15,21 @@
                         this.calculate();
                     }
                 });
+                // Nach Livewire DOM-Update neu berechnen (z.B. 24h-Toggle)
+                Livewire.hook('morph.updated', ({ el, component }) => {
+                    this.$nextTick(() => this.calculate());
+                });
             });
         },
         calculate() {
             const timeInputs = document.querySelectorAll('input[type=time]');
+
+            // Keine Zeitfelder im DOM = 24h-Modus aktiv → 168 Stunden
+            if (timeInputs.length === 0) {
+                this.hours = 168;
+                return;
+            }
+
             let totalMinutes = 0;
 
             // Time-Inputs kommen paarweise (open, close) pro Tag

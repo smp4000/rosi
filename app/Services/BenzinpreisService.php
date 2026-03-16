@@ -240,12 +240,25 @@ class BenzinpreisService
                     $city = trim($cm[1]);
                 }
 
+                // Preis aus em-Tag extrahieren (z.B. <em title="...">1.92</em><sup>9</sup>)
+                $price = null;
+                $fuelType = '';
+                if (preg_match('/<em\s+title="([^"]*)">([\d.]+)<\/em><sup>(\d)<\/sup>/i', $blockHtml, $pm)) {
+                    $price = $pm[2] . $pm[3]; // z.B. "1.929"
+                    // Spritsorte aus title extrahieren ("E10-Preis", "Diesel-Preis", "Super-Preis")
+                    if (preg_match('/(E10|Diesel|Super\s*E5|Super\s*Plus|Super)\s*-?\s*Preis/i', $pm[1], $ft)) {
+                        $fuelType = trim($ft[1]);
+                    }
+                }
+
                 $stations[$hash] = [
                     'hash' => $hash,
                     'slug' => $slug,
                     'name' => $name,
                     'street' => $street,
                     'city' => $city,
+                    'price' => $price,
+                    'fuel_type' => $fuelType,
                 ];
             }
         }
@@ -268,6 +281,7 @@ class BenzinpreisService
             'lat' => null,
             'lng' => null,
             'opening_hours' => [],
+            'prices' => [],
         ];
 
         // Marke/Brand aus Titel
@@ -398,6 +412,79 @@ class BenzinpreisService
             $brand = $result['brand'] ?: '';
             $city = $result['city'] ?: '';
             $result['name'] = trim("{$brand} {$city}");
+        }
+
+        // --- Preise extrahieren ---
+
+        // Strategie 1: Preise aus div.preise25 (Hauptanzeige, am zuverlaessigsten)
+        // Format: <div class="preis25 preis_e10"><em>1,97<sup>9</sup></em><p>Super E10
+        if (preg_match_all(
+            '/<div[^>]*class="[^"]*preis25[^"]*preis_(\w+)[^"]*"[^>]*>\s*<em>([\d,]+)<sup>(\d)<\/sup><\/em>/si',
+            $html,
+            $pm,
+            PREG_SET_ORDER
+        )) {
+            foreach ($pm as $p) {
+                $type = strtolower(trim($p[1]));
+                $price = str_replace(',', '.', $p[2]) . $p[3]; // "1,97" + "9" -> "1.979"
+                $fuelName = match ($type) {
+                    'benzin' => 'Super',
+                    'e10' => 'E10',
+                    'diesel' => 'Diesel',
+                    default => ucfirst($type),
+                };
+                $result['prices'][$fuelName] = $price;
+            }
+        }
+
+        // Strategie 2: Vergleichstabelle (Kraftstoff | Bundesschnitt | Region | Station)
+        if (empty($result['prices']) && preg_match('/<table\s+class="stbl">(.*?)<\/table>/si', $html, $tableM)) {
+            $tableHtml = $tableM[1];
+            $fuelCols = [];
+            if (preg_match('/<thead>(.*?)<\/thead>/si', $tableHtml, $headM)) {
+                if (preg_match_all('/<th[^>]*>([^<]+)/i', $headM[1], $ths)) {
+                    $fuelCols = array_map('trim', $ths[1]);
+                }
+            }
+
+            // Format A: Zeilen = Kraftstoffarten, letzte Spalte = Stationspreis
+            if (in_array('Kraftstoff', $fuelCols)) {
+                if (preg_match_all('/<tr>\s*<td>(\w+)<\/td>(.*?)<\/tr>/si', $tableHtml, $rows, PREG_SET_ORDER)) {
+                    foreach ($rows as $row) {
+                        $fuelName = match (strtolower(trim($row[1]))) {
+                            'super', 'benzin' => 'Super',
+                            'e10' => 'E10',
+                            'diesel' => 'Diesel',
+                            default => trim($row[1]),
+                        };
+                        // Letzten Preiswert nehmen (= Stationspreis)
+                        if (preg_match_all('/([\d.,]+)\s*€/i', $row[2], $vals)) {
+                            $lastPrice = end($vals[1]);
+                            $result['prices'][$fuelName] = str_replace(',', '.', $lastPrice);
+                        }
+                    }
+                }
+            }
+            // Format B: Spalten = Kraftstoffarten, Zeilen = Tage (Heute/Jetzt)
+            else {
+                if (preg_match('/<tr>\s*<td>.*?Heute.*?<\/td>(.*?)<\/tr>/si', $tableHtml, $rowM)) {
+                    if (preg_match_all('/<td>([\d.,]+)\s*€<\/td>/i', $rowM[1], $vals)) {
+                        foreach ($vals[1] as $i => $val) {
+                            $colIdx = $i + 1;
+                            $fuelName = $fuelCols[$colIdx] ?? '';
+                            $fuelName = match (strtolower(trim($fuelName))) {
+                                'benzin' => 'Super',
+                                'e10' => 'E10',
+                                'diesel' => 'Diesel',
+                                default => trim($fuelName),
+                            };
+                            if ($fuelName) {
+                                $result['prices'][$fuelName] = str_replace(',', '.', $val);
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // Stadt bereinigen (Trailing Satzzeichen entfernen)

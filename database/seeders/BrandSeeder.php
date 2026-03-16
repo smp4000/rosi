@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\Brand;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Befuellt die brands-Tabelle mit allen gaengigen deutschen Tankstellen-Marken.
@@ -45,10 +45,18 @@ class BrandSeeder extends Seeder
             ['name' => 'Freie Tankstelle', 'slug' => 'freie-tankstelle', 'sort_order' => 99],
         ];
 
+        $now = now();
+
         foreach ($brands as $data) {
-            Brand::firstOrCreate(
+            DB::table('brands')->updateOrInsert(
                 ['name' => $data['name']],
-                $data,
+                [
+                    'slug' => $data['slug'],
+                    'sort_order' => $data['sort_order'],
+                    'is_active' => true,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ],
             );
         }
 

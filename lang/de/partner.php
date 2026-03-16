@@ -41,11 +41,19 @@ return [
             'allgemein' => 'Allgemein',
             'finanzen' => 'Finanzen',
             'oeffnungszeiten' => 'Oeffnungszeiten',
-            'shop' => 'Shop',
+            'shop' => 'Shop & Betrieb',
             'fotos' => 'Fotos',
             'wettbewerb' => 'Wettbewerb',
             'karte' => 'Karte',
         ],
+        'sections' => [
+            'tank_details' => 'Tankdetails',
+            'car_wash' => 'Waschanlage',
+            'shop_details' => 'Shop-Details',
+            'additional_businesses' => 'Zusatzgeschaefte',
+            'competitor_search' => 'Wettbewerber suchen',
+        ],
+        'competitor_search_hint' => 'Geben Sie eine PLZ ein, um Tankstellen im Umkreis zu finden. Waehlen Sie eine Station aus, um sie als Wettbewerber hinzuzufuegen (max. 8).',
         'fields' => [
             // Allgemein
             'name' => 'Name',
@@ -66,6 +74,19 @@ return [
             'has_shop' => 'Shop vorhanden',
             'has_car_wash' => 'Waschanlage vorhanden',
             'services' => 'Angebotene Kraftstoffe & Services',
+            'fuel_types' => 'Kraftstoffsorten',
+            'shop_services' => 'Shop-Angebot',
+            'additional_businesses' => 'Zusatzgeschaefte',
+            // Waschanlage
+            'cw_has_drive_through' => 'Durchfahrtshalle',
+            'cw_brand' => 'Marke',
+            'cw_type' => 'Anlagentyp',
+            'cw_height' => 'Durchfahrtshoehe',
+            'cw_width' => 'Durchfahrtsbreite',
+            'cw_has_underbody_wash' => 'Unterbodenwaesche',
+            'cw_has_ticket_system' => 'Ticketsystem',
+            'cw_has_easy_carwash_pro' => 'Easy Carwash Pro',
+            'cw_notes' => 'Interne Notizen (Waschanlage)',
             'notes' => 'Interne Notizen',
             'is_active' => 'Aktiv',
             // Adresse
@@ -113,6 +134,8 @@ return [
             'logo' => 'Logo / Titelfoto',
             'photos' => 'Weitere Fotos',
             // Wettbewerb
+            'competitor_search_plz' => 'PLZ',
+            'competitor_stations' => 'Gefundene Tankstellen',
             'competitors' => 'Wettbewerbstankstellen',
             // Karte / Geo
             'latitude' => 'Breitengrad',

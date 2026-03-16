@@ -67,6 +67,9 @@ class GasStation extends Model
         'first_opening_ok',
         'first_opening_dk',
         'services',
+        'fuel_types',
+        'additional_businesses',
+        'car_wash_details',
         // Shop
         'shop_size',
         'shop_type',
@@ -82,6 +85,10 @@ class GasStation extends Model
         'photos',
         // Wettbewerb
         'competitors',
+        'price_super',
+        'price_e10',
+        'price_diesel',
+        'prices_updated_at',
         // Sonstiges
         'notes',
         'is_active',
@@ -102,8 +109,15 @@ class GasStation extends Model
             'first_opening_dk' => 'date',
             'shop_setup_date' => 'date',
             'services' => 'array',
+            'fuel_types' => 'array',
+            'additional_businesses' => 'array',
+            'car_wash_details' => 'array',
             'photos' => 'array',
             'competitors' => 'array',
+            'price_super' => 'decimal:3',
+            'price_e10' => 'decimal:3',
+            'price_diesel' => 'decimal:3',
+            'prices_updated_at' => 'datetime',
             'is_active' => 'boolean',
             'settings' => 'array',
         ];

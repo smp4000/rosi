@@ -4,6 +4,9 @@ namespace App\Filament\Partner\Resources;
 
 use App\Filament\Partner\Resources\GasStationResource\Pages;
 use App\Models\GasStation;
+use Filament\Forms\Components\Hidden;
+use App\Models\LookupValue;
+use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
@@ -264,48 +267,6 @@ class GasStationResource extends Resource
                             Toggle::make('is_active')
                                 ->label(__('partner.gas_station.fields.is_active'))
                                 ->default(true),
-
-                            // --- Betrieb & Services ---
-                            Section::make('Betrieb & Services')
-                                ->schema([
-                                    TextInput::make('num_pumps')
-                                        ->label(__('partner.gas_station.fields.num_pumps'))
-                                        ->numeric()
-                                        ->minValue(0),
-                                    Toggle::make('has_shop')
-                                        ->label(__('partner.gas_station.fields.has_shop')),
-                                    Toggle::make('has_car_wash')
-                                        ->label(__('partner.gas_station.fields.has_car_wash')),
-                                    CheckboxList::make('services')
-                                        ->label(__('partner.gas_station.fields.services'))
-                                        ->options([
-                                            'super'      => 'Super (E5)',
-                                            'e10'        => 'E10',
-                                            'diesel'     => 'Diesel',
-                                            'premium'    => 'Super Plus',
-                                            'lpg'        => 'LPG / Autogas',
-                                            'adblue'     => 'AdBlue',
-                                            'cng'        => 'Erdgas (CNG)',
-                                            'h2'         => 'Wasserstoff (H2)',
-                                            'ev'         => 'Elektro-Laden',
-                                            'tire'       => 'Reifenservice',
-                                            'oil'        => 'Oelwechsel',
-                                            'bakery'     => 'Backshop',
-                                            'cafe'       => 'Cafe / Restaurant',
-                                            'atm'        => 'Geldautomat',
-                                            'car_rental' => 'Autovermietung',
-                                        ])
-                                        ->columns(3)
-                                        ->columnSpanFull(),
-                                    Textarea::make('notes')
-                                        ->label(__('partner.gas_station.fields.notes'))
-                                        ->rows(3)
-                                        ->maxLength(2000)
-                                        ->columnSpanFull(),
-                                ])
-                                ->columns(2)
-                                ->columnSpanFull()
-                                ->collapsible(),
                         ])
                         ->columns(2),
 
@@ -374,39 +335,234 @@ class GasStationResource extends Resource
                         ])
                         ->columns(2),
 
-                    // ========== TAB 5: SHOP ==========
+                    // ========== TAB 5: SHOP & BETRIEB ==========
                     Tab::make(__('partner.gas_station.tabs.shop'))
                         ->icon('heroicon-o-shopping-bag')
                         ->schema([
-                            TextInput::make('shop_size')
-                                ->label(__('partner.gas_station.fields.shop_size'))
-                                ->maxLength(50),
-                            Select::make('shop_type')
-                                ->label(__('partner.gas_station.fields.shop_type'))
-                                ->options(__('partner.gas_station.shop_types'))
-                                ->searchable(),
-                            Select::make('shop_class')
-                                ->label(__('partner.gas_station.fields.shop_class'))
-                                ->options(__('partner.gas_station.shop_classes')),
-                            DatePicker::make('shop_setup_date')
-                                ->label(__('partner.gas_station.fields.shop_setup_date'))
-                                ->displayFormat('d.m.Y'),
-                            Select::make('nielsen_area')
-                                ->label(__('partner.gas_station.fields.nielsen_area'))
-                                ->options(__('partner.gas_station.nielsen_areas'))
-                                ->searchable(),
-                            TextInput::make('price_region')
-                                ->label(__('partner.gas_station.fields.price_region'))
-                                ->maxLength(50),
-                            Select::make('assortment_level')
-                                ->label(__('partner.gas_station.fields.assortment_level'))
-                                ->options(__('partner.gas_station.assortment_levels')),
-                            TextInput::make('shop_partner')
-                                ->label(__('partner.gas_station.fields.shop_partner'))
-                                ->maxLength(255),
-                            TextInput::make('shop_operation_number')
-                                ->label(__('partner.gas_station.fields.shop_operation_number'))
-                                ->maxLength(50),
+
+                            // ---- SEKTION 1: TANKDETAILS ----
+                            Section::make(__('partner.gas_station.sections.tank_details'))
+                                ->icon('heroicon-o-fire')
+                                ->schema([
+                                    TextInput::make('num_pumps')
+                                        ->label(__('partner.gas_station.fields.num_pumps'))
+                                        ->numeric()
+                                        ->minValue(1)
+                                        ->default(1),
+                                    TagsInput::make('fuel_types')
+                                        ->label(__('partner.gas_station.fields.fuel_types'))
+                                        ->suggestions([
+                                            'Super (E5)',
+                                            'E10',
+                                            'Diesel',
+                                            'Super Plus',
+                                            'LPG / Autogas',
+                                            'AdBlue',
+                                            'Erdgas (CNG)',
+                                            'Wasserstoff (H2)',
+                                            'Elektro-Laden',
+                                            'Aral Ultimate 102',
+                                            'Shell V-Power Racing',
+                                            'BP Ultimate Diesel',
+                                            'Total Excellium',
+                                            'OMV MaxxMotion',
+                                            'Jet Premium',
+                                            'HEM Optimal',
+                                        ])
+                                        ->placeholder('Kraftstoff eingeben oder auswaehlen...')
+                                        ->columnSpanFull(),
+                                ])
+                                ->columns(2)
+                                ->columnSpanFull()
+                                ->collapsible(),
+
+                            // ---- SEKTION 2: WASCHANLAGE ----
+                            Section::make(__('partner.gas_station.sections.car_wash'))
+                                ->icon('heroicon-o-beaker')
+                                ->schema([
+                                    Toggle::make('has_car_wash')
+                                        ->label(__('partner.gas_station.fields.has_car_wash'))
+                                        ->live()
+                                        ->columnSpanFull(),
+
+                                    Toggle::make('car_wash_details.has_drive_through')
+                                        ->label(__('partner.gas_station.fields.cw_has_drive_through'))
+                                        ->visible(fn (Get $get): bool => (bool) $get('has_car_wash')),
+                                    Toggle::make('car_wash_details.has_underbody_wash')
+                                        ->label(__('partner.gas_station.fields.cw_has_underbody_wash'))
+                                        ->visible(fn (Get $get): bool => (bool) $get('has_car_wash')),
+
+                                    Select::make('car_wash_details.brand_id')
+                                        ->label(__('partner.gas_station.fields.cw_brand'))
+                                        ->options(fn () => LookupValue::byCategory('car_wash_brand')->pluck('value', 'id'))
+                                        ->searchable()
+                                        ->preload()
+                                        ->createOptionForm([
+                                            TextInput::make('value')
+                                                ->label('Markenname')
+                                                ->required()
+                                                ->maxLength(255),
+                                        ])
+                                        ->createOptionUsing(function (array $data): int {
+                                            return LookupValue::create([
+                                                'category' => 'car_wash_brand',
+                                                'value' => $data['value'],
+                                            ])->getKey();
+                                        })
+                                        ->visible(fn (Get $get): bool => (bool) $get('has_car_wash')),
+
+                                    Select::make('car_wash_details.type_id')
+                                        ->label(__('partner.gas_station.fields.cw_type'))
+                                        ->options(fn () => LookupValue::byCategory('car_wash_type')->pluck('value', 'id'))
+                                        ->searchable()
+                                        ->preload()
+                                        ->createOptionForm([
+                                            TextInput::make('value')
+                                                ->label('Anlagentyp')
+                                                ->required()
+                                                ->maxLength(255),
+                                        ])
+                                        ->createOptionUsing(function (array $data): int {
+                                            return LookupValue::create([
+                                                'category' => 'car_wash_type',
+                                                'value' => $data['value'],
+                                            ])->getKey();
+                                        })
+                                        ->visible(fn (Get $get): bool => (bool) $get('has_car_wash')),
+
+                                    TextInput::make('car_wash_details.height')
+                                        ->label(__('partner.gas_station.fields.cw_height'))
+                                        ->numeric()
+                                        ->step(0.01)
+                                        ->suffix('m')
+                                        ->visible(fn (Get $get): bool => (bool) $get('has_car_wash')),
+                                    TextInput::make('car_wash_details.width')
+                                        ->label(__('partner.gas_station.fields.cw_width'))
+                                        ->numeric()
+                                        ->step(0.01)
+                                        ->suffix('m')
+                                        ->visible(fn (Get $get): bool => (bool) $get('has_car_wash')),
+
+                                    Toggle::make('car_wash_details.has_ticket_system')
+                                        ->label(__('partner.gas_station.fields.cw_has_ticket_system'))
+                                        ->visible(fn (Get $get): bool => (bool) $get('has_car_wash')),
+                                    Toggle::make('car_wash_details.has_easy_carwash_pro')
+                                        ->label(__('partner.gas_station.fields.cw_has_easy_carwash_pro'))
+                                        ->visible(fn (Get $get): bool => (bool) $get('has_car_wash')),
+
+                                    Textarea::make('car_wash_details.notes')
+                                        ->label(__('partner.gas_station.fields.cw_notes'))
+                                        ->rows(3)
+                                        ->maxLength(2000)
+                                        ->columnSpanFull()
+                                        ->visible(fn (Get $get): bool => (bool) $get('has_car_wash')),
+                                ])
+                                ->columns(2)
+                                ->columnSpanFull()
+                                ->collapsible(),
+
+                            // ---- SEKTION 3: SHOP-DETAILS ----
+                            Section::make(__('partner.gas_station.sections.shop_details'))
+                                ->icon('heroicon-o-shopping-cart')
+                                ->schema([
+                                    Toggle::make('has_shop')
+                                        ->label(__('partner.gas_station.fields.has_shop'))
+                                        ->live()
+                                        ->columnSpanFull(),
+
+                                    TextInput::make('shop_size')
+                                        ->label(__('partner.gas_station.fields.shop_size'))
+                                        ->maxLength(50)
+                                        ->visible(fn (Get $get): bool => (bool) $get('has_shop')),
+                                    Select::make('shop_type')
+                                        ->label(__('partner.gas_station.fields.shop_type'))
+                                        ->options(__('partner.gas_station.shop_types'))
+                                        ->searchable()
+                                        ->visible(fn (Get $get): bool => (bool) $get('has_shop')),
+                                    Select::make('shop_class')
+                                        ->label(__('partner.gas_station.fields.shop_class'))
+                                        ->options(__('partner.gas_station.shop_classes'))
+                                        ->visible(fn (Get $get): bool => (bool) $get('has_shop')),
+                                    DatePicker::make('shop_setup_date')
+                                        ->label(__('partner.gas_station.fields.shop_setup_date'))
+                                        ->displayFormat('d.m.Y')
+                                        ->visible(fn (Get $get): bool => (bool) $get('has_shop')),
+                                    Select::make('nielsen_area')
+                                        ->label(__('partner.gas_station.fields.nielsen_area'))
+                                        ->options(__('partner.gas_station.nielsen_areas'))
+                                        ->searchable()
+                                        ->visible(fn (Get $get): bool => (bool) $get('has_shop')),
+                                    TextInput::make('price_region')
+                                        ->label(__('partner.gas_station.fields.price_region'))
+                                        ->maxLength(50)
+                                        ->visible(fn (Get $get): bool => (bool) $get('has_shop')),
+                                    Select::make('assortment_level')
+                                        ->label(__('partner.gas_station.fields.assortment_level'))
+                                        ->options(__('partner.gas_station.assortment_levels'))
+                                        ->visible(fn (Get $get): bool => (bool) $get('has_shop')),
+                                    TextInput::make('shop_partner')
+                                        ->label(__('partner.gas_station.fields.shop_partner'))
+                                        ->maxLength(255)
+                                        ->visible(fn (Get $get): bool => (bool) $get('has_shop')),
+                                    TextInput::make('shop_operation_number')
+                                        ->label(__('partner.gas_station.fields.shop_operation_number'))
+                                        ->maxLength(50)
+                                        ->visible(fn (Get $get): bool => (bool) $get('has_shop')),
+
+                                    // Shop-Services (Backshop, Geldautomat, Cafe)
+                                    CheckboxList::make('services')
+                                        ->label(__('partner.gas_station.fields.shop_services'))
+                                        ->options([
+                                            'bakery' => 'Backshop',
+                                            'atm'    => 'Geldautomat',
+                                            'cafe'   => 'Cafe / Restaurant',
+                                        ])
+                                        ->columns(3)
+                                        ->columnSpanFull()
+                                        ->visible(fn (Get $get): bool => (bool) $get('has_shop')),
+                                ])
+                                ->columns(2)
+                                ->columnSpanFull()
+                                ->collapsible(),
+
+                            // ---- SEKTION 4: ZUSATZGESCHAEFTE ----
+                            Section::make(__('partner.gas_station.sections.additional_businesses'))
+                                ->icon('heroicon-o-building-office')
+                                ->schema([
+                                    CheckboxList::make('additional_businesses')
+                                        ->label(__('partner.gas_station.fields.additional_businesses'))
+                                        ->options([
+                                            // Paket & Post
+                                            'hermes'         => 'Hermes Paketshop',
+                                            'ups'            => 'UPS Access Point',
+                                            'dhl'            => 'DHL Paketshop',
+                                            'dpd'            => 'DPD Pickup',
+                                            'gls'            => 'GLS Paketshop',
+                                            'amazon_locker'  => 'Amazon Locker',
+                                            // Lotto & Gluecksspiel
+                                            'lotto'          => 'Lotto',
+                                            'toto'           => 'Toto',
+                                            'sportwetten'    => 'Sportwetten',
+                                            // Werkstatt & KFZ
+                                            'tire_service'   => 'Reifenservice',
+                                            'master_shop'    => 'Meisterbetrieb',
+                                            'car_rental'     => 'Autovermietung',
+                                            'oil_service'    => 'Oelservice',
+                                            'used_cars'      => 'Gebrauchtwagenhandel',
+                                            'tuev_dekra'     => 'TUEV / Dekra-Pruefstelle',
+                                        ])
+                                        ->columns(3)
+                                        ->columnSpanFull(),
+                                ])
+                                ->columnSpanFull()
+                                ->collapsible(),
+
+                            // ---- ALLGEMEINE NOTIZEN ----
+                            Textarea::make('notes')
+                                ->label(__('partner.gas_station.fields.notes'))
+                                ->rows(3)
+                                ->maxLength(2000)
+                                ->columnSpanFull(),
                         ])
                         ->columns(2),
 
@@ -440,31 +596,253 @@ class GasStationResource extends Resource
                     Tab::make(__('partner.gas_station.tabs.wettbewerb'))
                         ->icon('heroicon-o-scale')
                         ->schema([
+
+                            // --- Eigene Kraftstoffpreise ---
+                            Section::make('Eigene Kraftstoffpreise')
+                                ->icon('heroicon-o-currency-euro')
+                                ->description('Aktuelle Preise Ihrer Tankstelle fuer den Kartenvergleich')
+                                ->schema([
+                                    TextInput::make('price_super')
+                                        ->label('Super E5')
+                                        ->numeric()
+                                        ->step(0.001)
+                                        ->suffix('€/L')
+                                        ->placeholder('z.B. 1.859')
+                                        ->inputMode('decimal'),
+                                    TextInput::make('price_e10')
+                                        ->label('Super E10')
+                                        ->numeric()
+                                        ->step(0.001)
+                                        ->suffix('€/L')
+                                        ->placeholder('z.B. 1.799')
+                                        ->inputMode('decimal'),
+                                    TextInput::make('price_diesel')
+                                        ->label('Diesel')
+                                        ->numeric()
+                                        ->step(0.001)
+                                        ->suffix('€/L')
+                                        ->placeholder('z.B. 1.699')
+                                        ->inputMode('decimal'),
+                                ])
+                                ->columns(3)
+                                ->columnSpanFull(),
+
+                            // --- Suchbereich ---
+                            Section::make(__('partner.gas_station.sections.competitor_search'))
+                                ->icon('heroicon-o-magnifying-glass')
+                                ->schema([
+                                    TextInput::make('competitor_search_plz')
+                                        ->label(__('partner.gas_station.fields.competitor_search_plz'))
+                                        ->placeholder('z.B. 36039')
+                                        ->maxLength(5)
+                                        ->minLength(5)
+                                        ->live(debounce: 800)
+                                        ->dehydrated(false)
+                                        ->helperText('5-stellige PLZ — Suche startet automatisch'),
+
+                                    Select::make('competitor_select')
+                                        ->label(__('partner.gas_station.fields.competitor_stations'))
+                                        ->options(function (Get $get): array {
+                                            $plz = $get('competitor_search_plz');
+                                            if (! $plz || strlen($plz) !== 5 || ! ctype_digit($plz)) {
+                                                return [];
+                                            }
+
+                                            $stations = app(\App\Services\BenzinpreisService::class)->searchByPlz($plz);
+
+                                            // Eigene Station rausfiltern (Name + Stadt vergleichen)
+                                            $ownName = strtolower(trim($get('name') ?? ''));
+                                            $ownStreet = strtolower(trim($get('street') ?? ''));
+
+                                            $options = [];
+                                            foreach ($stations as $s) {
+                                                // Eigene Station ueberspringen
+                                                $sName = strtolower(trim($s['name'] ?? ''));
+                                                $sStreet = strtolower(trim($s['street'] ?? ''));
+                                                if ($ownName && $ownStreet && str_contains($sName, $ownName) && $sStreet && str_contains($sStreet, $ownStreet)) {
+                                                    continue;
+                                                }
+
+                                                $key = "{$s['hash']}|{$s['slug']}";
+                                                $label = $s['name'];
+                                                $addressParts = array_filter([$s['street'] ?? '', $s['city'] ?? '']);
+                                                if ($addressParts) {
+                                                    $label .= ' · ' . implode(', ', $addressParts);
+                                                }
+                                                $options[$key] = $label;
+                                            }
+
+                                            return $options;
+                                        })
+                                        ->placeholder('Station auswaehlen...')
+                                        ->searchable()
+                                        ->live()
+                                        ->afterStateUpdated(function (?string $state, Set $set, Get $get): void {
+                                            if (! $state) {
+                                                return;
+                                            }
+
+                                            $current = $get('competitors') ?? [];
+                                            if (count($current) >= 8) {
+                                                \Filament\Notifications\Notification::make()
+                                                    ->title('Maximum erreicht')
+                                                    ->body('Maximal 8 Wettbewerber moeglich.')
+                                                    ->warning()
+                                                    ->send();
+                                                $set('competitor_select', null);
+                                                return;
+                                            }
+
+                                            [$hash, $slug] = explode('|', $state, 2);
+                                            $details = app(\App\Services\BenzinpreisService::class)->fetchStationDetails($hash, $slug);
+
+                                            if (! $details) {
+                                                \Filament\Notifications\Notification::make()
+                                                    ->title('Fehler')
+                                                    ->body('Stationsdaten konnten nicht abgerufen werden.')
+                                                    ->danger()
+                                                    ->send();
+                                                $set('competitor_select', null);
+                                                return;
+                                            }
+
+                                            $name = $details['name'] ?? '';
+                                            if (str_contains($name, '·')) {
+                                                $name = trim(explode('·', $name)[0]);
+                                            }
+
+                                            // Duplikat-Pruefung (Name + Strasse)
+                                            $newStreet = strtolower(trim(($details['street'] ?? '') . ' ' . ($details['house_number'] ?? '')));
+                                            $newName = strtolower(trim($name));
+                                            foreach ($current as $existing) {
+                                                if (strtolower(trim($existing['name'] ?? '')) === $newName
+                                                    && strtolower(trim($existing['street'] ?? '')) === $newStreet) {
+                                                    \Filament\Notifications\Notification::make()
+                                                        ->title('Bereits vorhanden')
+                                                        ->body("{$name} ist bereits in der Liste.")
+                                                        ->warning()
+                                                        ->send();
+                                                    $set('competitor_select', null);
+                                                    return;
+                                                }
+                                            }
+
+                                            // Entfernung berechnen (Haversine)
+                                            $distance = null;
+                                            $ownLat = (float) ($get('latitude') ?? 0);
+                                            $ownLng = (float) ($get('longitude') ?? 0);
+                                            $compLat = (float) ($details['lat'] ?? 0);
+                                            $compLng = (float) ($details['lng'] ?? 0);
+                                            if ($ownLat && $ownLng && $compLat && $compLng) {
+                                                $earthRadius = 6371;
+                                                $dLat = deg2rad($compLat - $ownLat);
+                                                $dLng = deg2rad($compLng - $ownLng);
+                                                $a = sin($dLat / 2) ** 2 + cos(deg2rad($ownLat)) * cos(deg2rad($compLat)) * sin($dLng / 2) ** 2;
+                                                $distance = round($earthRadius * 2 * atan2(sqrt($a), sqrt(1 - $a)), 1);
+                                            }
+
+                                            // Preise extrahieren
+                                            $prices = $details['prices'] ?? [];
+
+                                            $current[(string) \Illuminate\Support\Str::uuid()] = [
+                                                'name' => $name,
+                                                'brand' => $details['brand'] ?? '',
+                                                'street' => trim(($details['street'] ?? '') . ' ' . ($details['house_number'] ?? '')),
+                                                'city' => $details['city'] ?? '',
+                                                'zip' => $details['zip'] ?? '',
+                                                'distance' => $distance,
+                                                'lat' => $details['lat'] ?? null,
+                                                'lng' => $details['lng'] ?? null,
+                                                'price_e10' => $prices['E10'] ?? null,
+                                                'price_diesel' => $prices['Diesel'] ?? null,
+                                                'price_super' => $prices['Super'] ?? null,
+                                                'notes' => '',
+                                            ];
+
+                                            $set('competitors', $current);
+                                            $set('competitor_select', null);
+
+                                            // Notification mit Preisen
+                                            $distText = $distance ? " ({$distance} km)" : '';
+                                            $priceInfo = [];
+                                            if ($prices['E10'] ?? null) { $priceInfo[] = "E10: {$prices['E10']}€"; }
+                                            if ($prices['Diesel'] ?? null) { $priceInfo[] = "Diesel: {$prices['Diesel']}€"; }
+                                            $priceText = $priceInfo ? ' — ' . implode(', ', $priceInfo) : '';
+                                            \Filament\Notifications\Notification::make()
+                                                ->title('Wettbewerber hinzugefuegt')
+                                                ->body("{$name}{$distText}{$priceText}")
+                                                ->success()
+                                                ->send();
+                                        })
+                                        ->dehydrated(false)
+                                        ->columnSpanFull(),
+                                ])
+                                ->columns(2)
+                                ->columnSpanFull()
+                                ->collapsed(),
+
+                            // --- Wettbewerber-Karten (Drag = Prioritaet) ---
                             Repeater::make('competitors')
                                 ->label(__('partner.gas_station.fields.competitors'))
+                                ->helperText('Reihenfolge = Prioritaet. Oberste Karte = hoechste Prioritaet. Per Drag & Drop verschieben.')
                                 ->schema([
                                     TextInput::make('name')
-                                        ->label('Name / Marke')
+                                        ->label('Name')
                                         ->required()
                                         ->maxLength(255),
+                                    TextInput::make('brand')
+                                        ->label('Marke')
+                                        ->maxLength(100),
                                     TextInput::make('street')
-                                        ->label('Strasse')
+                                        ->label('Adresse')
                                         ->maxLength(255),
+                                    TextInput::make('city')
+                                        ->label('Stadt')
+                                        ->maxLength(100),
                                     TextInput::make('distance')
-                                        ->label('Entfernung (km)')
+                                        ->label('Entfernung')
                                         ->numeric()
                                         ->step(0.1)
                                         ->suffix('km'),
                                     Textarea::make('notes')
-                                        ->label('Bemerkungen')
-                                        ->rows(2)
+                                        ->label('Notizen')
+                                        ->rows(1)
                                         ->maxLength(500),
+                                    Hidden::make('lat'),
+                                    Hidden::make('lng'),
+                                    Hidden::make('zip'),
+                                    Hidden::make('price_e10'),
+                                    Hidden::make('price_diesel'),
+                                    Hidden::make('price_super'),
                                 ])
-                                ->columns(2)
+                                ->columns(6)
+                                ->maxItems(8)
                                 ->defaultItems(0)
-                                ->addActionLabel('Wettbewerber hinzufuegen')
+                                ->addActionLabel('Manuell hinzufuegen')
                                 ->reorderable()
                                 ->collapsible()
+                                ->itemLabel(function (array $state): ?string {
+                                    $brand = $state['brand'] ?? '';
+                                    $name = $state['name'] ?? '';
+                                    // Doppelte Marke entfernen (z.B. "ARAL Fulda" mit brand "ARAL" -> "ARAL Fulda")
+                                    if ($brand && $name && stripos($name, $brand) === 0) {
+                                        $name = trim(substr($name, strlen($brand)));
+                                        if (stripos($name, 'Tankstelle') === 0) {
+                                            $name = trim(substr($name, 10));
+                                        }
+                                    }
+                                    $label = $brand ? $brand . ' ' . $name : $name;
+                                    if ($state['street'] ?? '') {
+                                        $label .= ' — ' . $state['street'];
+                                    }
+                                    if ($state['city'] ?? '') {
+                                        $label .= ', ' . $state['city'];
+                                    }
+                                    if ($state['distance'] ?? null) {
+                                        $label .= ' (' . $state['distance'] . ' km)';
+                                    }
+                                    return $label ?: 'Neuer Wettbewerber';
+                                })
                                 ->columnSpanFull(),
                         ]),
 

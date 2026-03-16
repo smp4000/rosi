@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
     {
         // Stammdaten und Rollen/Permissions zuerst
         $this->call(BrandSeeder::class);
+        $this->call(LookupValueSeeder::class);
         $this->call(RolesAndPermissionsSeeder::class);
 
         // Globale Team-ID fuer Super-Admin Rollen-Zuweisung

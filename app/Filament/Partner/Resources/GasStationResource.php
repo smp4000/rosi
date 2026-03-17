@@ -4,6 +4,7 @@ namespace App\Filament\Partner\Resources;
 
 use App\Filament\Partner\Resources\GasStationResource\Pages;
 use App\Models\GasStation;
+use App\Models\User;
 use Filament\Forms\Components\Hidden;
 use App\Models\LookupValue;
 use Filament\Forms\Components\TagsInput;
@@ -847,6 +848,129 @@ class GasStationResource extends Resource
                         ]),
 
                     // ========== TAB 8: KARTE ==========
+                    // ========== TAB: MITARBEITER ==========
+                    Tab::make('Mitarbeiter')
+                        ->icon('heroicon-o-users')
+                        ->schema([
+                            Placeholder::make('employees_list')
+                                ->hiddenLabel()
+                                ->content(function ($record) {
+                                    if (! $record) {
+                                        return new \Illuminate\Support\HtmlString(
+                                            '<p style="color:#9ca3af;">Speichern Sie die Tankstelle zuerst, um Mitarbeiter zuzuordnen.</p>'
+                                        );
+                                    }
+
+                                    $employees = $record->users()
+                                        ->where('type', 'employee')
+                                        ->withPivot(['station_role', 'is_primary', 'assigned_at'])
+                                        ->orderBy('last_name')
+                                        ->get();
+
+                                    if ($employees->isEmpty()) {
+                                        return new \Illuminate\Support\HtmlString(
+                                            '<div style="text-align:center;padding:2rem 0;color:#9ca3af;">'
+                                            . '<p style="font-size:1.1rem;">Keine Mitarbeiter zugeordnet.</p>'
+                                            . '<p style="font-size:0.85rem;margin-top:4px;">Ordnen Sie Mitarbeiter ueber die Mitarbeiter-Verwaltung dieser Tankstelle zu.</p>'
+                                            . '</div>'
+                                        );
+                                    }
+
+                                    $roleLabels = [
+                                        'station_manager' => 'Stationsleiter',
+                                        'shift_leader' => 'Schichtleiter',
+                                        'cashier' => 'Kassierer',
+                                        'attendant' => 'Tankwart',
+                                        'trainee' => 'Auszubildende/r',
+                                        'cleaner' => 'Reinigungskraft',
+                                        'carwash' => 'Waschanlage',
+                                        'employee' => 'Mitarbeiter',
+                                    ];
+                                    $roleColors = [
+                                        'station_manager' => 'background:#dbeafe;color:#1e40af;',
+                                        'shift_leader' => 'background:#fef3c7;color:#92400e;',
+                                        'cashier' => 'background:#dcfce7;color:#166534;',
+                                        'attendant' => 'background:#f3f4f6;color:#374151;',
+                                        'trainee' => 'background:#ede9fe;color:#5b21b6;',
+                                        'cleaner' => 'background:#fce7f3;color:#9d174d;',
+                                        'carwash' => 'background:#cffafe;color:#155e75;',
+                                        'employee' => 'background:#e0e7ff;color:#3730a3;',
+                                    ];
+
+                                    $html = '<div style="display:flex;flex-direction:column;gap:8px;">';
+                                    foreach ($employees as $emp) {
+                                        $role = $emp->pivot->station_role;
+                                        $roleName = $roleLabels[$role] ?? ($role ?: 'Keine Rolle');
+                                        $roleColor = $roleColors[$role] ?? 'background:#f3f4f6;color:#374151;';
+                                        $primary = $emp->pivot->is_primary ? '<span style="font-size:11px;color:#059669;font-weight:600;margin-left:6px;">Hauptstandort</span>' : '';
+                                        $since = $emp->pivot->assigned_at ? ' seit ' . \Carbon\Carbon::parse($emp->pivot->assigned_at)->format('d.m.Y') : '';
+                                        $editUrl = EmployeeResource::getUrl('edit', ['record' => $emp->id]);
+                                        $active = $emp->is_active
+                                            ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;margin-right:8px;" title="Aktiv"></span>'
+                                            : '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ef4444;margin-right:8px;" title="Inaktiv"></span>';
+
+                                        $html .= '<a href="' . $editUrl . '" style="display:flex;align-items:center;justify-content:space-between;border:1px solid #e5e7eb;border-radius:8px;padding:12px 16px;text-decoration:none;background:#fff;transition:all .15s;" onmouseover="this.style.borderColor=\'#93c5fd\';this.style.background=\'#f9fafb\'" onmouseout="this.style.borderColor=\'#e5e7eb\';this.style.background=\'#fff\'">';
+                                        $html .= '<div style="display:flex;align-items:center;">';
+                                        $html .= $active;
+                                        $html .= '<div>';
+                                        $html .= '<p style="margin:0;font-weight:600;color:#111827;font-size:14px;">' . e($emp->name) . '</p>';
+                                        $html .= '<p style="margin:2px 0 0;font-size:12px;color:#6b7280;">' . e($emp->email) . $since . '</p>';
+                                        $html .= '</div>';
+                                        $html .= '</div>';
+                                        $html .= '<div style="display:flex;align-items:center;gap:6px;">';
+                                        $html .= $primary;
+                                        $html .= '<span style="border-radius:9999px;padding:2px 10px;font-size:11px;font-weight:500;' . $roleColor . '">' . $roleName . '</span>';
+                                        $html .= '</div>';
+                                        $html .= '</a>';
+                                    }
+                                    $html .= '</div>';
+
+                                    return new \Illuminate\Support\HtmlString($html);
+                                })
+                                ->columnSpanFull(),
+
+                            // --- Rolle zuweisen ---
+                            Section::make('Rolle aendern')
+                                ->icon('heroicon-o-pencil-square')
+                                ->collapsed()
+                                ->schema([
+                                    Select::make('_add_employee_id')
+                                        ->label('Mitarbeiter')
+                                        ->options(function ($record) {
+                                            if (! $record) return [];
+                                            // Nur Mitarbeiter anzeigen, die dieser Tankstelle zugeordnet sind
+                                            return $record->users()
+                                                ->where('type', 'employee')
+                                                ->orderBy('last_name')
+                                                ->get()
+                                                ->mapWithKeys(fn ($u) => [$u->id => $u->name . ' (' . $u->email . ')']);
+                                        })
+                                        ->searchable()
+                                        ->placeholder('Mitarbeiter waehlen...')
+                                        ->dehydrated(false),
+                                    Select::make('_station_role')
+                                        ->label('Rolle an dieser Tankstelle')
+                                        ->options([
+                                            'station_manager' => 'Stationsleiter',
+                                            'shift_leader' => 'Schichtleiter',
+                                            'cashier' => 'Kassierer',
+                                            'attendant' => 'Tankwart',
+                                            'trainee' => 'Auszubildende/r',
+                                            'cleaner' => 'Reinigungskraft',
+                                            'carwash' => 'Waschanlage',
+                                            'employee' => 'Mitarbeiter',
+                                        ])
+                                        ->placeholder('Rolle waehlen...')
+                                        ->dehydrated(false),
+                                    Toggle::make('_is_primary')
+                                        ->label('Hauptstandort des Mitarbeiters')
+                                        ->dehydrated(false),
+                                ])
+                                ->columns(3)
+                                ->columnSpanFull(),
+                        ]),
+
+                    // ========== TAB: KARTE ==========
                     Tab::make(__('partner.gas_station.tabs.karte'))
                         ->icon('heroicon-o-globe-alt')
                         ->schema([

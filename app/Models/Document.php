@@ -47,6 +47,8 @@ class Document extends Model
         'version',
         'notes',
         'created_by',
+        'signature_token',
+        'signature_token_expires_at',
     ];
 
     protected function casts(): array
@@ -58,6 +60,7 @@ class Document extends Model
             'counter_signed_at' => 'datetime',
             'sent_at' => 'datetime',
             'version' => 'integer',
+            'signature_token_expires_at' => 'datetime',
         ];
     }
 

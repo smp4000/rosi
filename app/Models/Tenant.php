@@ -103,6 +103,86 @@ class Tenant extends Model
         return $this->hasMany(Invitation::class);
     }
 
+    /**
+     * Chat-Konversationen dieses Mandanten.
+     */
+    public function chatConversations(): HasMany
+    {
+        return $this->hasMany(ChatConversation::class);
+    }
+
+    /**
+     * Telegram-Verknuepfungen dieses Mandanten.
+     */
+    public function telegramLinks(): HasMany
+    {
+        return $this->hasMany(TelegramLink::class);
+    }
+
+    // --- Messaging-Settings Accessors ---
+
+    /**
+     * Telegram Bot-Token (verschluesselt in settings.messaging.telegram_bot_token).
+     */
+    public function getTelegramBotTokenAttribute(): ?string
+    {
+        $encrypted = data_get($this->settings, 'messaging.telegram_bot_token');
+
+        if (! $encrypted) {
+            return null;
+        }
+
+        try {
+            return decrypt($encrypted);
+        } catch (\Exception) {
+            return null;
+        }
+    }
+
+    /**
+     * Telegram Bot-Token setzen (verschluesselt speichern).
+     */
+    public function setTelegramBotToken(string $token): void
+    {
+        $settings = $this->settings ?? [];
+        data_set($settings, 'messaging.telegram_bot_token', encrypt($token));
+        $this->update(['settings' => $settings]);
+    }
+
+    /**
+     * Telegram Bot-Username.
+     */
+    public function getTelegramBotUsernameAttribute(): ?string
+    {
+        return data_get($this->settings, 'messaging.telegram_bot_username');
+    }
+
+    /**
+     * Ist Telegram als Kanal aktiviert?
+     */
+    public function isTelegramEnabled(): bool
+    {
+        return (bool) data_get($this->settings, 'messaging.telegram_enabled', false);
+    }
+
+    /**
+     * Ist der In-App Chat aktiviert?
+     */
+    public function isChatEnabled(): bool
+    {
+        return (bool) data_get($this->settings, 'messaging.chat_enabled', true);
+    }
+
+    /**
+     * Messaging-Einstellung setzen.
+     */
+    public function setMessagingSetting(string $key, mixed $value): void
+    {
+        $settings = $this->settings ?? [];
+        data_set($settings, "messaging.{$key}", $value);
+        $this->update(['settings' => $settings]);
+    }
+
     // --- Hilfsmethoden ---
 
     /**

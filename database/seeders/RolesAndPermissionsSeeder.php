@@ -122,8 +122,12 @@ class RolesAndPermissionsSeeder extends Seeder
             'partner.gas-stations.delete',
             'partner.employees.list',
             'partner.employees.view',
+            'partner.employees.create',
             'partner.employees.edit',
             'partner.employees.invite',
+            'partner.invitations.list',
+            'partner.invitations.create',
+            'partner.invitations.delete',
             'partner.customers.list',
             'partner.customers.view',
             'partner.customers.create',
@@ -131,6 +135,15 @@ class RolesAndPermissionsSeeder extends Seeder
             'partner.documents.list',
             'partner.documents.view',
             'partner.documents.create',
+            'partner.documents.edit',
+            'partner.documents.delete',
+            'partner.documents.sign',
+            'partner.documents.send',
+            'partner.templates.list',
+            'partner.templates.view',
+            'partner.templates.create',
+            'partner.templates.edit',
+            'partner.templates.delete',
         ];
     }
 
@@ -149,7 +162,7 @@ class RolesAndPermissionsSeeder extends Seeder
         $partnerRole = Role::findOrCreate('partner', 'web');
         $partnerRole->syncPermissions($allPartner);
 
-        // Stationsleiter: Tankstellen lesen, Mitarbeiter verwalten, Kunden CRUD
+        // Stationsleiter: Tankstellen lesen, Mitarbeiter verwalten, Kunden CRUD, Dokumente
         $stationsleiterRole = Role::findOrCreate('stationsleiter', 'web');
         $stationsleiterRole->syncPermissions([
             'partner.dashboard.view',
@@ -158,6 +171,8 @@ class RolesAndPermissionsSeeder extends Seeder
             'partner.employees.list',
             'partner.employees.view',
             'partner.employees.invite',
+            'partner.invitations.list',
+            'partner.invitations.create',
             'partner.customers.list',
             'partner.customers.view',
             'partner.customers.create',
@@ -165,6 +180,9 @@ class RolesAndPermissionsSeeder extends Seeder
             'partner.documents.list',
             'partner.documents.view',
             'partner.documents.create',
+            'partner.documents.send',
+            'partner.templates.list',
+            'partner.templates.view',
         ]);
 
         // Mitarbeiter: Nur lesen

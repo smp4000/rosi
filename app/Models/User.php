@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Notifications\Notification;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
@@ -192,6 +193,71 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
     public function dataDeletionRequests(): HasMany
     {
         return $this->hasMany(DataDeletionRequest::class);
+    }
+
+    /**
+     * Telegram-Verknuepfung des Benutzers.
+     */
+    public function telegramLink(): HasOne
+    {
+        return $this->hasOne(TelegramLink::class);
+    }
+
+    /**
+     * Chat-Konversationen als Teilnehmer 1.
+     */
+    public function conversationsAsOne(): HasMany
+    {
+        return $this->hasMany(ChatConversation::class, 'participant_one_id');
+    }
+
+    /**
+     * Chat-Konversationen als Teilnehmer 2.
+     */
+    public function conversationsAsTwo(): HasMany
+    {
+        return $this->hasMany(ChatConversation::class, 'participant_two_id');
+    }
+
+    /**
+     * Gesendete Chat-Nachrichten.
+     */
+    public function chatMessages(): HasMany
+    {
+        return $this->hasMany(ChatMessage::class, 'sender_id');
+    }
+
+    // --- Messaging ---
+
+    /**
+     * Telegram Chat-ID fuer Notifications (Laravel Notification Channel).
+     */
+    public function routeNotificationForTelegram(?Notification $notification = null): ?int
+    {
+        $link = $this->telegramLink;
+
+        if ($link && $link->isLinked() && $link->is_active) {
+            return $link->telegram_chat_id;
+        }
+
+        return null;
+    }
+
+    /**
+     * Bevorzugter Kommunikationskanal des Benutzers.
+     * Fallback: E-Mail.
+     */
+    public function preferredChannel(): string
+    {
+        return $this->employeeProfile?->preferred_channel ?? 'email';
+    }
+
+    /**
+     * Hat der Benutzer Telegram verknuepft?
+     */
+    public function hasTelegram(): bool
+    {
+        return $this->telegramLink?->isLinked() ?? false;
     }
 
     // --- Typ-Pruefer ---

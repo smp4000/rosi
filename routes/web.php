@@ -1,11 +1,15 @@
 <?php
 
 use App\Http\Controllers\Auth\EmailVerificationController;
+use App\Http\Controllers\TelegramWebhookController;
 use App\Livewire\Auth\ForgotPassword;
 use App\Livewire\Auth\Login;
 use App\Livewire\Auth\Register;
 use App\Livewire\Auth\ResetPassword;
 use App\Livewire\Auth\VerifyEmail;
+use App\Livewire\DocumentSignature;
+use App\Livewire\Onboarding\OnboardingSuccess;
+use App\Livewire\Onboarding\OnboardingWizard;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
@@ -19,6 +23,18 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
 })->name('home');
+
+// Mitarbeiter-Onboarding (oeffentlich, Token-basiert)
+Route::get('/onboarding/erfolg', OnboardingSuccess::class)->name('onboarding.success');
+Route::get('/onboarding/{token}', OnboardingWizard::class)->name('onboarding');
+
+// Dokument-Signatur (oeffentlich, Token-basiert — Mitarbeiter unterschreibt online)
+Route::get('/dokument/unterschreiben/{token}', DocumentSignature::class)->name('document.sign');
+
+// Telegram Webhook (oeffentlich, CSRF-exempt — Telegram ruft diesen Endpoint auf)
+Route::post('/webhook/telegram/{tenantSlug}', [TelegramWebhookController::class, 'handle'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class])
+    ->name('webhook.telegram');
 
 /*
 |--------------------------------------------------------------------------

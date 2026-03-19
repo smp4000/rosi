@@ -40,9 +40,7 @@ class DocumentResource extends Resource
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-document-text';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Dokumente';
-
-    protected static ?int $navigationSort = 1;
+    protected static bool $shouldRegisterNavigation = false;
 
     protected static ?string $modelLabel = 'Dokument';
 
@@ -315,6 +313,50 @@ class DocumentResource extends Resource
                         Notification::make()->title('Dokument wurde widerrufen.')->warning()->send();
                     })
                     ->visible(fn (Document $record) => ! in_array($record->status, ['revoked', 'archived'])),
+
+                // Loeschen mit doppelter Sicherheitsabfrage
+                Actions\Action::make('delete_document')
+                    ->label('Loeschen')
+                    ->icon('heroicon-o-trash')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading('Dokument unwiderruflich loeschen')
+                    ->modalDescription(fn (Document $record) => "Sie sind dabei, das Dokument \"{$record->title}\" endgueltig zu loeschen. Diese Aktion kann NICHT rueckgaengig gemacht werden.")
+                    ->modalSubmitActionLabel('Endgueltig loeschen')
+                    ->form([
+                        TextInput::make('_confirm_delete')
+                            ->label('Zur Bestaetigung "LOESCHEN" eingeben')
+                            ->required()
+                            ->rules(['in:LOESCHEN'])
+                            ->validationMessages([
+                                'in' => 'Bitte geben Sie exakt "LOESCHEN" ein.',
+                            ]),
+                    ])
+                    ->action(function (Document $record) {
+                        // PDF-Datei loeschen
+                        if ($record->file_path && Storage::disk('local')->exists($record->file_path)) {
+                            Storage::disk('local')->delete($record->file_path);
+                        }
+
+                        $title = $record->title;
+                        $record->delete();
+
+                        Notification::make()
+                            ->title('Dokument geloescht')
+                            ->body("\"{$title}\" wurde endgueltig geloescht.")
+                            ->success()
+                            ->send();
+                    }),
+
+                // Zurueck zum Personalblatt
+                Actions\Action::make('go_to_employee')
+                    ->label('Personalblatt')
+                    ->icon('heroicon-o-arrow-uturn-left')
+                    ->color('gray')
+                    ->url(fn (Document $record) => $record->user_id
+                        ? \App\Filament\Partner\Resources\EmployeeResource::getUrl('edit', ['record' => $record->user_id])
+                        : null)
+                    ->visible(fn (Document $record) => (bool) $record->user_id),
 
                 Actions\ViewAction::make(),
                 Actions\EditAction::make(),

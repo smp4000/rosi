@@ -115,6 +115,10 @@ class DocumentService
             'ort_datum' => ($station?->city ?? $tenant?->city ?? '') . ', ' . now()->format('d.m.Y'),
         ];
 
+        // Benutzerdefinierte Platzhalter aus PlaceholderSettings laden
+        $customPlaceholders = \App\Models\PlaceholderSetting::getVariableMap($employee->tenant_id);
+        $map = array_merge($map, $customPlaceholders);
+
         return $map;
     }
 

@@ -117,18 +117,43 @@ class DocumentTemplateSeeder extends Seeder
             ],
         ];
 
-        foreach ($templates as $template) {
+        // Onboarding-Belehrungen (Pflichtformulare bei Einstellung)
+        $onboardingTemplates = [
+            [
+                'type' => 'instruction',
+                'category' => 'onboarding',
+                'name' => 'Mitarbeiterbelehrung e-loading-Betrug',
+                'description' => 'Pflichtbelehrung zum Schutz vor e-loading-Betrug (FTG e.V. Formular A9a)',
+                'content' => $this->getEloadingInstructionContent(),
+                'variables' => [
+                    'mitarbeiter_name' => 'Vollstaendiger Name des Mitarbeiters',
+                    'arbeitgeber_name' => 'Name des Arbeitgebers',
+                    'tankstelle_name' => 'Tankstellenname',
+                    'datum_heute' => 'Heutiges Datum',
+                ],
+                'sort_order' => 10,
+                'is_onboarding' => true,
+            ],
+        ];
+
+        $allTemplates = array_merge($templates, $onboardingTemplates);
+
+        foreach ($allTemplates as $template) {
+            $isOnboarding = $template['is_onboarding'] ?? false;
+            unset($template['is_onboarding']);
+
             DocumentTemplate::updateOrCreate(
                 ['type' => $template['type'], 'tenant_id' => null, 'name' => $template['name']],
                 array_merge($template, [
                     'tenant_id' => null,
                     'is_active' => true,
                     'is_default' => true,
+                    'is_onboarding' => $isOnboarding,
                 ]),
             );
         }
 
-        $this->command->info('6 globale Dokumentvorlagen erstellt/aktualisiert.');
+        $this->command->info(count($allTemplates) . ' globale Dokumentvorlagen erstellt/aktualisiert.');
     }
 
     protected function getEmploymentContractContent(): string
@@ -289,6 +314,63 @@ class DocumentTemplateSeeder extends Seeder
 
 <p>{{ort_datum}}</p>
 <p>{{arbeitgeber_name}}</p>';
+    }
+
+    protected function getEloadingInstructionContent(): string
+    {
+        return '<h1 style="text-align: center;">Mitarbeiterbelehrung und Arbeitsanweisung<br>zum e-loading-Betrug</h1>
+
+<h2>Betrugsversuche am Telefon:</h2>
+
+<p>Die verwendete Masche ist fast immer identisch. Die Betrueger melden sich telefonisch, meist zu Zeiten, in denen vermutet wird, dass die Stationsleitung nicht vor Ort und auf der Station wenig Personal vorhanden ist. Rueckfragen des Angerufenen sind damit kaum moeglich.</p>
+
+<p>Die Anrufer stellen sich entweder als Mitarbeiter von Lieferanten oder des Kassenherstellers, teilweise sogar als Verwandte des Tankstellenbetreibers vor. Bitte beachten Sie, dass hier vielleicht auch noch andere Tricks versucht werden koennten. Meistens werden im Display auch die richtigen dazugehoerigen Telefonnummern angezeigt. Diese sind jedoch stets manipuliert.</p>
+
+<p>Immer beliebter wird auch die Masche, dass die Mobilfunknummer des Tankstellenunternehmers angezeigt wird, der angeblich gerade nicht selbst anrufen kann, aber unbedingt Cash-Codes braucht und deswegen seinen Sohn, Vater oder besten Freund mit seinem Handy anrufen laesst.</p>
+
+<p>Der Anrufer wird dann behaupten, entweder ein Update durchfuehren zu muessen oder eine Stoerung beseitigen zu wollen. In der Regel wird daneben ein Druckszenario aufgebaut, warum dies jetzt unbedingt sofort gemacht werden muss (hoher drohender Schaden, grosse Eilbedueftigkeit, mit Stationsleitung so abgesprochen, usw.).</p>
+
+<p>Ist der Anrufer mit seinem Betrug erfolgreich, laesst er den Mitarbeiter mehrere Paysafecard- oder sonstige Voucher ausdrucken. Schliesslich will der Anrufer die Cash-Codes telefonisch mitgeteilt bekommen.</p>
+
+<p><strong>Hier handelt es sich ausnahmslos um Betrugsversuche! Niemand ist befugt oder ermaechtigt, telefonisch nach einem Cash-Code zu fragen. Dies gilt unter allen Umstaenden!</strong></p>
+
+<h2>Betrugsversuche in der Station:</h2>
+
+<p>Den bisherigen Hoehepunkt bilden Faelle, in denen die Betruegereien nicht mehr am Telefon, sondern &bdquo;persoenlich&ldquo; durchgefuehrt werden: Der meistens gut gekleidete &bdquo;Mitarbeiter&ldquo; von Lekkerland oder Transact oder eines sonstigen Lieferanten mit ebenso gut gefaelschtem Firmenausweis macht sich persoenlich die Muehe, in der Tankstelle vorbeizuschauen, um das Terminal zu ueberpruefen oder ein Update durchzufuehren &ndash; und dabei natuerlich Cash-Codes zu generieren.</p>
+
+<p>Aelter und bekannter ist ein anderer Trick: Die Codes werden bereits ausgehaendigt, waehrend der Zahlvorgang mit der (dann natuerlich nicht funktionierenden) Kreditkarte noch andauert. Die Betrueger fotografieren, waehrend sie scheinbar telefonieren, die Codes mit ihrem Handy ab.</p>
+
+<p>Eine technisch verfeinerte Variante: Ein Kunde mit Brille &ndash; der Taeter &ndash; betritt den Shop und moechte Paysafe-Codes kaufen. Der Mitarbeiter druckt diese aus und legt sie dem Kunden vor. Der Taeter moechte mit EC- oder Kreditkarte bezahlen. Die Karten funktionieren aber nicht und der Taeter verabschiedet sich. Was jedoch nicht bemerkt wurde: Die Brille des Taeters hatte eine eingebaute Mini-Kamera (CCTV). Mit dieser Brillen-Kamera wurden die Paysafe-Codes aufgenommen und schon wenige Minuten spaeter vom Ausland aus eingeloest!</p>
+
+<h2>Arbeitsanweisung:</h2>
+
+<ul>
+    <li><strong>Geben Sie niemals einen PIN-Code ohne vorherige Bezahlung heraus</strong> &ndash; egal, ob persoenlich, telefonisch oder per E-Mail. Dies gilt auch fuer einzelne Ziffern von PIN-Codes.</li>
+    <li>Niemand ausser Ihnen selbst darf in Ihrer Schicht an das Terminal.</li>
+    <li>Lassen Sie sich nicht verunsichern.</li>
+    <li>Erfragen Sie Namen und Telefonnummer des Anrufers.</li>
+    <li>Beenden Sie das Telefonat und informieren Sie die Stationsleitung. Diese wird die Polizei in Kenntnis setzen.</li>
+    <li>Koennen Sie die Stationsleitung nicht erreichen, rufen Sie selbst die Polizei unter 110 an.</li>
+</ul>
+
+<h2 style="text-align: center;">Kenntnisnahme</h2>
+
+<p>Mit meiner Unterschrift bestaetige ich die Kenntnisnahme dieser Mitarbeiterbelehrung und verpflichte mich zur Einhaltung der darin enthaltenen Arbeitsanweisung.</p>
+
+<p>Ich wurde vom Arbeitgeber <strong>{{arbeitgeber_name}}</strong> ausfuehrlich ueber die Moeglichkeit aufgeklaert, dass Betrueger ueber das Telefon, per Mail oder persoenlich in der Tankstelle <strong>{{tankstelle_name}}</strong> versuchen, PIN-Nummern oder Cash-Codes zu erlangen.</p>
+
+<p>Mir ist bewusst, dass ich niemals und unter keinen Umstaenden Codes oder PIN-Nummern ohne vorherige Bezahlung herausgeben darf, egal, an wen und egal, ob persoenlich oder am Telefon!</p>
+
+<p><strong>Mir ist bekannt, dass ich gegenueber meinem Arbeitgeber fuer den entstandenen Schaden hafte, wenn ich gegen diese Anweisungen verstosse und trotzdem Codes oder PIN-Nummern ohne vorherige Bezahlung herausgebe.</strong></p>
+
+<p>Die Mitarbeiterbelehrung zum e-loading-Betrug wurde mir am <strong>{{datum_heute}}</strong> persoenlich ausgehaendigt und erlaeutert.</p>
+
+<p style="margin-top: 40px;">
+<strong>{{mitarbeiter_name}}</strong><br>
+<em>(Unterschrift Mitarbeiter/in)</em>
+</p>
+
+<p><small>Quelle: FTG e.V. / Formular A9a</small></p>';
     }
 
     protected function getAmendmentContent(): string

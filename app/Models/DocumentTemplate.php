@@ -32,6 +32,7 @@ class DocumentTemplate extends Model
         'footer_html',
         'is_default',
         'is_active',
+        'is_onboarding',
         'sort_order',
     ];
 
@@ -41,6 +42,7 @@ class DocumentTemplate extends Model
             'variables' => 'array',
             'is_default' => 'boolean',
             'is_active' => 'boolean',
+            'is_onboarding' => 'boolean',
             'sort_order' => 'integer',
         ];
     }

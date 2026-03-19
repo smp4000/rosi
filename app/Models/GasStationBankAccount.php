@@ -24,6 +24,19 @@ class GasStationBankAccount extends Model
     ];
 
     /**
+     * Sensible Felder verschluesselt speichern (DSGVO).
+     */
+    protected function casts(): array
+    {
+        return [
+            'iban' => 'encrypted',
+            'bank_name' => 'encrypted',
+            'bic' => 'encrypted',
+            'description' => 'encrypted',
+        ];
+    }
+
+    /**
      * Zugehoerige Tankstelle.
      */
     public function gasStation(): BelongsTo

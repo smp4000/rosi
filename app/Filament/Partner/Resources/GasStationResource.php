@@ -283,20 +283,104 @@ class GasStationResource extends Resource
                                     TextInput::make('iban')
                                         ->label(__('partner.gas_station.fields.iban'))
                                         ->required()
-                                        ->maxLength(34),
+                                        ->maxLength(34)
+                                        ->live(onBlur: true)
+                                        ->afterStateUpdated(function (Set $set, ?string $state) {
+                                            if ($state && strlen(preg_replace('/\s+/', '', $state)) >= 15) {
+                                                $iban = preg_replace('/\s+/', '', $state);
+                                                $bankData = \App\Filament\Partner\Resources\EmployeeResource::lookupBankDataPublic($iban);
+                                                if ($bankData['bic']) $set('bic', $bankData['bic']);
+                                                if ($bankData['bankName']) $set('bank_name', $bankData['bankName']);
+                                            }
+                                        })
+                                        ->hintAction(
+                                            \Filament\Actions\Action::make('iban_rechner')
+                                                ->label('IBAN-Rechner')
+                                                ->icon('heroicon-o-calculator')
+                                                ->color('gray')
+                                                ->size('sm')
+                                                ->form([
+                                                    TextInput::make('blz')
+                                                        ->label('Bankleitzahl (BLZ)')
+                                                        ->required()
+                                                        ->maxLength(8)
+                                                        ->placeholder('8-stellige BLZ'),
+                                                    TextInput::make('kontonummer')
+                                                        ->label('Kontonummer')
+                                                        ->required()
+                                                        ->maxLength(10)
+                                                        ->placeholder('Max. 10 Stellen'),
+                                                ])
+                                                ->modalHeading('IBAN aus BLZ + Kontonummer berechnen')
+                                                ->modalSubmitActionLabel('Uebernehmen')
+                                                ->modalWidth('md')
+                                                ->action(function (array $data, Set $set) {
+                                                    $iban = \App\Filament\Partner\Resources\EmployeeResource::calculateGermanIbanPublic(
+                                                        $data['blz'], $data['kontonummer']
+                                                    );
+                                                    if (! $iban) {
+                                                        \Filament\Notifications\Notification::make()
+                                                            ->title('Ungueltige BLZ oder Kontonummer')
+                                                            ->danger()
+                                                            ->send();
+                                                        return;
+                                                    }
+                                                    $set('iban', $iban);
+                                                    $bankData = \App\Filament\Partner\Resources\EmployeeResource::lookupBankDataPublic($iban);
+                                                    if ($bankData['bic']) $set('bic', $bankData['bic']);
+                                                    if ($bankData['bankName']) $set('bank_name', $bankData['bankName']);
+
+                                                    \Filament\Notifications\Notification::make()
+                                                        ->title('IBAN berechnet')
+                                                        ->body($iban . ($bankData['bankName'] ? ' — ' . $bankData['bankName'] : ''))
+                                                        ->success()
+                                                        ->send();
+                                                })
+                                        ),
                                     TextInput::make('bank_name')
                                         ->label(__('partner.gas_station.fields.bank_name'))
-                                        ->maxLength(255),
+                                        ->maxLength(255)
+                                        ->placeholder('Wird automatisch ermittelt'),
                                     TextInput::make('bic')
                                         ->label(__('partner.gas_station.fields.bic'))
-                                        ->maxLength(11),
+                                        ->maxLength(11)
+                                        ->placeholder('Wird automatisch ermittelt'),
                                     TextInput::make('description')
                                         ->label(__('partner.gas_station.fields.bank_description'))
                                         ->maxLength(255),
                                     Select::make('account_type')
                                         ->label(__('partner.gas_station.fields.account_type'))
-                                        ->options(__('partner.gas_station.account_types'))
-                                        ->searchable(),
+                                        ->options(function () {
+                                            $defaults = __('partner.gas_station.account_types');
+                                            $tenant = \App\Models\Tenant::find(session('tenant_id'));
+                                            $custom = $tenant?->settings['custom_account_types'] ?? [];
+                                            foreach ($custom as $type) {
+                                                $defaults[$type] = $type;
+                                            }
+                                            return $defaults;
+                                        })
+                                        ->searchable()
+                                        ->createOptionForm([
+                                            TextInput::make('name')
+                                                ->label('Neuer Kontotyp')
+                                                ->required()
+                                                ->maxLength(100)
+                                                ->placeholder('z.B. VWL-Konto, Sparkonto'),
+                                        ])
+                                        ->createOptionUsing(function (array $data): string {
+                                            $name = trim($data['name']);
+                                            $tenant = \App\Models\Tenant::find(session('tenant_id'));
+                                            if ($tenant) {
+                                                $settings = $tenant->settings ?? [];
+                                                $custom = $settings['custom_account_types'] ?? [];
+                                                if (! in_array($name, $custom)) {
+                                                    $custom[] = $name;
+                                                    $settings['custom_account_types'] = $custom;
+                                                    $tenant->update(['settings' => $settings]);
+                                                }
+                                            }
+                                            return $name;
+                                        }),
                                 ])
                                 ->columns(2)
                                 ->defaultItems(0)
@@ -929,18 +1013,19 @@ class GasStationResource extends Resource
                                 })
                                 ->columnSpanFull(),
 
-                            // --- Rolle zuweisen ---
-                            Section::make('Rolle aendern')
-                                ->icon('heroicon-o-pencil-square')
+                            // --- Mitarbeiter hinzufuegen ---
+                            Section::make('Mitarbeiter hinzufuegen')
+                                ->icon('heroicon-o-plus-circle')
                                 ->collapsed()
                                 ->schema([
                                     Select::make('_add_employee_id')
                                         ->label('Mitarbeiter')
                                         ->options(function ($record) {
                                             if (! $record) return [];
-                                            // Nur Mitarbeiter anzeigen, die dieser Tankstelle zugeordnet sind
-                                            return $record->users()
+                                            $assignedIds = $record->users()->pluck('users.id');
+                                            return \App\Models\User::where('tenant_id', session('tenant_id'))
                                                 ->where('type', 'employee')
+                                                ->whereNotIn('id', $assignedIds)
                                                 ->orderBy('last_name')
                                                 ->get()
                                                 ->mapWithKeys(fn ($u) => [$u->id => $u->name . ' (' . $u->email . ')']);

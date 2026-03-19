@@ -30,10 +30,12 @@ use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\BooleanColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 /**
  * Filament Resource fuer die Mitarbeiter-Verwaltung im Partner-Panel.
@@ -112,14 +114,25 @@ class EmployeeResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
+            ->withoutGlobalScopes([SoftDeletingScope::class])
             ->where('type', 'employee')
             ->where('tenant_id', session('tenant_id'))
-            ->with(['employeeProfile', 'gasStations', 'documents']);
+            ->with(['employeeProfile', 'gasStations', 'documents', 'bankAccounts']);
     }
 
     /**
      * Deutsche IBAN aus BLZ + Kontonummer berechnen.
      */
+    public static function calculateGermanIbanPublic(string $blz, string $kontonummer): ?string
+    {
+        return static::calculateGermanIban($blz, $kontonummer);
+    }
+
+    public static function lookupBankDataPublic(string $iban): array
+    {
+        return static::lookupBankData($iban);
+    }
+
     protected static function calculateGermanIban(string $blz, string $kontonummer): ?string
     {
         $blz = preg_replace('/\s+/', '', $blz);
@@ -141,6 +154,38 @@ class EmployeeResource extends Resource
         $checkDigits = str_pad((string) (98 - (int) $remainder), 2, '0', STR_PAD_LEFT);
 
         return 'DE' . $checkDigits . $bban;
+    }
+
+    /**
+     * BIC und Bankname anhand der IBAN ueber OpenIBAN API ermitteln.
+     * Kostenlos, kein API-Key noetig.
+     *
+     * @return array{bic: string|null, bankName: string|null}
+     */
+    protected static function lookupBankData(string $iban): array
+    {
+        try {
+            $response = \Illuminate\Support\Facades\Http::withoutVerifying()
+                ->timeout(5)
+                ->get("https://openiban.com/validate/{$iban}", [
+                    'getBIC' => 'true',
+                    'validateBankCode' => 'true',
+                ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                $bankData = $data['bankData'] ?? [];
+
+                return [
+                    'bic' => $bankData['bic'] ?? null,
+                    'bankName' => $bankData['name'] ?? null,
+                ];
+            }
+        } catch (\Exception $e) {
+            // API nicht erreichbar — stille Fehlerbehandlung
+        }
+
+        return ['bic' => null, 'bankName' => null];
     }
 
     // --- Formular (10 Tabs) ---
@@ -176,28 +221,171 @@ class EmployeeResource extends Resource
                             Select::make('employeeProfile.gender')
                                 ->label(__('partner.employee.fields.gender'))
                                 ->options(__('partner.employee.genders')),
-                            TextInput::make('employeeProfile.date_of_birth')
+                            DatePicker::make('employeeProfile.date_of_birth')
                                 ->label(__('partner.employee.fields.date_of_birth'))
+                                ->native(true)
+                                ->maxDate(now()->subYears(14))
                                 ->placeholder('TT.MM.JJJJ'),
                             TextInput::make('employeeProfile.place_of_birth')
                                 ->label(__('partner.employee.fields.place_of_birth'))
                                 ->maxLength(255),
-                            TextInput::make('employeeProfile.nationality')
+                            Select::make('employeeProfile.nationality')
                                 ->label(__('partner.employee.fields.nationality'))
-                                ->maxLength(100),
-                            TextInput::make('employeeProfile.second_nationality')
+                                ->options(fn () => static::getNationalityOptions())
+                                ->searchable()
+                                ->rule('in:' . implode(',', array_keys(static::getNationalityOptions())))
+                                ->validationMessages([
+                                    'in' => 'Bitte wählen Sie eine gültige Staatsangehörigkeit aus der Liste.',
+                                ])
+                                ->createOptionForm([
+                                    TextInput::make('nationality')
+                                        ->label('Neue Staatsangehörigkeit')
+                                        ->required()
+                                        ->maxLength(100)
+                                        ->regex('/^[\pL\s\-]+$/u')
+                                        ->validationMessages([
+                                            'regex' => 'Nur Buchstaben, Leerzeichen und Bindestriche erlaubt.',
+                                        ]),
+                                ])
+                                ->createOptionUsing(function (array $data) {
+                                    $value = trim($data['nationality']);
+                                    static::addCustomNationality($value);
+                                    return $value;
+                                })
+                                ->createOptionAction(fn ($action) => $action->label('Andere')),
+                            Select::make('employeeProfile.second_nationality')
                                 ->label(__('partner.employee.fields.second_nationality'))
-                                ->maxLength(100),
+                                ->options(fn () => static::getNationalityOptions())
+                                ->searchable()
+                                ->rule('in:' . implode(',', array_keys(static::getNationalityOptions())))
+                                ->validationMessages([
+                                    'in' => 'Bitte wählen Sie eine gültige Staatsangehörigkeit aus der Liste.',
+                                ])
+                                ->createOptionForm([
+                                    TextInput::make('nationality')
+                                        ->label('Neue Staatsangehörigkeit')
+                                        ->required()
+                                        ->maxLength(100)
+                                        ->regex('/^[\pL\s\-]+$/u')
+                                        ->validationMessages([
+                                            'regex' => 'Nur Buchstaben, Leerzeichen und Bindestriche erlaubt.',
+                                        ]),
+                                ])
+                                ->createOptionUsing(function (array $data) {
+                                    $value = trim($data['nationality']);
+                                    static::addCustomNationality($value);
+                                    return $value;
+                                })
+                                ->createOptionAction(fn ($action) => $action->label('Andere'))
+                                ->hintAction(
+                                    \Filament\Actions\Action::make('manage_nationalities')
+                                        ->label('Eigene verwalten')
+                                        ->icon('heroicon-o-trash')
+                                        ->color('danger')
+                                        ->size('sm')
+                                        ->form(fn () => [
+                                            CheckboxList::make('delete_nationalities')
+                                                ->label('Zum Löschen auswählen')
+                                                ->options(function () {
+                                                    $tenant = auth()->user()?->tenant;
+                                                    $custom = (array) data_get($tenant?->settings, 'custom_nationalities', []);
+                                                    return collect($custom)->mapWithKeys(fn ($v) => [$v => $v])->toArray();
+                                                })
+                                                ->helperText('Markierte Einträge werden aus der Auswahlliste entfernt.')
+                                                ->columns(2),
+                                        ])
+                                        ->modalHeading('Benutzerdefinierte Staatsangehörigkeiten')
+                                        ->modalSubmitActionLabel('Ausgewählte löschen')
+                                        ->modalWidth('md')
+                                        ->action(function (array $data) {
+                                            $toDelete = $data['delete_nationalities'] ?? [];
+                                            if (empty($toDelete)) return;
+
+                                            $tenant = auth()->user()->tenant;
+                                            $settings = $tenant->settings ?? [];
+                                            $custom = (array) data_get($settings, 'custom_nationalities', []);
+                                            $custom = array_values(array_diff($custom, $toDelete));
+                                            data_set($settings, 'custom_nationalities', $custom);
+                                            $tenant->update(['settings' => $settings]);
+
+                                            \Filament\Notifications\Notification::make()
+                                                ->title(count($toDelete) . ' Einträge gelöscht')
+                                                ->success()
+                                                ->send();
+                                        })
+                                        ->visible(function () {
+                                            $tenant = auth()->user()?->tenant;
+                                            $custom = (array) data_get($tenant?->settings, 'custom_nationalities', []);
+                                            return count($custom) > 0;
+                                        })
+                                ),
                             Select::make('employeeProfile.marital_status')
                                 ->label(__('partner.employee.fields.marital_status'))
                                 ->options(__('partner.employee.marital_statuses')),
-                            Select::make('gasStations')
-                                ->label('Tankstelle(n)')
-                                ->relationship('gasStations', 'name', fn (Builder $query) => $query->where('tenant_id', session('tenant_id')))
-                                ->multiple()
-                                ->preload()
-                                ->searchable()
-                                ->placeholder('Tankstelle(n) zuordnen')
+                            Repeater::make('_gas_station_assignments')
+                                ->label('Tankstellen-Zuordnung')
+                                ->schema([
+                                    Select::make('gas_station_id')
+                                        ->label('Tankstelle')
+                                        ->options(function (Get $get) {
+                                            $allStations = \App\Models\GasStation::where('tenant_id', session('tenant_id'))
+                                                ->orderBy('name')
+                                                ->pluck('name', 'id');
+                                            // Bereits gewaehlte Stationen aus anderen Zeilen ausfiltern
+                                            $currentId = $get('gas_station_id');
+                                            $items = $get('../../_gas_station_assignments') ?? [];
+                                            $usedIds = collect($items)
+                                                ->pluck('gas_station_id')
+                                                ->filter(fn ($id) => $id && $id !== $currentId)
+                                                ->toArray();
+                                            return $allStations->except($usedIds);
+                                        })
+                                        ->required()
+                                        ->searchable()
+                                        ->live()
+                                        ->placeholder('Tankstelle waehlen...'),
+                                    Select::make('station_role')
+                                        ->label('Rolle')
+                                        ->options([
+                                            'station_manager' => 'Stationsleiter',
+                                            'shift_leader' => 'Schichtleiter',
+                                            'cashier' => 'Kassierer',
+                                            'attendant' => 'Tankwart',
+                                            'trainee' => 'Auszubildende/r',
+                                            'cleaner' => 'Reinigungskraft',
+                                            'carwash' => 'Waschanlage',
+                                            'employee' => 'Mitarbeiter',
+                                        ])
+                                        ->placeholder('Rolle waehlen...'),
+                                    Toggle::make('is_primary')
+                                        ->label('Hauptstandort')
+                                        ->inline(false)
+                                        ->live()
+                                        ->afterStateUpdated(function (bool $state, Set $set, Get $get) {
+                                            if (! $state) return;
+                                            // Alle anderen Eintraege auf false setzen
+                                            $items = $get('../../_gas_station_assignments');
+                                            if (! is_array($items)) return;
+                                            foreach ($items as $key => $item) {
+                                                if (($item['gas_station_id'] ?? null) !== $get('gas_station_id')) {
+                                                    $set("../../_gas_station_assignments.{$key}.is_primary", false);
+                                                }
+                                            }
+                                        }),
+                                ])
+                                ->columns(3)
+                                ->defaultItems(0)
+                                ->maxItems(fn () => \App\Models\GasStation::where('tenant_id', session('tenant_id'))->count())
+                                ->addActionLabel('Tankstelle hinzufuegen')
+                                ->reorderable(false)
+                                ->itemLabel(function (array $state): ?string {
+                                    $name = $state['gas_station_id']
+                                        ? \App\Models\GasStation::find($state['gas_station_id'])?->name
+                                        : null;
+                                    return $name ?: 'Neue Zuordnung';
+                                })
+                                ->collapsible()
+                                ->dehydrated(false)
                                 ->columnSpanFull(),
                             Toggle::make('is_active')
                                 ->label(__('partner.employee.fields.is_active'))
@@ -326,10 +514,40 @@ class EmployeeResource extends Resource
                                 ->label(__('partner.employee.fields.social_security_number'))
                                 ->maxLength(20)
                                 ->placeholder('z.B. 12 010190 A 123'),
-                            TextInput::make('employeeProfile.health_insurance_name')
+                            Select::make('employeeProfile.health_insurance_name')
                                 ->label(__('partner.employee.fields.health_insurance_name'))
-                                ->maxLength(255)
-                                ->placeholder('z.B. AOK, TK, Barmer'),
+                                ->options(fn () => \App\Models\HealthInsurance::forTenant()
+                                    ->orderBy('sort_order')->orderBy('name')
+                                    ->pluck('name', 'name')
+                                    ->toArray())
+                                ->searchable()
+                                ->preload()
+                                ->createOptionForm([
+                                    TextInput::make('name')
+                                        ->label('Krankenkassen-Name')
+                                        ->required()
+                                        ->maxLength(255),
+                                    Select::make('type')
+                                        ->label('Art')
+                                        ->options([
+                                            'gesetzlich' => 'Gesetzlich',
+                                            'privat' => 'Privat',
+                                        ])
+                                        ->default('gesetzlich')
+                                        ->required(),
+                                ])
+                                ->createOptionUsing(function (array $data) {
+                                    \App\Models\HealthInsurance::create([
+                                        'tenant_id' => session('tenant_id'),
+                                        'name' => trim($data['name']),
+                                        'type' => $data['type'] ?? 'gesetzlich',
+                                        'is_system' => false,
+                                        'sort_order' => 100,
+                                    ]);
+                                    return trim($data['name']);
+                                })
+                                ->createOptionAction(fn ($action) => $action->label('Neue Kasse'))
+                                ->placeholder('Krankenkasse waehlen'),
                             Select::make('employeeProfile.health_insurance_type')
                                 ->label(__('partner.employee.fields.health_insurance_type'))
                                 ->options(__('partner.employee.insurance_types')),
@@ -348,67 +566,113 @@ class EmployeeResource extends Resource
                     Tab::make(__('partner.employee.tabs.bankverbindung'))
                         ->icon('heroicon-o-banknotes')
                         ->schema([
-                            Section::make('Bankdaten')
-                                ->description('Bankdaten werden verschluesselt gespeichert (AES-256).')
-                                ->icon('heroicon-o-lock-closed')
+                            Repeater::make('_bank_accounts')
+                                ->label('Bankkonten')
                                 ->schema([
-                                    TextInput::make('employeeProfile.account_holder')
-                                        ->label(__('partner.employee.fields.account_holder'))
-                                        ->maxLength(255)
-                                        ->columnSpanFull(),
-
-                                    TextInput::make('employeeProfile.iban')
-                                        ->label(__('partner.employee.fields.iban'))
+                                    Select::make('type')
+                                        ->label('Verwendungszweck')
+                                        ->options(fn () => static::getBankAccountTypeOptions())
+                                        ->required()
+                                        ->searchable()
+                                        ->createOptionForm([
+                                            TextInput::make('label')
+                                                ->label('Neuer Verwendungszweck')
+                                                ->required()
+                                                ->maxLength(100),
+                                        ])
+                                        ->createOptionUsing(function (array $data) {
+                                            $value = trim($data['label']);
+                                            $tenant = auth()->user()->tenant;
+                                            $settings = $tenant->settings ?? [];
+                                            $custom = (array) data_get($settings, 'custom_bank_account_types', []);
+                                            if (! in_array($value, $custom)) {
+                                                $custom[] = $value;
+                                                sort($custom);
+                                                data_set($settings, 'custom_bank_account_types', $custom);
+                                                $tenant->update(['settings' => $settings]);
+                                            }
+                                            return $value;
+                                        })
+                                        ->createOptionAction(fn ($action) => $action->label('Andere')),
+                                    TextInput::make('account_holder')
+                                        ->label('Kontoinhaber')
+                                        ->maxLength(255),
+                                    TextInput::make('iban')
+                                        ->label('IBAN')
+                                        ->required()
                                         ->maxLength(34)
-                                        ->placeholder('DE89 3704 0044 0532 0130 00'),
-                                    TextInput::make('employeeProfile.bic')
-                                        ->label(__('partner.employee.fields.bic'))
-                                        ->maxLength(11)
-                                        ->placeholder('z.B. COBADEFFXXX'),
-                                    TextInput::make('employeeProfile.bank_name')
-                                        ->label(__('partner.employee.fields.bank_name'))
-                                        ->maxLength(255)
-                                        ->placeholder('z.B. Commerzbank'),
-                                ])
-                                ->columns(2),
+                                        ->placeholder('IBAN eingeben oder Rechner nutzen →')
+                                        ->live(onBlur: true)
+                                        ->afterStateUpdated(function (Set $set, ?string $state) {
+                                            if ($state && strlen(preg_replace('/\s+/', '', $state)) >= 15) {
+                                                $iban = preg_replace('/\s+/', '', $state);
+                                                $bankData = static::lookupBankData($iban);
+                                                if ($bankData['bic']) $set('bic', $bankData['bic']);
+                                                if ($bankData['bankName']) $set('bank_name', $bankData['bankName']);
+                                            }
+                                        })
+                                        ->hintAction(
+                                            \Filament\Actions\Action::make('iban_rechner')
+                                                ->label('IBAN-Rechner')
+                                                ->icon('heroicon-o-calculator')
+                                                ->color('gray')
+                                                ->size('sm')
+                                                ->form([
+                                                    TextInput::make('blz')
+                                                        ->label('Bankleitzahl (BLZ)')
+                                                        ->required()
+                                                        ->maxLength(8)
+                                                        ->placeholder('8-stellige BLZ'),
+                                                    TextInput::make('kontonummer')
+                                                        ->label('Kontonummer')
+                                                        ->required()
+                                                        ->maxLength(10)
+                                                        ->placeholder('Max. 10 Stellen'),
+                                                ])
+                                                ->modalHeading('IBAN aus BLZ + Kontonummer berechnen')
+                                                ->modalSubmitActionLabel('Uebernehmen')
+                                                ->modalWidth('md')
+                                                ->action(function (array $data, Set $set) {
+                                                    $iban = static::calculateGermanIban($data['blz'], $data['kontonummer']);
+                                                    if (! $iban) {
+                                                        \Filament\Notifications\Notification::make()
+                                                            ->title('Ungueltige BLZ oder Kontonummer')
+                                                            ->danger()
+                                                            ->send();
+                                                        return;
+                                                    }
+                                                    $set('iban', $iban);
+                                                    $bankData = static::lookupBankData($iban);
+                                                    if ($bankData['bic']) $set('bic', $bankData['bic']);
+                                                    if ($bankData['bankName']) $set('bank_name', $bankData['bankName']);
 
-                            Section::make('IBAN-Rechner')
-                                ->description('Optional: IBAN automatisch aus Kontonummer und BLZ berechnen.')
-                                ->icon('heroicon-o-calculator')
-                                ->collapsed()
-                                ->schema([
-                                    TextInput::make('_blz')
-                                        ->label('Bankleitzahl (BLZ)')
-                                        ->maxLength(8)
-                                        ->placeholder('8-stellige BLZ')
-                                        ->dehydrated(false)
-                                        ->live(onBlur: true)
-                                        ->afterStateUpdated(function (Get $get, Set $set, ?string $state) {
-                                            $kontonummer = $get('_kontonummer');
-                                            if ($state && $kontonummer) {
-                                                $iban = static::calculateGermanIban($state, $kontonummer);
-                                                if ($iban) {
-                                                    $set('employeeProfile.iban', $iban);
-                                                }
-                                            }
-                                        }),
-                                    TextInput::make('_kontonummer')
-                                        ->label('Kontonummer')
-                                        ->maxLength(10)
-                                        ->placeholder('Max. 10 Stellen')
-                                        ->dehydrated(false)
-                                        ->live(onBlur: true)
-                                        ->afterStateUpdated(function (Get $get, Set $set, ?string $state) {
-                                            $blz = $get('_blz');
-                                            if ($blz && $state) {
-                                                $iban = static::calculateGermanIban($blz, $state);
-                                                if ($iban) {
-                                                    $set('employeeProfile.iban', $iban);
-                                                }
-                                            }
-                                        }),
+                                                    \Filament\Notifications\Notification::make()
+                                                        ->title('IBAN berechnet')
+                                                        ->body($iban . ($bankData['bankName'] ? ' — ' . $bankData['bankName'] : ''))
+                                                        ->success()
+                                                        ->send();
+                                                })
+                                        )
+                                        ->columnSpan(2),
+                                    TextInput::make('bic')
+                                        ->label('BIC')
+                                        ->maxLength(11)
+                                        ->placeholder('Wird automatisch ermittelt'),
+                                    TextInput::make('bank_name')
+                                        ->label('Bank')
+                                        ->maxLength(255)
+                                        ->placeholder('Wird automatisch ermittelt'),
                                 ])
-                                ->columns(2),
+                                ->columns(3)
+                                ->columnSpanFull()
+                                ->dehydrated(false)
+                                ->addActionLabel('Konto hinzufuegen')
+                                ->defaultItems(0)
+                                ->collapsible()
+                                ->itemLabel(fn (array $state): ?string =>
+                                    ($state['type'] ?? 'Konto') . (! empty($state['bank_name']) ? ' — ' . $state['bank_name'] : '')
+                                )
+                                ->helperText('Bankdaten werden verschluesselt gespeichert (AES-256).'),
                         ]),
 
                     // =============================================
@@ -424,6 +688,15 @@ class EmployeeResource extends Resource
                                 ->label(__('partner.employee.fields.professional_training'))
                                 ->maxLength(255)
                                 ->placeholder('z.B. Kauffrau im Einzelhandel'),
+                            Toggle::make('_has_drivers_license')
+                                ->label('Führerschein vorhanden')
+                                ->live()
+                                ->dehydrated(false)
+                                ->afterStateHydrated(function (Set $set, $record) {
+                                    $license = $record?->employeeProfile?->drivers_license;
+                                    $set('_has_drivers_license', ! empty($license));
+                                })
+                                ->columnSpanFull(),
                             CheckboxList::make('employeeProfile.drivers_license')
                                 ->label(__('partner.employee.fields.drivers_license'))
                                 ->options([
@@ -432,27 +705,12 @@ class EmployeeResource extends Resource
                                     'A1' => 'A1', 'A2' => 'A2', 'A' => 'A',
                                 ])
                                 ->columns(5)
-                                ->columnSpanFull(),
+                                ->columnSpanFull()
+                                ->visible(fn (Get $get) => $get('_has_drivers_license')),
                             DatePicker::make('employeeProfile.drivers_license_expiry')
                                 ->label(__('partner.employee.fields.drivers_license_expiry'))
-                                ->displayFormat('d.m.Y'),
-
-                            Section::make('Pflichtschulungen')
-                                ->description('Gesetzlich vorgeschriebene Schulungen und deren Termine.')
-                                ->icon('heroicon-o-shield-check')
-                                ->schema([
-                                    DatePicker::make('employeeProfile.safety_training_date')
-                                        ->label(__('partner.employee.fields.safety_training_date'))
-                                        ->displayFormat('d.m.Y'),
-                                    DatePicker::make('employeeProfile.first_aid_training_date')
-                                        ->label(__('partner.employee.fields.first_aid_training_date'))
-                                        ->displayFormat('d.m.Y'),
-                                    DatePicker::make('employeeProfile.hazmat_training_date')
-                                        ->label(__('partner.employee.fields.hazmat_training_date'))
-                                        ->displayFormat('d.m.Y'),
-                                ])
-                                ->columns(3)
-                                ->columnSpanFull(),
+                                ->native(true)
+                                ->visible(fn (Get $get) => $get('_has_drivers_license')),
 
                             Section::make('Weitere Zertifikate & Schulungen')
                                 ->description('HQM, ADR, Kassenschulung, etc.')
@@ -529,27 +787,39 @@ class EmployeeResource extends Resource
                         ->columns(2),
 
                     // =============================================
-                    // Tab 8: Arbeitsmedizin
+                    // Tab 8: Schulungen & Nachweise
                     // =============================================
-                    Tab::make(__('partner.employee.tabs.arbeitsmedizin'))
-                        ->icon('heroicon-o-clipboard-document-check')
+                    Tab::make('Schulungen & Nachweise')
+                        ->icon('heroicon-o-shield-check')
                         ->schema([
-                            DatePicker::make('employeeProfile.medical_exam_date')
-                                ->label(__('partner.employee.fields.medical_exam_date'))
-                                ->displayFormat('d.m.Y'),
-                            DatePicker::make('employeeProfile.medical_exam_next')
-                                ->label(__('partner.employee.fields.medical_exam_next'))
-                                ->displayFormat('d.m.Y'),
-                            Textarea::make('employeeProfile.medical_restrictions')
-                                ->label(__('partner.employee.fields.medical_restrictions'))
-                                ->rows(3)
-                                ->columnSpanFull()
-                                ->placeholder('z.B. Keine schweren Lasten ueber 15kg'),
-                            Toggle::make('employeeProfile.health_certificate')
-                                ->label(__('partner.employee.fields.health_certificate')),
-                            DatePicker::make('employeeProfile.health_certificate_date')
-                                ->label(__('partner.employee.fields.health_certificate_date'))
-                                ->displayFormat('d.m.Y'),
+                            Section::make('Pflichtschulungen')
+                                ->description('Gesetzlich vorgeschriebene Schulungen und deren Termine.')
+                                ->icon('heroicon-o-shield-check')
+                                ->schema([
+                                    DatePicker::make('employeeProfile.safety_training_date')
+                                        ->label(__('partner.employee.fields.safety_training_date'))
+                                        ->native(true),
+                                    DatePicker::make('employeeProfile.first_aid_training_date')
+                                        ->label(__('partner.employee.fields.first_aid_training_date'))
+                                        ->native(true),
+                                    DatePicker::make('employeeProfile.hazmat_training_date')
+                                        ->label(__('partner.employee.fields.hazmat_training_date'))
+                                        ->native(true),
+                                ])
+                                ->columns(3)
+                                ->columnSpanFull(),
+
+                            Section::make('Gesundheitszeugnis')
+                                ->icon('heroicon-o-clipboard-document-check')
+                                ->schema([
+                                    Toggle::make('employeeProfile.health_certificate')
+                                        ->label(__('partner.employee.fields.health_certificate')),
+                                    DatePicker::make('employeeProfile.health_certificate_date')
+                                        ->label(__('partner.employee.fields.health_certificate_date'))
+                                        ->native(true),
+                                ])
+                                ->columns(2)
+                                ->columnSpanFull(),
 
                             Section::make('Aufenthaltstitel')
                                 ->icon('heroicon-o-identification')
@@ -560,12 +830,11 @@ class EmployeeResource extends Resource
                                         ->placeholder('z.B. Aufenthaltserlaubnis, Niederlassungserlaubnis'),
                                     DatePicker::make('employeeProfile.residence_permit_expires')
                                         ->label(__('partner.employee.fields.residence_permit_expires'))
-                                        ->displayFormat('d.m.Y'),
+                                        ->native(true),
                                 ])
                                 ->columns(2)
                                 ->columnSpanFull(),
-                        ])
-                        ->columns(2),
+                        ]),
 
                     // =============================================
                     // Tab 9: Dokumente
@@ -573,49 +842,99 @@ class EmployeeResource extends Resource
                     Tab::make(__('partner.employee.tabs.dokumente'))
                         ->icon('heroicon-o-document-text')
                         ->schema([
-                            // --- Aktion: Dokument aus Vorlage erstellen (mit Vorschau + KI) ---
+                            // --- Aktion: KI-Dokument erstellen ---
                             SchemaActions::make([
                                 Actions\Action::make('create_document_from_template')
                                     ->label('Neues Dokument erstellen')
-                                    ->icon('heroicon-o-document-plus')
+                                    ->icon('heroicon-o-sparkles')
                                     ->color('primary')
                                     ->form([
-                                        Select::make('template_id')
-                                            ->label('Vorlage')
-                                            ->options(fn () => DocumentTemplate::query()
-                                                ->where(function ($q) {
-                                                    $q->whereNull('tenant_id')
-                                                        ->orWhere('tenant_id', session('tenant_id'));
-                                                })
-                                                ->where('is_active', true)
-                                                ->orderBy('sort_order')
-                                                ->pluck('name', 'id'))
+                                        Select::make('document_type')
+                                            ->label('Was moechten Sie erstellen?')
+                                            ->options(\App\Services\AiTextService::getDocumentTypeOptions())
                                             ->required()
                                             ->searchable()
                                             ->live()
-                                            ->afterStateUpdated(function ($state, Set $set, $record) {
-                                                if (! $state) {
-                                                    $set('content', '');
-                                                    return;
-                                                }
-                                                $template = DocumentTemplate::find($state);
-                                                if ($template && $record) {
-                                                    $service = app(DocumentService::class);
-                                                    $variables = $service->buildVariableMap($record);
-                                                    $content = $service->replacePlaceholders($template->content, $variables);
-                                                    $set('content', $content);
-                                                }
-                                            }),
+                                            ->native(false)
+                                            ->placeholder('Dokumenttyp waehlen...'),
+                                        Textarea::make('_ai_instructions')
+                                            ->label('Zusaetzliche Angaben (optional)')
+                                            ->placeholder('z.B. "befristet auf 1 Jahr", "betriebsbedingte Kuendigung", "Note sehr gut", "besondere Klausel fuer Sonntagsarbeit"...')
+                                            ->rows(3)
+                                            ->helperText('Je mehr Details Sie angeben, desto besser wird das Dokument.')
+                                            ->visible(fn (Get $get) => ! empty($get('document_type')))
+                                            ->dehydrated(false),
                                         Select::make('gas_station_id')
                                             ->label('Tankstelle')
                                             ->options(fn () => \App\Models\GasStation::query()
                                                 ->where('tenant_id', session('tenant_id'))
                                                 ->pluck('name', 'id'))
                                             ->searchable()
-                                            ->placeholder('Optional — Tankstelle zuordnen'),
+                                            ->placeholder('Optional — Tankstelle zuordnen')
+                                            ->visible(fn (Get $get) => ! empty($get('document_type'))),
+
+                                        // KI-Generieren Button
+                                        \Filament\Schemas\Components\Actions::make([
+                                            Actions\Action::make('generate_ai_document')
+                                                ->label('Dokument mit KI generieren')
+                                                ->icon('heroicon-o-sparkles')
+                                                ->color('warning')
+                                                ->size('lg')
+                                                ->action(function (Get $get, Set $set, $record) {
+                                                    $aiService = app(\App\Services\AiTextService::class);
+                                                    $documentType = $get('document_type');
+
+                                                    if (! $documentType) {
+                                                        \Filament\Notifications\Notification::make()
+                                                            ->title('Dokumenttyp waehlen')
+                                                            ->body('Bitte waehlen Sie zuerst einen Dokumenttyp aus.')
+                                                            ->warning()
+                                                            ->send();
+                                                        return;
+                                                    }
+
+                                                    if (! $record) {
+                                                        \Filament\Notifications\Notification::make()
+                                                            ->title('Fehler')
+                                                            ->body('Mitarbeiter-Daten nicht verfuegbar.')
+                                                            ->danger()
+                                                            ->send();
+                                                        return;
+                                                    }
+
+                                                    // Mitarbeiter-Daten laden
+                                                    $record->load(['employeeProfile', 'gasStations', 'tenant']);
+
+                                                    $instructions = $get('_ai_instructions');
+
+                                                    try {
+                                                        $generated = $aiService->generateFullDocument(
+                                                            $documentType,
+                                                            $record,
+                                                            $instructions,
+                                                        );
+                                                        $set('content', $generated);
+
+                                                        \Filament\Notifications\Notification::make()
+                                                            ->title('Dokument generiert!')
+                                                            ->body('Bitte pruefen Sie den Inhalt und passen Sie ihn bei Bedarf an.')
+                                                            ->success()
+                                                            ->send();
+                                                    } catch (\Exception $e) {
+                                                        \Filament\Notifications\Notification::make()
+                                                            ->title('KI-Fehler')
+                                                            ->body($e->getMessage())
+                                                            ->danger()
+                                                            ->send();
+                                                    }
+                                                }),
+                                        ])
+                                            ->visible(fn (Get $get) => ! empty($get('document_type')))
+                                            ->columnSpanFull(),
+
                                         RichEditor::make('content')
                                             ->label('Dokumentinhalt')
-                                            ->helperText('Der Inhalt wurde aus der Vorlage generiert. Sie koennen ihn hier bearbeiten.')
+                                            ->helperText('Von der KI generiert — Sie koennen den Inhalt hier frei bearbeiten.')
                                             ->toolbarButtons([
                                                 'bold', 'italic', 'underline',
                                                 'h2', 'h3',
@@ -623,29 +942,92 @@ class EmployeeResource extends Resource
                                                 'blockquote', 'link',
                                                 'undo', 'redo',
                                             ])
+                                            ->visible(fn (Get $get) => ! empty($get('content')))
                                             ->columnSpanFull(),
+
+                                        // Ueberarbeiten-Button (nachdem Inhalt generiert wurde)
+                                        Section::make('Dokument ueberarbeiten')
+                                            ->icon('heroicon-o-pencil-square')
+                                            ->collapsed()
+                                            ->schema([
+                                                Textarea::make('_refine_instructions')
+                                                    ->label('Was soll geaendert werden?')
+                                                    ->placeholder('z.B. "Probezeit auf 3 Monate aendern", "formeller formulieren", "Paragraph zu Ueberstunden ergaenzen"...')
+                                                    ->rows(2)
+                                                    ->dehydrated(false),
+                                                \Filament\Schemas\Components\Actions::make([
+                                                    Actions\Action::make('refine_ai_document')
+                                                        ->label('Ueberarbeiten')
+                                                        ->icon('heroicon-o-arrow-path')
+                                                        ->color('gray')
+                                                        ->action(function (Get $get, Set $set, $record) {
+                                                            $aiService = app(\App\Services\AiTextService::class);
+                                                            $instructions = $get('_refine_instructions');
+                                                            $currentContent = $get('content');
+
+                                                            if (! $instructions || ! $currentContent) {
+                                                                \Filament\Notifications\Notification::make()
+                                                                    ->title('Anweisungen fehlen')
+                                                                    ->body('Bitte geben Sie an, was geaendert werden soll.')
+                                                                    ->warning()
+                                                                    ->send();
+                                                                return;
+                                                            }
+
+                                                            $record->load(['employeeProfile', 'gasStations', 'tenant']);
+
+                                                            try {
+                                                                $refined = $aiService->refineDocument(
+                                                                    $currentContent,
+                                                                    $instructions,
+                                                                    $record,
+                                                                );
+                                                                $set('content', $refined);
+                                                                $set('_refine_instructions', '');
+
+                                                                \Filament\Notifications\Notification::make()
+                                                                    ->title('Dokument ueberarbeitet')
+                                                                    ->success()
+                                                                    ->send();
+                                                            } catch (\Exception $e) {
+                                                                \Filament\Notifications\Notification::make()
+                                                                    ->title('KI-Fehler')
+                                                                    ->body($e->getMessage())
+                                                                    ->danger()
+                                                                    ->send();
+                                                            }
+                                                        }),
+                                                ]),
+                                            ])
+                                            ->visible(fn (Get $get) => ! empty($get('content')))
+                                            ->columnSpanFull(),
+
                                         Toggle::make('generate_pdf')
                                             ->label('PDF sofort generieren')
-                                            ->default(true),
+                                            ->default(true)
+                                            ->visible(fn (Get $get) => ! empty($get('content'))),
                                         Toggle::make('send_email')
                                             ->label('Direkt per E-Mail versenden (mit Signatur-Link)')
-                                            ->default(false),
+                                            ->default(false)
+                                            ->visible(fn (Get $get) => ! empty($get('content'))),
                                     ])
                                     ->action(function (array $data, $record) {
-                                        $template = DocumentTemplate::findOrFail($data['template_id']);
+                                        $documentType = $data['document_type'];
+                                        $typeLabels = \App\Services\AiTextService::getDocumentTypeOptions();
+                                        $title = $typeLabels[$documentType] ?? $documentType;
+
                                         $station = ! empty($data['gas_station_id'])
                                             ? \App\Models\GasStation::find($data['gas_station_id'])
                                             : null;
 
-                                        // Dokument mit bearbeitetem Inhalt erstellen
+                                        // Dokument erstellen
                                         $document = Document::create([
                                             'tenant_id' => auth()->user()->tenant_id,
                                             'user_id' => $record->id,
                                             'gas_station_id' => $station?->id,
-                                            'template_id' => $template->id,
-                                            'type' => $template->type,
-                                            'category' => $template->category ?? 'hr',
-                                            'title' => $template->name,
+                                            'type' => $documentType,
+                                            'category' => 'hr',
+                                            'title' => $title . ' — ' . $record->name,
                                             'content' => $data['content'],
                                             'status' => 'draft',
                                             'version' => 1,
@@ -670,9 +1052,98 @@ class EmployeeResource extends Resource
                                             ->send();
                                     })
                                     ->modalHeading('Neues Dokument erstellen')
-                                    ->modalDescription('Waehlen Sie eine Vorlage. Der Inhalt wird mit den Mitarbeiterdaten ausgefuellt und kann bearbeitet werden.')
-                                    ->modalSubmitActionLabel('Dokument erstellen')
+                                    ->modalDescription('Waehlen Sie den Dokumenttyp — die KI erstellt das komplette Dokument mit allen Mitarbeiterdaten.')
+                                    ->modalSubmitActionLabel('Dokument speichern')
                                     ->modalWidth('5xl'),
+
+                                // --- Onboarding-Paket: Alle Pflichtformulare auf einmal ---
+                                Actions\Action::make('create_onboarding_package')
+                                    ->label('Onboarding-Paket erstellen')
+                                    ->icon('heroicon-o-clipboard-document-list')
+                                    ->color('success')
+                                    ->requiresConfirmation()
+                                    ->modalHeading('Onboarding-Paket erstellen')
+                                    ->modalDescription(fn ($record) => "Alle Pflicht-Belehrungen fuer {$record->name} werden generiert, als PDF gespeichert und per E-Mail zur Unterschrift verschickt.")
+                                    ->modalSubmitActionLabel('Alle Dokumente erstellen & versenden')
+                                    ->form([
+                                        Select::make('_onboarding_station_id')
+                                            ->label('Tankstelle')
+                                            ->options(fn ($record) => $record->gasStations->pluck('name', 'id'))
+                                            ->required()
+                                            ->placeholder('Tankstelle waehlen...'),
+                                        Placeholder::make('_onboarding_info')
+                                            ->hiddenLabel()
+                                            ->content(function () {
+                                                $templates = DocumentTemplate::where('is_onboarding', true)
+                                                    ->where('is_active', true)
+                                                    ->forCurrentTenant()
+                                                    ->get();
+
+                                                $list = $templates->map(fn ($t) => '<li style="padding:4px 0;">' . e($t->name) . '</li>')->join('');
+
+                                                return new \Illuminate\Support\HtmlString(
+                                                    '<div style="padding:12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;">'
+                                                    . '<p style="font-weight:600;margin-bottom:8px;">Folgende Pflichtformulare werden erstellt:</p>'
+                                                    . '<ul style="margin:0;padding-left:20px;">' . $list . '</ul>'
+                                                    . '</div>'
+                                                );
+                                            }),
+                                    ])
+                                    ->action(function (array $data, $record) {
+                                        $templates = DocumentTemplate::where('is_onboarding', true)
+                                            ->where('is_active', true)
+                                            ->forCurrentTenant()
+                                            ->get();
+
+                                        if ($templates->isEmpty()) {
+                                            \Filament\Notifications\Notification::make()
+                                                ->title('Keine Onboarding-Vorlagen')
+                                                ->body('Es sind keine aktiven Pflichtformulare konfiguriert.')
+                                                ->warning()
+                                                ->send();
+                                            return;
+                                        }
+
+                                        $station = \App\Models\GasStation::find($data['_onboarding_station_id']);
+                                        $docService = app(DocumentService::class);
+                                        $created = 0;
+
+                                        foreach ($templates as $template) {
+                                            $variables = $docService->buildVariableMap($record, $station);
+                                            $content = $docService->replacePlaceholders($template->content, $variables);
+
+                                            $document = Document::create([
+                                                'tenant_id' => auth()->user()->tenant_id,
+                                                'user_id' => $record->id,
+                                                'gas_station_id' => $station?->id,
+                                                'template_id' => $template->id,
+                                                'type' => $template->type,
+                                                'category' => $template->category ?? 'onboarding',
+                                                'title' => $template->name . ' — ' . $record->name,
+                                                'content' => $content,
+                                                'status' => 'draft',
+                                                'version' => 1,
+                                                'requires_signature' => true,
+                                                'created_by' => auth()->id(),
+                                            ]);
+
+                                            // PDF generieren
+                                            $docService->generatePdf($document);
+
+                                            // Per E-Mail mit Signatur-Link versenden
+                                            if ($record->email) {
+                                                $docService->sendDocument($document, $record->email);
+                                            }
+
+                                            $created++;
+                                        }
+
+                                        \Filament\Notifications\Notification::make()
+                                            ->title("Onboarding-Paket erstellt")
+                                            ->body("{$created} Pflichtformular(e) wurden erstellt und per E-Mail an {$record->email} verschickt.")
+                                            ->success()
+                                            ->send();
+                                    }),
 
                                 Actions\Action::make('go_to_documents')
                                     ->label('Alle Dokumente verwalten')
@@ -959,10 +1430,51 @@ class EmployeeResource extends Resource
                     ->label(__('partner.employee.fields.is_active'))
                     ->trueLabel('Nur aktive')
                     ->falseLabel('Nur inaktive'),
+                TrashedFilter::make()
+                    ->label('Archiviert')
+                    ->visible(fn () => auth()->user()?->type === 'partner'),
             ])
             ->actions([
                 Actions\ViewAction::make(),
                 Actions\EditAction::make(),
+                Actions\Action::make('delete_employee')
+                    ->label('Archivieren')
+                    ->icon('heroicon-o-archive-box')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading('Mitarbeiter archivieren')
+                    ->modalDescription(fn ($record) => "Der Mitarbeiter \"{$record->name}\" wird archiviert und ist nicht mehr sichtbar. Die Daten bleiben erhalten und koennen bei Bedarf wiederhergestellt werden.")
+                    ->modalSubmitActionLabel('Archivieren')
+                    ->action(function ($record) {
+                        $name = $record->name;
+                        $record->update(['is_active' => false]);
+                        $record->delete(); // Soft-Delete
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Mitarbeiter archiviert')
+                            ->body("\"{$name}\" wurde archiviert.")
+                            ->success()
+                            ->send();
+                    })
+                    ->visible(fn () => auth()->user()?->type === 'partner'),
+                Actions\Action::make('restore_employee')
+                    ->label('Wiederherstellen')
+                    ->icon('heroicon-o-arrow-uturn-left')
+                    ->color('success')
+                    ->requiresConfirmation()
+                    ->modalHeading('Mitarbeiter wiederherstellen')
+                    ->modalDescription(fn ($record) => "Der Mitarbeiter \"{$record->name}\" wird wiederhergestellt und ist wieder sichtbar.")
+                    ->action(function ($record) {
+                        $record->restore();
+                        $record->update(['is_active' => true]);
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Mitarbeiter wiederhergestellt')
+                            ->body("\"{$record->name}\" ist wieder aktiv.")
+                            ->success()
+                            ->send();
+                    })
+                    ->visible(fn ($record) => $record->trashed() && auth()->user()?->type === 'partner'),
             ]);
     }
 
@@ -976,5 +1488,97 @@ class EmployeeResource extends Resource
             'view' => Pages\ViewEmployee::route('/{record}'),
             'edit' => Pages\EditEmployee::route('/{record}/edit'),
         ];
+    }
+
+    // --- Hilfsmethoden ---
+
+    /**
+     * Staatsangehoerigkeiten: Vordefinierte Liste + benutzerdefinierte aus Tenant-Settings.
+     * Benutzerdefinierte Werte werden in tenant.settings.custom_nationalities gespeichert.
+     */
+    public static function getNationalityOptions(): array
+    {
+        $predefined = [
+            'Deutsch' => 'Deutsch',
+            'Türkisch' => 'Türkisch',
+            'Polnisch' => 'Polnisch',
+            'Italienisch' => 'Italienisch',
+            'Rumänisch' => 'Rumänisch',
+            'Kroatisch' => 'Kroatisch',
+            'Griechisch' => 'Griechisch',
+            'Bulgarisch' => 'Bulgarisch',
+            'Syrisch' => 'Syrisch',
+            'Afghanisch' => 'Afghanisch',
+            'Irakisch' => 'Irakisch',
+            'Russisch' => 'Russisch',
+            'Ukrainisch' => 'Ukrainisch',
+            'Serbisch' => 'Serbisch',
+            'Bosnisch' => 'Bosnisch',
+            'Kosovarisch' => 'Kosovarisch',
+            'Ungarisch' => 'Ungarisch',
+            'Portugiesisch' => 'Portugiesisch',
+            'Spanisch' => 'Spanisch',
+            'Französisch' => 'Französisch',
+            'Niederländisch' => 'Niederländisch',
+            'Österreichisch' => 'Österreichisch',
+            'Schweizerisch' => 'Schweizerisch',
+            'Amerikanisch' => 'Amerikanisch',
+            'Britisch' => 'Britisch',
+            'Indisch' => 'Indisch',
+            'Chinesisch' => 'Chinesisch',
+            'Vietnamesisch' => 'Vietnamesisch',
+            'Thailändisch' => 'Thailändisch',
+            'Eritreisch' => 'Eritreisch',
+            'Somalisch' => 'Somalisch',
+            'Iranisch' => 'Iranisch',
+            'Marokkanisch' => 'Marokkanisch',
+            'Tunesisch' => 'Tunesisch',
+            'Staatenlos' => 'Staatenlos',
+        ];
+
+        // Benutzerdefinierte aus Tenant-Settings laden
+        $tenant = auth()->user()?->tenant;
+        $custom = $tenant ? (array) data_get($tenant->settings, 'custom_nationalities', []) : [];
+        $customOptions = collect($custom)->mapWithKeys(fn ($val) => [$val => $val])->toArray();
+
+        return array_merge($predefined, $customOptions);
+    }
+
+    /**
+     * Kontotypen: Vordefinierte + benutzerdefinierte aus Tenant-Settings.
+     */
+    public static function getBankAccountTypeOptions(): array
+    {
+        $predefined = [
+            'Gehalt' => 'Gehalt',
+            'VWL' => 'VWL (Vermoegenswirksame Leistungen)',
+            'Reisekosten' => 'Reisekosten',
+            'Sonstiges' => 'Sonstiges',
+        ];
+
+        $tenant = auth()->user()?->tenant;
+        $custom = $tenant ? (array) data_get($tenant->settings, 'custom_bank_account_types', []) : [];
+        $customOptions = collect($custom)->mapWithKeys(fn ($val) => [$val => $val])->toArray();
+
+        return array_merge($predefined, $customOptions);
+    }
+
+    /**
+     * Neue Staatsangehoerigkeit in Tenant-Settings speichern.
+     */
+    public static function addCustomNationality(string $value): void
+    {
+        $tenant = auth()->user()?->tenant;
+        if (! $tenant) return;
+
+        $settings = $tenant->settings ?? [];
+        $custom = (array) data_get($settings, 'custom_nationalities', []);
+
+        if (! in_array($value, $custom)) {
+            $custom[] = $value;
+            sort($custom);
+            data_set($settings, 'custom_nationalities', $custom);
+            $tenant->update(['settings' => $settings]);
+        }
     }
 }

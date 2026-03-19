@@ -140,6 +140,14 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
     }
 
     /**
+     * Bankkonten des Mitarbeiters.
+     */
+    public function bankAccounts(): HasMany
+    {
+        return $this->hasMany(EmployeeBankAccount::class)->orderBy('sort_order');
+    }
+
+    /**
      * Dokumente die diesem User zugeordnet sind.
      */
     public function documents(): HasMany

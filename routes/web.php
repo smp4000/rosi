@@ -76,9 +76,72 @@ Route::middleware('auth')->group(function () {
 
     // --- Geschuetzte Routen (verifiziert + Tenant + Trial) ---
     // Dashboard wird jetzt vom Filament Partner-Panel unter /dashboard bereitgestellt.
-    // Weitere geschuetzte Routen (nicht-Filament) koennen hier hinzugefuegt werden.
     Route::middleware(['verified', 'tenant', 'trial'])->group(function () {
-        // Platzhalter fuer zukuenftige Nicht-Filament-Routen
+        // PDF-Vorschau fuer Dokumentvorlagen
+        Route::get('/vorlage/{template}/vorschau', function (\App\Models\DocumentTemplate $template) {
+            // Platzhalter mit Beispieldaten oder echten Firmendaten fuellen
+            $tenantId = session('tenant_id');
+            $tenant = \App\Models\Tenant::find($tenantId);
+
+            // Beispiel-Mitarbeiter-Daten fuer Vorschau
+            $previewVariables = [
+                'mitarbeiter_name' => 'Max Mustermann',
+                'mitarbeiter_vorname' => 'Max',
+                'mitarbeiter_nachname' => 'Mustermann',
+                'mitarbeiter_email' => 'max@beispiel.de',
+                'mitarbeiter_strasse' => 'Musterstrasse 1',
+                'mitarbeiter_plz' => '12345',
+                'mitarbeiter_stadt' => 'Musterstadt',
+                'mitarbeiter_adresse' => 'Musterstrasse 1, 12345 Musterstadt',
+                'mitarbeiter_geburtsdatum' => '01.01.1990',
+                'mitarbeiter_geburtsort' => 'Musterstadt',
+                'mitarbeiter_sv_nummer' => '12 010190 M 001',
+                'mitarbeiter_steuer_id' => '12345678901',
+                'mitarbeiter_steuerklasse' => '1',
+                'mitarbeiter_krankenkasse' => 'AOK',
+                'beschaeftigungsart' => 'Vollzeit',
+                'wochenstunden' => '40',
+                'eintrittsdatum' => now()->format('d.m.Y'),
+                'austrittsdatum' => '',
+                'probezeit_ende' => now()->addMonths(6)->format('d.m.Y'),
+                'urlaubstage' => '30',
+                'gehalt' => '2.800,00',
+                'gehaltsart' => 'monatlich',
+                'arbeitgeber_name' => $tenant?->name ?? 'Mustermann GmbH',
+                'arbeitgeber_strasse' => $tenant?->street ?? 'Hauptstrasse 1',
+                'arbeitgeber_plz' => $tenant?->zip ?? '12345',
+                'arbeitgeber_stadt' => $tenant?->city ?? 'Musterstadt',
+                'arbeitgeber_adresse' => trim(($tenant?->street ?? 'Hauptstrasse 1') . ', ' . ($tenant?->zip ?? '12345') . ' ' . ($tenant?->city ?? 'Musterstadt')),
+                'tankstelle_name' => 'ARAL Musterstadt',
+                'tankstelle_adresse' => 'Tankstellenweg 5, 12345 Musterstadt',
+                'datum_heute' => now()->format('d.m.Y'),
+                'datum_jahr' => now()->format('Y'),
+                'ort_datum' => ($tenant?->city ?? 'Musterstadt') . ', ' . now()->format('d.m.Y'),
+            ];
+
+            // Benutzerdefinierte Platzhalter dazu laden
+            $customPlaceholders = \App\Models\PlaceholderSetting::getVariableMap($tenantId);
+            $previewVariables = array_merge($previewVariables, $customPlaceholders);
+
+            // Platzhalter ersetzen
+            $content = $template->content;
+            $headerHtml = $template->header_html ?? '';
+            $footerHtml = $template->footer_html ?? '';
+
+            foreach ($previewVariables as $key => $value) {
+                $content = str_replace('{{' . $key . '}}', (string) ($value ?? ''), $content);
+                $headerHtml = str_replace('{{' . $key . '}}', (string) ($value ?? ''), $headerHtml);
+            }
+
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.template-preview', [
+                'title' => $template->name,
+                'content' => $content,
+                'headerHtml' => $headerHtml,
+            ]);
+            $pdf->setPaper('A4');
+
+            return $pdf->stream($template->name . ' — Vorschau.pdf');
+        })->name('template.preview');
     });
 
     // --- Abo-Seite (ohne Trial-Check, damit man hinkommt wenn Trial abgelaufen) ---

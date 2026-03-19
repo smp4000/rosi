@@ -43,10 +43,11 @@ class PartnerPanelProvider extends PanelProvider
                     ->icon('heroicon-o-map-pin'),
                 NavigationGroup::make('Personal')
                     ->icon('heroicon-o-users'),
-                NavigationGroup::make('Dokumente')
-                    ->icon('heroicon-o-document-text'),
                 NavigationGroup::make('Kommunikation')
                     ->icon('heroicon-o-chat-bubble-left-right'),
+                NavigationGroup::make('Einstellungen')
+                    ->icon('heroicon-o-cog-6-tooth')
+                    ->collapsed(),
             ])
             ->font('Inter')
             ->sidebarCollapsibleOnDesktop()

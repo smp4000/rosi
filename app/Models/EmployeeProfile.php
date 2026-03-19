@@ -51,6 +51,7 @@ class EmployeeProfile extends Model
         'iban',
         'bic',
         'account_holder',
+        'bank_accounts',
         // Notfallkontakt
         'emergency_name',
         'emergency_phone',
@@ -97,7 +98,7 @@ class EmployeeProfile extends Model
     {
         return [
             // Verschluesselte Felder (DSGVO)
-            'date_of_birth' => 'encrypted',
+            'date_of_birth' => 'encrypted:date',
             'tax_id' => 'encrypted',
             'social_security_number' => 'encrypted',
             'health_insurance_number' => 'encrypted',
@@ -105,6 +106,7 @@ class EmployeeProfile extends Model
             'iban' => 'encrypted',
             'bic' => 'encrypted',
             'account_holder' => 'encrypted',
+            'bank_accounts' => 'encrypted:array',
             'children_data' => 'encrypted:array',
             'medical_restrictions' => 'encrypted',
             'salary' => 'encrypted',

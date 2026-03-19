@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'perplexity' => [
+        'api_key' => env('PERPLEXITY_API_KEY'),
+        'model' => env('PERPLEXITY_MODEL', 'sonar'),
+    ],
+
 ];

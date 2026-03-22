@@ -42,6 +42,16 @@ class ArticleResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
+    public static function getNavigationBadge(): ?string
+    {
+        $tenantId = auth()->user()?->tenant_id;
+        if (! $tenantId) return null;
+
+        $count = \App\Models\Article::whereHas('gasStation', fn ($q) => $q->where('tenant_id', $tenantId))->count();
+
+        return $count > 0 ? number_format($count, 0, ',', '.') : null;
+    }
+
     // --- Autorisierung ---
 
     protected static function ensureTeamContext(): void

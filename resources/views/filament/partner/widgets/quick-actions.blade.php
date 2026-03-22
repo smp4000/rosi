@@ -7,6 +7,11 @@
                 {{ svg('heroicon-o-plus-circle', '', ['style' => 'width: 1.25rem; height: 1.25rem;']) }}
                 {{ __('partner.dashboard.quick_actions.add_station') }}
             </a>
+            <a href="/dashboard/data-import"
+               style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.625rem 1rem; border: 1px solid rgb(187 247 208); background: rgb(240 253 244); border-radius: 0.5rem; font-size: 0.875rem; font-weight: 500; color: rgb(21 128 61); text-decoration: none;">
+                {{ svg('heroicon-o-arrow-up-tray', '', ['style' => 'width: 1.25rem; height: 1.25rem;']) }}
+                Daten importieren
+            </a>
         </div>
     </x-filament::section>
 </x-filament-widgets::widget>

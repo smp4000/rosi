@@ -103,6 +103,20 @@ class ArticleResource extends Resource
                                 ->maxLength(255)
                                 ->columnSpanFull(),
 
+                            TextInput::make('purchasing_price')
+                                ->label('Einkaufspreis (EUR)')
+                                ->numeric()
+                                ->step(0.001)
+                                ->default(0.000)
+                                ->prefix('EUR'),
+
+                            TextInput::make('selling_price')
+                                ->label('Verkaufspreis (EUR)')
+                                ->numeric()
+                                ->step(0.01)
+                                ->default(0.00)
+                                ->prefix('EUR'),
+
                             Select::make('article_group_id')
                                 ->label('Artikelgruppe')
                                 ->options(
@@ -128,26 +142,6 @@ class ArticleResource extends Resource
                                     'inactive' => 'Inaktiv',
                                 ])
                                 ->default('active'),
-                        ])
-                        ->columns(2),
-
-                    // ========== TAB: PREISE ==========
-                    Tab::make('Preise')
-                        ->icon('heroicon-o-currency-euro')
-                        ->schema([
-                            TextInput::make('purchasing_price')
-                                ->label('Einkaufspreis (EUR)')
-                                ->numeric()
-                                ->step(0.001)
-                                ->default(0.000)
-                                ->prefix('EUR'),
-
-                            TextInput::make('selling_price')
-                                ->label('Verkaufspreis (EUR)')
-                                ->numeric()
-                                ->step(0.01)
-                                ->default(0.00)
-                                ->prefix('EUR'),
                         ])
                         ->columns(2),
 
@@ -207,6 +201,8 @@ class ArticleResource extends Resource
                                 ->nullable(),
                         ])
                         ->columns(2),
+
+
 
                     // ========== TAB: IMPORT-INFO ==========
                     Tab::make('Import')
@@ -279,6 +275,12 @@ class ArticleResource extends Resource
     {
         return $table
             ->columns([
+                TextColumn::make('gasStation.name')
+                    ->label('Tankstelle')
+                    ->description(fn ($record) => $record->gasStation?->station_number_shop ?? $record->gasStation?->station_number ?? '')
+                    ->sortable()
+                    ->toggleable(),    
+
                 TextColumn::make('article_number')
                     ->label('Art.-Nr.')
                     ->sortable()
@@ -291,9 +293,37 @@ class ArticleResource extends Resource
                     ->weight('bold')
                     ->limit(40),
 
-                TextColumn::make('gasStation.name')
-                    ->label('Tankstelle')
-                    ->sortable()
+                TextColumn::make('eans_display')
+                    ->label('EAN')
+                    ->html()
+                    ->state(function ($record) {
+                        $eans = \App\Models\ArticleEan::where('gas_station_id', $record->gas_station_id)
+                            ->where('article_number', $record->article_number)
+                            ->orderBy('ean')
+                            ->pluck('ean');
+
+                        if ($eans->isEmpty()) {
+                            return '-';
+                        }
+
+                        $lines = $eans->take(2)->map(fn ($e) => e($e))->implode('<br>');
+                        $remaining = $eans->count() - 2;
+                        if ($remaining > 0) {
+                            $lines .= '<br><span style="color:#9ca3af;">und ' . $remaining . ' weitere</span>';
+                        }
+
+                        return $lines;
+                    })
+                    ->searchable(query: function ($query, string $search) {
+                        $query->whereExists(function ($sub) use ($search) {
+                            $sub->selectRaw('1')
+                                ->from('article_eans')
+                                ->whereColumn('article_eans.article_number', 'articles.article_number')
+                                ->whereColumn('article_eans.gas_station_id', 'articles.gas_station_id')
+                                ->where('article_eans.ean', 'LIKE', "%{$search}%")
+                                ->whereNull('article_eans.deleted_at');
+                        });
+                    })
                     ->toggleable(),
 
                 TextColumn::make('articleGroup.article_group_04')
@@ -375,6 +405,13 @@ class ArticleResource extends Resource
     }
 
     // --- Seiten ---
+
+    public static function getRelations(): array
+    {
+        return [
+            ArticleResource\RelationManagers\EansRelationManager::class,
+        ];
+    }
 
     public static function getPages(): array
     {

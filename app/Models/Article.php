@@ -66,6 +66,13 @@ class Article extends \Illuminate\Database\Eloquent\Model
         return $this->belongsTo(ArticleGroup::class);
     }
 
+    public function eans(): HasMany
+    {
+        return $this->hasMany(ArticleEan::class, 'article_number', 'article_number')
+            ->where('article_eans.gas_station_id', $this->gas_station_id);
+    }
+
+
     public function changes(): HasMany
     {
         return $this->hasMany(ArticleChange::class)->orderByDesc('created_at');

@@ -59,9 +59,14 @@ class ArticleImportPage extends Page implements HasForms
     private static function getFilePatterns(): array
     {
         return [
+            'ean_data' => [
+                'label' => 'Artikel-EAN-Daten (Mengenverordnung)',
+                'pattern' => 'Mengenverordnung',
+                'icon' => '🏷️',
+            ],
             'articles' => [
                 'label' => 'Artikelstammdaten (ArtDat-Export)',
-                'pattern' => 'Artikelstammdaten',
+                'pattern' => 'Nr.,,Bezeichnung,Einheit,,akt.EK',
                 'icon' => '📦',
             ],
             // Spaeter:
@@ -69,11 +74,6 @@ class ArticleImportPage extends Page implements HasForms
             //     'label' => 'Löschliste',
             //     'pattern' => 'Löschliste',
             //     'icon' => '🗑️',
-            // ],
-            // 'ean_data' => [
-            //     'label' => 'EAN-Stammdaten',
-            //     'pattern' => 'EAN',
-            //     'icon' => '🏷️',
             // ],
         ];
     }
@@ -386,9 +386,9 @@ class ArticleImportPage extends Page implements HasForms
             // Je nach erkanntem Typ den passenden Service aufrufen
             $import = match ($this->detected_type) {
                 'articles' => $this->importArticles($fullPath, basename($fullPath)),
+                'ean_data' => $this->importEanData($fullPath, basename($fullPath)),
                 // Spaeter:
                 // 'delete_list' => $this->importDeleteList($fullPath, basename($fullPath)),
-                // 'ean_data' => $this->importEanData($fullPath, basename($fullPath)),
                 default => throw new \Exception("Import-Typ '{$this->detected_type}' wird noch nicht unterstützt."),
             };
 
@@ -450,6 +450,13 @@ class ArticleImportPage extends Page implements HasForms
     private function importArticles(string $fullPath, string $filename): ArticleImport
     {
         $service = new ArticleCsvImportService();
+
+        return $service->import($fullPath, $filename, auth()->id());
+    }
+
+    private function importEanData(string $fullPath, string $filename): ArticleImport
+    {
+        $service = new \App\Services\ArticleEanCsvImportService();
 
         return $service->import($fullPath, $filename, auth()->id());
     }

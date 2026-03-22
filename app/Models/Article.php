@@ -20,6 +20,7 @@ class Article extends \Illuminate\Database\Eloquent\Model
     protected $fillable = [
         'gas_station_id',
         'article_group_id',
+        'article_group_description',
         'article_number',
         'name',
         'unit',

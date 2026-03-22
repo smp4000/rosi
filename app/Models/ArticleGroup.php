@@ -108,6 +108,8 @@ class ArticleGroup extends \Illuminate\Database\Eloquent\Model
     {
         return static::query()
             ->whereNotNull('business_area_id')
+            ->where('business_area_id', '>', 0)
+            ->whereNotNull('business_area')
             ->distinct()
             ->orderBy('business_area_id')
             ->pluck('business_area', 'business_area_id')

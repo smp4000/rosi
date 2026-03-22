@@ -35,7 +35,7 @@ use Illuminate\Support\Facades\Http;
 
 /**
  * Filament Resource fuer die Tankstellen-Verwaltung im Partner-Panel.
- * 8 Tabs: Adresse, Allgemein, Finanzen, Oeffnungszeiten, Shop, Fotos, Wettbewerb, Karte.
+ * 9 Tabs: Adresse, Allgemein, Finanzen, Oeffnungszeiten, Shop, Fotos, Wettbewerb, Mitarbeiter, Karte.
  */
 class GasStationResource extends Resource
 {

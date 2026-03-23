@@ -30,7 +30,10 @@
 
     {{-- Fortschrittsbalken E-Mail-Versand --}}
     @if($this->isSending)
-        <div wire:poll.3s="sendNextEmail" style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+        @php
+            $pollDelay = max(5, (int) \App\Models\InvoiceSetting::get('email_delay_seconds', 5));
+        @endphp
+        <div wire:poll.{{ $pollDelay }}s="sendNextEmail" style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <div style="width: 20px; height: 20px; border: 3px solid #3b82f6; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>

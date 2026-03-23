@@ -35,6 +35,8 @@ class Article extends \Illuminate\Database\Eloquent\Model
         'current_stock',
         'modus',
         'status',
+        'is_locked',
+        'locked_at',
         'csv_printed_at',
         'imported_at',
     ];
@@ -49,6 +51,8 @@ class Article extends \Illuminate\Database\Eloquent\Model
             'max_stock' => 'integer',
             'current_stock' => 'integer',
             'modus' => 'integer',
+            'is_locked' => 'boolean',
+            'locked_at' => 'datetime',
             'csv_printed_at' => 'datetime',
             'imported_at' => 'datetime',
         ];

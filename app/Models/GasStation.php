@@ -168,6 +168,38 @@ class GasStation extends Model
     }
 
     /**
+     * Firmenkunden dieser Tankstelle.
+     */
+    public function corporateCustomers(): HasMany
+    {
+        return $this->hasMany(CorporateCustomer::class);
+    }
+
+    /**
+     * Tankkarten dieser Tankstelle.
+     */
+    public function fuelCards(): HasMany
+    {
+        return $this->hasMany(FuelCard::class);
+    }
+
+    /**
+     * Rechnungen dieser Tankstelle.
+     */
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+    /**
+     * Import-Batches dieser Tankstelle.
+     */
+    public function invoiceBatches(): HasMany
+    {
+        return $this->hasMany(InvoiceBatch::class);
+    }
+
+    /**
      * Dokumente dieser Tankstelle.
      */
     public function documents(): HasMany

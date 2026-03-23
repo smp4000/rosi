@@ -142,6 +142,29 @@ Route::middleware('auth')->group(function () {
 
             return $pdf->stream($template->name . ' — Vorschau.pdf');
         })->name('template.preview');
+
+        // Sammel-PDF (Druck) herunterladen
+        Route::get('/sammel-pdf/{filename}', function (string $filename) {
+            $filename = basename($filename);
+            $path = storage_path('app/private/print_jobs/' . $filename);
+            if (! file_exists($path)) {
+                abort(404, 'Sammel-PDF nicht gefunden');
+            }
+
+            return response()->file($path, ['Content-Type' => 'application/pdf']);
+        })->where('filename', '.*')->name('print-pdf.download');
+
+        // Rechnungs-PDF anzeigen/downloaden
+        Route::get('/rechnung/{invoice}/pdf', function (\App\Models\Invoice $invoice) {
+            if (! $invoice->pdf_path || ! \Illuminate\Support\Facades\Storage::exists($invoice->pdf_path)) {
+                abort(404, 'PDF nicht gefunden');
+            }
+
+            return response()->file(
+                \Illuminate\Support\Facades\Storage::path($invoice->pdf_path),
+                ['Content-Type' => 'application/pdf']
+            );
+        })->name('invoice.pdf');
     });
 
     // --- Abo-Seite (ohne Trial-Check, damit man hinkommt wenn Trial abgelaufen) ---

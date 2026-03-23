@@ -5,7 +5,11 @@ namespace App\Filament\Partner\Pages;
 use App\Models\ArticleImport;
 use App\Models\GasStation;
 use App\Services\ArticleCsvImportService;
+use App\Services\ArticleDeleteCsvImportService;
 use App\Services\ArticleEanCsvImportService;
+use App\Services\ArticleLockCsvImportService;
+use App\Services\CorporateCustomerCsvImportService;
+use App\Services\FuelCardCsvImportService;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -61,12 +65,30 @@ class ArticleImportPage extends Page implements HasForms
                 'icon' => '🏷️',
                 'priority' => 2,
             ],
-            // 'delete_list' => [
-            //     'label' => 'Löschliste',
-            //     'pattern' => 'Löschliste',
-            //     'icon' => '🗑️',
-            //     'priority' => 3,
-            // ],
+            'lock_list' => [
+                'label' => 'Sperrliste',
+                'pattern' => 'Sperren',
+                'icon' => '🔒',
+                'priority' => 3,
+            ],
+            'delete_list' => [
+                'label' => 'Löschliste',
+                'pattern' => 'schen',
+                'icon' => '🗑️',
+                'priority' => 4,
+            ],
+            'corporate_customers' => [
+                'label' => 'Firmenliste',
+                'pattern' => 'Firmenliste',
+                'icon' => '🏢',
+                'priority' => 5,
+            ],
+            'fuel_cards' => [
+                'label' => 'Teilnehmerliste (Tankkarten)',
+                'pattern' => 'Teilnehmerliste',
+                'icon' => '💳',
+                'priority' => 6,
+            ],
         ];
     }
 
@@ -74,7 +96,7 @@ class ArticleImportPage extends Page implements HasForms
     {
         return $schema->statePath('data')->components([
             Section::make('CSV-Dateien hochladen')
-                ->description('Laden Sie eine oder mehrere CSV-Dateien hoch. Der Dateityp wird automatisch erkannt. Artikelstammdaten werden immer vor EAN-Daten verarbeitet.')
+                ->description('Laden Sie eine oder mehrere CSV-Dateien hoch. Der Dateityp wird automatisch erkannt.')
                 ->schema([
                     FileUpload::make('csv_files')
                         ->label('CSV-Dateien')
@@ -246,7 +268,7 @@ class ArticleImportPage extends Page implements HasForms
         if (count($this->analyzed_files) > 1) {
             $hasUnprocessed = collect($this->analyzed_files)->contains(fn ($f) => ($f['status'] ?? 'pending') === 'pending');
             if ($hasUnprocessed) {
-                $html .= '<div style="margin-top:8px; font-size:0.8rem; color:#6b7280;">Dateien werden in der angezeigten Reihenfolge verarbeitet (Artikelstammdaten vor EAN-Daten).</div>';
+                $html .= '<div style="margin-top:8px; font-size:0.8rem; color:#6b7280;">Dateien werden in der angezeigten Reihenfolge verarbeitet.</div>';
             }
         }
 
@@ -303,6 +325,10 @@ class ArticleImportPage extends Page implements HasForms
                 $import = match ($type) {
                     'articles' => (new ArticleCsvImportService())->import($fullPath, $file['filename'], auth()->id()),
                     'ean_data' => (new ArticleEanCsvImportService())->import($fullPath, $file['filename'], auth()->id()),
+                    'delete_list' => (new ArticleDeleteCsvImportService())->import($fullPath, $file['filename'], auth()->id()),
+                    'lock_list' => (new ArticleLockCsvImportService())->import($fullPath, $file['filename'], auth()->id()),
+                    'corporate_customers' => (new CorporateCustomerCsvImportService())->import($fullPath, $file['filename'], auth()->id()),
+                    'fuel_cards' => (new FuelCardCsvImportService())->import($fullPath, $file['filename'], auth()->id()),
                     default => throw new \Exception("Typ '{$type}' nicht unterstützt."),
                 };
 
@@ -357,7 +383,14 @@ class ArticleImportPage extends Page implements HasForms
             $headerText = implode("\n", array_slice($lines, 0, 50));
 
             // Dateityp erkennen
-            foreach (self::getFilePatterns() as $type => $config) {
+            // Sperr-/Loeschliste zuerst pruefen (hoehere Spezifitaet als Artikelstammdaten/EAN)
+            $patterns = self::getFilePatterns();
+            $orderedTypes = ['lock_list', 'delete_list', 'corporate_customers', 'fuel_cards', 'articles', 'ean_data'];
+            foreach ($orderedTypes as $type) {
+                if (! isset($patterns[$type])) {
+                    continue;
+                }
+                $config = $patterns[$type];
                 if (str_contains($headerText, $config['pattern'])) {
                     $result['type'] = $type;
                     $result['type_label'] = $config['icon'] . ' ' . $config['label'];

@@ -24,6 +24,7 @@ class ArticleEan extends \Illuminate\Database\Eloquent\Model
         'base_unit',
         'quantity_factor',
         'sales_packaging',
+        'is_locked',
         'csv_printed_at',
         'imported_at',
     ];
@@ -34,6 +35,7 @@ class ArticleEan extends \Illuminate\Database\Eloquent\Model
             'selling_price' => 'decimal:2',
             'base_quantity' => 'decimal:3',
             'reference_quantity' => 'decimal:3',
+            'is_locked' => 'boolean',
             'csv_printed_at' => 'datetime',
             'imported_at' => 'datetime',
         ];

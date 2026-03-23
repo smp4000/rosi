@@ -22,6 +22,9 @@ class ArticleImport extends \Illuminate\Database\Eloquent\Model
         'articles_created',
         'articles_updated',
         'articles_unchanged',
+        'articles_deleted',
+        'articles_not_found',
+        'articles_locked',
         'status',
         'error_message',
         'imported_by',
@@ -35,6 +38,9 @@ class ArticleImport extends \Illuminate\Database\Eloquent\Model
             'articles_created' => 'integer',
             'articles_updated' => 'integer',
             'articles_unchanged' => 'integer',
+            'articles_deleted' => 'integer',
+            'articles_not_found' => 'integer',
+            'articles_locked' => 'integer',
         ];
     }
 
@@ -62,6 +68,32 @@ class ArticleImport extends \Illuminate\Database\Eloquent\Model
      */
     public function getSummaryAttribute(): string
     {
+        // Sperrlisten-Import
+        if ($this->articles_locked > 0) {
+            $parts = ["{$this->articles_total} gesamt"];
+            $parts[] = "{$this->articles_locked} gesperrt";
+            if ($this->articles_not_found > 0) {
+                $parts[] = "{$this->articles_not_found} nicht gefunden";
+            }
+            if ($this->articles_unchanged > 0) {
+                $parts[] = "{$this->articles_unchanged} bereits gesperrt";
+            }
+            return implode(' | ', $parts);
+        }
+
+        // Loeschlisten-Import
+        if ($this->articles_deleted > 0) {
+            $parts = ["{$this->articles_total} gesamt"];
+            $parts[] = "{$this->articles_deleted} gelöscht";
+            if ($this->articles_not_found > 0) {
+                $parts[] = "{$this->articles_not_found} nicht gefunden";
+            }
+            if ($this->articles_unchanged > 0) {
+                $parts[] = "{$this->articles_unchanged} bereits gelöscht";
+            }
+            return implode(' | ', $parts);
+        }
+
         return sprintf(
             '%d gesamt | %d neu | %d aktualisiert | %d unverändert',
             $this->articles_total,

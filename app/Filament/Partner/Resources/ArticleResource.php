@@ -150,6 +150,7 @@ class ArticleResource extends Resource
                                     'new' => 'Neu',
                                     'price_changed' => 'Preis geändert',
                                     'inactive' => 'Inaktiv',
+                                    'locked' => 'Gesperrt',
                                 ])
                                 ->default('active'),
                         ])
@@ -364,6 +365,7 @@ class ArticleResource extends Resource
                         'price_changed' => 'Preis geändert',
                         'inactive' => 'Inaktiv',
                         'deleted' => 'Gelöscht',
+                        'locked' => 'Gesperrt',
                         default => $state,
                     })
                     ->color(fn (string $state): string => match ($state) {
@@ -372,6 +374,7 @@ class ArticleResource extends Resource
                         'price_changed' => 'warning',
                         'inactive' => 'gray',
                         'deleted' => 'danger',
+                        'locked' => 'danger',
                         default => 'gray',
                     }),
 
@@ -396,7 +399,19 @@ class ArticleResource extends Resource
                         'new' => 'Neu',
                         'price_changed' => 'Preis geändert',
                         'inactive' => 'Inaktiv',
-                    ]),
+                        'locked' => 'Gesperrt',
+                        'deleted' => 'Gelöscht',
+                    ])
+                    ->query(function ($query, array $data) {
+                        if (($data['value'] ?? null) === 'deleted') {
+                            // Soft-deleted Artikel anzeigen
+                            return $query->onlyTrashed()->where('status', 'deleted');
+                        }
+                        if ($data['value'] ?? null) {
+                            return $query->where('status', $data['value']);
+                        }
+                        return $query;
+                    }),
                 SelectFilter::make('article_group_id')
                     ->label('Artikelgruppe')
                     ->relationship('articleGroup', 'article_group_04')

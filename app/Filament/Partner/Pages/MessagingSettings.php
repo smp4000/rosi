@@ -27,15 +27,15 @@ class MessagingSettings extends Page implements HasForms
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-cog-6-tooth';
 
-    protected static ?string $navigationLabel = 'Einstellungen';
+    protected static ?string $navigationLabel = 'Kommunikation';
 
     protected static ?string $title = 'Kommunikations-Einstellungen';
 
     protected static ?string $slug = 'messaging-settings';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Kommunikation';
+    protected static string|\UnitEnum|null $navigationGroup = 'Einstellungen';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 91;
 
     protected string $view = 'filament.partner.pages.messaging-settings';
 

@@ -195,13 +195,19 @@ class ViewInvoiceBatch extends ViewRecord
             return;
         }
 
+        // Sicherheitscheck: Abbruch wenn Current > Total (sollte nie passieren)
+        if ($this->sendingCurrent >= $this->sendingTotal) {
+            $this->finishSending();
+
+            return;
+        }
+
         $batch = $this->record;
 
-        // Naechste nicht-gesendete Rechnung holen
+        // Naechste nicht-gesendete Rechnung holen (pending = noch nicht versucht)
         $invoice = Invoice::where('batch_id', $batch->id)
             ->where('import_status', 'success')
-            ->where('email_status', '!=', 'sent')
-            ->where('email_status', '!=', 'failed')
+            ->where('email_status', 'pending')
             ->whereHas('corporateCustomer', function ($q) {
                 $q->where('send_via_email', true)
                   ->where('is_active', true)
@@ -212,21 +218,7 @@ class ViewInvoiceBatch extends ViewRecord
             ->first();
 
         if (! $invoice) {
-            // Fertig!
-            $this->isSending = false;
-
-            if ($this->sendingFailed > 0) {
-                Notification::make()
-                    ->title("{$this->sendingSent} gesendet, {$this->sendingFailed} fehlgeschlagen")
-                    ->warning()
-                    ->duration(10000)
-                    ->send();
-            } else {
-                Notification::make()
-                    ->title("Alle {$this->sendingSent} E-Mails erfolgreich versendet!")
-                    ->success()
-                    ->send();
-            }
+            $this->finishSending();
 
             return;
         }
@@ -244,6 +236,11 @@ class ViewInvoiceBatch extends ViewRecord
                 'email_error' => 'Kein PDF vorhanden',
             ]);
             $this->sendingFailed++;
+
+            // Pruefen ob fertig
+            if ($this->sendingCurrent >= $this->sendingTotal) {
+                $this->finishSending();
+            }
 
             return;
         }
@@ -270,6 +267,29 @@ class ViewInvoiceBatch extends ViewRecord
                 'email_error' => substr($e->getMessage(), 0, 500),
             ]);
             $this->sendingFailed++;
+        }
+
+        // Pruefen ob fertig
+        if ($this->sendingCurrent >= $this->sendingTotal) {
+            $this->finishSending();
+        }
+    }
+
+    private function finishSending(): void
+    {
+        $this->isSending = false;
+
+        if ($this->sendingFailed > 0) {
+            Notification::make()
+                ->title("{$this->sendingSent} gesendet, {$this->sendingFailed} fehlgeschlagen")
+                ->warning()
+                ->duration(10000)
+                ->send();
+        } else {
+            Notification::make()
+                ->title("Alle {$this->sendingSent} E-Mails erfolgreich versendet!")
+                ->success()
+                ->send();
         }
     }
 

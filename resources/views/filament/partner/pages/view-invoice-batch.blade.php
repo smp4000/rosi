@@ -45,7 +45,7 @@
 
             {{-- Fortschrittsbalken --}}
             @php
-                $percent = $this->sendingTotal > 0 ? round(($this->sendingCurrent / $this->sendingTotal) * 100) : 0;
+                $percent = $this->sendingTotal > 0 ? min(100, round(($this->sendingCurrent / $this->sendingTotal) * 100)) : 0;
             @endphp
             <div style="background: #dbeafe; border-radius: 999px; height: 24px; overflow: hidden; position: relative;">
                 <div style="background: linear-gradient(90deg, #3b82f6, #2563eb); height: 100%; width: {{ $percent }}%; border-radius: 999px; transition: width 0.5s ease;">

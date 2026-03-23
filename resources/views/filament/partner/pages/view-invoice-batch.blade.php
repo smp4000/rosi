@@ -28,6 +28,54 @@
         </div>
     </div>
 
+    {{-- Fortschrittsbalken E-Mail-Versand --}}
+    @if($this->isSending)
+        <div wire:poll.3s="sendNextEmail" style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 20px; height: 20px; border: 3px solid #3b82f6; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                    <span style="font-weight: bold; font-size: 1rem; color: #1e40af;">
+                        📧 Sende E-Mail {{ $this->sendingCurrent }} von {{ $this->sendingTotal }}...
+                    </span>
+                </div>
+                <button wire:click="cancelSending" style="background: #ef4444; color: #fff; border: none; padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
+                    ✕ Abbrechen
+                </button>
+            </div>
+
+            {{-- Fortschrittsbalken --}}
+            @php
+                $percent = $this->sendingTotal > 0 ? round(($this->sendingCurrent / $this->sendingTotal) * 100) : 0;
+            @endphp
+            <div style="background: #dbeafe; border-radius: 999px; height: 24px; overflow: hidden; position: relative;">
+                <div style="background: linear-gradient(90deg, #3b82f6, #2563eb); height: 100%; width: {{ $percent }}%; border-radius: 999px; transition: width 0.5s ease;">
+                </div>
+                <span style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 0.8rem; font-weight: bold; color: {{ $percent > 50 ? '#fff' : '#1e40af' }};">
+                    {{ $percent }}%
+                </span>
+            </div>
+
+            {{-- Aktueller Kunde + Statistik --}}
+            <div style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 0.85rem; color: #374151;">
+                <span>
+                    @if($this->sendingCurrentName)
+                        Aktuell: <strong>{{ $this->sendingCurrentName }}</strong>
+                    @endif
+                </span>
+                <span>
+                    <span style="color: #16a34a;">✅ {{ $this->sendingSent }} gesendet</span>
+                    @if($this->sendingFailed > 0)
+                        <span style="margin-left: 12px; color: #dc2626;">❌ {{ $this->sendingFailed }} fehlgeschlagen</span>
+                    @endif
+                </span>
+            </div>
+        </div>
+
+        <style>
+            @keyframes spin { to { transform: rotate(360deg); } }
+        </style>
+    @endif
+
     {{-- Tab-Navigation --}}
     <div style="display: flex; gap: 4px; border-bottom: 2px solid #e5e7eb; margin-bottom: 16px;">
         @php
@@ -78,19 +126,19 @@
                                 <td style="padding: 8px 12px;">{{ $inv->gasStation?->name ?? '-' }}</td>
                                 <td style="padding: 8px 12px; text-align: right;">{{ number_format($inv->amount, 2, ',', '.') }} &euro;</td>
                                 <td style="padding: 8px 12px; text-align: center;">
-                                    @if($inv->status === 'sent')
-                                        <span style="background: #dcfce7; color: #16a34a; padding: 2px 8px; border-radius: 9999px; font-size: 0.8rem;">E-Mail versendet</span>
-                                    @elseif($inv->status === 'failed')
-                                        <span style="background: #fef2f2; color: #dc2626; padding: 2px 8px; border-radius: 9999px; font-size: 0.8rem;">Fehlgeschlagen</span>
+                                    @if($inv->email_status === 'sent')
+                                        <span style="background: #dcfce7; color: #16a34a; padding: 2px 8px; border-radius: 9999px; font-size: 0.8rem;">✅ Versendet</span>
+                                    @elseif($inv->email_status === 'failed')
+                                        <span style="background: #fef2f2; color: #dc2626; padding: 2px 8px; border-radius: 9999px; font-size: 0.8rem;" title="{{ $inv->email_error ?? '' }}">❌ Fehlgeschlagen</span>
                                     @else
-                                        <span style="background: #f3f4f6; color: #6b7280; padding: 2px 8px; border-radius: 9999px; font-size: 0.8rem;">Bereit</span>
+                                        <span style="background: #f3f4f6; color: #6b7280; padding: 2px 8px; border-radius: 9999px; font-size: 0.8rem;">⏳ Ausstehend</span>
                                     @endif
                                 </td>
                                 <td style="padding: 8px 12px; text-align: right;">
-                                    @if($inv->status !== 'sent')
+                                    @if($inv->email_status !== 'sent')
                                         <button wire:click="sendSingleEmail('{{ $inv->id }}')" style="background: #3b82f6; color: #fff; border: none; padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">📧 Senden</button>
                                     @else
-                                        <span style="color: #9ca3af; font-size: 0.8rem;">✅ Gesendet</span>
+                                        <span style="color: #9ca3af; font-size: 0.8rem;">✅</span>
                                     @endif
                                 </td>
                             </tr>
@@ -131,10 +179,10 @@
                                 <td style="padding: 8px 12px;">{{ $inv->corporateCustomer?->full_address ?? '-' }}</td>
                                 <td style="padding: 8px 12px; text-align: right;">{{ number_format($inv->amount, 2, ',', '.') }} &euro;</td>
                                 <td style="padding: 8px 12px; text-align: center;">
-                                    @if($inv->status === 'printed')
-                                        <span style="background: #dbeafe; color: #2563eb; padding: 2px 8px; border-radius: 9999px; font-size: 0.8rem;">Gedruckt</span>
+                                    @if($inv->print_status === 'printed')
+                                        <span style="background: #dbeafe; color: #2563eb; padding: 2px 8px; border-radius: 9999px; font-size: 0.8rem;">🖨️ Gedruckt</span>
                                     @else
-                                        <span style="background: #f3f4f6; color: #6b7280; padding: 2px 8px; border-radius: 9999px; font-size: 0.8rem;">Bereit</span>
+                                        <span style="background: #f3f4f6; color: #6b7280; padding: 2px 8px; border-radius: 9999px; font-size: 0.8rem;">⏳ Ausstehend</span>
                                     @endif
                                 </td>
                             </tr>

@@ -31,6 +31,14 @@ class ViewInvoiceBatch extends ViewRecord
     public array $customerSendEmail = [];
     public array $customerSendPrint = [];
 
+    // Fortschrittsbalken E-Mail-Versand
+    public bool $isSending = false;
+    public int $sendingCurrent = 0;
+    public int $sendingTotal = 0;
+    public string $sendingCurrentName = '';
+    public int $sendingSent = 0;
+    public int $sendingFailed = 0;
+
     public function mount(int|string $record): void
     {
         parent::mount($record);
@@ -80,10 +88,10 @@ class ViewInvoiceBatch extends ViewRecord
                 ->requiresConfirmation()
                 ->modalHeading('Komplett-Versand starten?')
                 ->modalDescription('E-Mails werden versendet und Druck-PDF wird erstellt.')
+                ->hidden(fn () => $this->isSending)
                 ->action(function () {
-                    $this->doSendAllEmails();
                     $this->doCreatePrintPdf();
-                    $this->generateVersandBericht();
+                    $this->startSendingEmails();
                 }),
 
             // Alle E-Mails versenden
@@ -92,7 +100,8 @@ class ViewInvoiceBatch extends ViewRecord
                 ->icon('heroicon-o-envelope')
                 ->color('info')
                 ->requiresConfirmation()
-                ->action(fn () => $this->doSendAllEmails()),
+                ->hidden(fn () => $this->isSending)
+                ->action(fn () => $this->startSendingEmails()),
 
             // Sammel-PDF erzeugen + downloaden
             Actions\Action::make('create_print_pdf')
@@ -123,9 +132,9 @@ class ViewInvoiceBatch extends ViewRecord
                 ->action(function () {
                     $count = Invoice::where('batch_id', $this->record->id)
                         ->where('import_status', 'success')
-                        ->where('status', '!=', 'printed')
+                        ->where('print_status', '!=', 'printed')
                         ->whereHas('corporateCustomer', fn ($q) => $q->where('send_via_print', true))
-                        ->update(['status' => 'printed', 'printed_at' => now()]);
+                        ->update(['print_status' => 'printed', 'printed_at' => now()]);
 
                     Notification::make()
                         ->title("{$count} Rechnungen als gedruckt markiert")
@@ -149,15 +158,50 @@ class ViewInvoiceBatch extends ViewRecord
         ];
     }
 
-    // ── E-Mail Versand ──
+    // ── E-Mail Versand (iterativ mit Fortschritt) ──
 
-    private function doSendAllEmails(): void
+    public function startSendingEmails(): void
     {
         $batch = $this->record;
 
-        $invoices = Invoice::where('batch_id', $batch->id)
+        $count = Invoice::where('batch_id', $batch->id)
             ->where('import_status', 'success')
-            ->whereNotIn('status', ['sent', 'failed'])
+            ->where('email_status', '!=', 'sent')
+            ->whereHas('corporateCustomer', function ($q) {
+                $q->where('send_via_email', true)
+                  ->where('is_active', true)
+                  ->whereNotNull('email')
+                  ->where('email', '!=', '');
+            })
+            ->count();
+
+        if ($count === 0) {
+            Notification::make()->title('Keine E-Mails zu versenden')->warning()->send();
+
+            return;
+        }
+
+        $this->isSending = true;
+        $this->sendingCurrent = 0;
+        $this->sendingTotal = $count;
+        $this->sendingCurrentName = '';
+        $this->sendingSent = 0;
+        $this->sendingFailed = 0;
+    }
+
+    public function sendNextEmail(): void
+    {
+        if (! $this->isSending) {
+            return;
+        }
+
+        $batch = $this->record;
+
+        // Naechste nicht-gesendete Rechnung holen
+        $invoice = Invoice::where('batch_id', $batch->id)
+            ->where('import_status', 'success')
+            ->where('email_status', '!=', 'sent')
+            ->where('email_status', '!=', 'failed')
             ->whereHas('corporateCustomer', function ($q) {
                 $q->where('send_via_email', true)
                   ->where('is_active', true)
@@ -165,76 +209,77 @@ class ViewInvoiceBatch extends ViewRecord
                   ->where('email', '!=', '');
             })
             ->with(['corporateCustomer', 'gasStation'])
-            ->get();
+            ->first();
 
-        if ($invoices->isEmpty()) {
-            Notification::make()->title('Keine E-Mails zu versenden')->warning()->send();
+        if (! $invoice) {
+            // Fertig!
+            $this->isSending = false;
+
+            if ($this->sendingFailed > 0) {
+                Notification::make()
+                    ->title("{$this->sendingSent} gesendet, {$this->sendingFailed} fehlgeschlagen")
+                    ->warning()
+                    ->duration(10000)
+                    ->send();
+            } else {
+                Notification::make()
+                    ->title("Alle {$this->sendingSent} E-Mails erfolgreich versendet!")
+                    ->success()
+                    ->send();
+            }
 
             return;
         }
 
-        $sent = 0;
-        $failed = 0;
-        $errors = [];
+        $this->sendingCurrent++;
+        $this->sendingCurrentName = $invoice->corporateCustomer?->name ?? 'Unbekannt';
+
+        $email = $invoice->corporateCustomer->email;
+        $hasPdf = $invoice->pdf_path && Storage::exists($invoice->pdf_path);
+
+        if (! $hasPdf) {
+            \Log::warning("E-Mail-Versand: Kein PDF fuer Rechnung {$invoice->invoice_number}");
+            $invoice->update([
+                'email_status' => 'failed',
+                'email_error' => 'Kein PDF vorhanden',
+            ]);
+            $this->sendingFailed++;
+
+            return;
+        }
+
         try {
-            $delay = (int) InvoiceSetting::get('email_delay_seconds', 3);
+            Mail::to($email)->send(new InvoiceMail($invoice));
+
+            $invoice->update([
+                'email_status' => 'sent',
+                'sent_at' => now(),
+            ]);
+            $this->sendingSent++;
+
+            \Log::info("E-Mail versendet: Rechnung {$invoice->invoice_number} an {$email}");
         } catch (\Exception $e) {
-            $delay = 3;
+            \Log::error('E-Mail-Versand fehlgeschlagen', [
+                'invoice_id' => $invoice->id,
+                'invoice_number' => $invoice->invoice_number,
+                'email' => $email,
+                'error' => $e->getMessage(),
+            ]);
+            $invoice->update([
+                'email_status' => 'failed',
+                'email_error' => substr($e->getMessage(), 0, 500),
+            ]);
+            $this->sendingFailed++;
         }
+    }
 
-        foreach ($invoices as $invoice) {
-            // Verzoegerung zwischen E-Mails (Rate-Limiting Strato)
-            if ($sent > 0 && $delay > 0) {
-                sleep($delay);
-            }
-
-            $email = $invoice->corporateCustomer->email;
-            $hasPdf = $invoice->pdf_path && Storage::exists($invoice->pdf_path);
-
-            if (! $hasPdf) {
-                \Log::warning("E-Mail-Versand: Kein PDF fuer Rechnung {$invoice->invoice_number}");
-                $errors[] = "#{$invoice->invoice_number}: Kein PDF";
-                $failed++;
-                continue;
-            }
-
-            try {
-                Mail::to($email)->send(new InvoiceMail($invoice));
-
-                $invoice->update([
-                    'status' => 'sent',
-                    'sent_at' => now(),
-                ]);
-                $sent++;
-
-                \Log::info("E-Mail versendet: Rechnung {$invoice->invoice_number} an {$email}");
-            } catch (\Exception $e) {
-                \Log::error('E-Mail-Versand fehlgeschlagen', [
-                    'invoice_id' => $invoice->id,
-                    'invoice_number' => $invoice->invoice_number,
-                    'email' => $email,
-                    'error' => $e->getMessage(),
-                ]);
-                $invoice->update(['status' => 'failed']);
-                $errors[] = "#{$invoice->invoice_number}: {$e->getMessage()}";
-                $failed++;
-            }
-        }
-
-        if ($failed > 0) {
-            $errorDetail = implode("\n", array_slice($errors, 0, 5));
-            Notification::make()
-                ->title("E-Mail-Versand: {$sent} gesendet, {$failed} fehlgeschlagen")
-                ->body($errorDetail)
-                ->warning()
-                ->duration(10000)
-                ->send();
-        } else {
-            Notification::make()
-                ->title("Alle {$sent} E-Mails erfolgreich versendet!")
-                ->success()
-                ->send();
-        }
+    public function cancelSending(): void
+    {
+        $this->isSending = false;
+        Notification::make()
+            ->title("Versand abgebrochen ({$this->sendingSent} gesendet, {$this->sendingFailed} fehlgeschlagen)")
+            ->warning()
+            ->send();
     }
 
     // ── Druck-PDF ──
@@ -280,7 +325,7 @@ class ViewInvoiceBatch extends ViewRecord
 
     // ── Versand-Bericht ──
 
-    private function generateVersandBericht(): void
+    private function generateVersandBericht(): mixed
     {
         $batch = $this->record;
         $invoices = Invoice::where('batch_id', $batch->id)
@@ -292,7 +337,7 @@ class ViewInvoiceBatch extends ViewRecord
         if ($invoices->isEmpty()) {
             Notification::make()->title('Keine Rechnungen fuer Bericht vorhanden')->warning()->send();
 
-            return;
+            return null;
         }
 
         try {
@@ -310,43 +355,77 @@ class ViewInvoiceBatch extends ViewRecord
 
             // E-Mail-Versand Sektion
             $emailInvoices = $invoices->filter(fn ($i) => $i->corporateCustomer?->send_via_email);
+            $emailSent = $emailInvoices->where('email_status', 'sent')->count();
+            $emailFailed = $emailInvoices->where('email_status', 'failed')->count();
+            $emailPending = $emailInvoices->count() - $emailSent - $emailFailed;
+
             if ($emailInvoices->isNotEmpty()) {
-                $this->pdfSection($pdf, 'E-Mail-Versand (' . $emailInvoices->count() . ' Rechnungen)');
+                $statusText = "{$emailInvoices->count()} Rechnungen";
+                if ($emailSent > 0) $statusText .= " | {$emailSent} versendet";
+                if ($emailFailed > 0) $statusText .= " | {$emailFailed} fehlgeschlagen";
+                if ($emailPending > 0) $statusText .= " | {$emailPending} ausstehend";
+                $this->pdfSection($pdf, "E-Mail-Versand ({$statusText})");
 
                 // Tabellenkopf
                 $pdf->SetFont('Helvetica', 'B', 8);
                 $pdf->SetFillColor(240, 240, 240);
-                $pdf->Cell(25, 7, $this->pdfText('Rech.Nr.'), 1, 0, 'L', true);
-                $pdf->Cell(25, 7, $this->pdfText('Kd.Nr.'), 1, 0, 'L', true);
-                $pdf->Cell(55, 7, $this->pdfText('Name'), 1, 0, 'L', true);
-                $pdf->Cell(55, 7, $this->pdfText('E-Mail'), 1, 0, 'L', true);
-                $pdf->Cell(25, 7, $this->pdfText('Betrag'), 1, 1, 'R', true);
+                $pdf->Cell(22, 7, $this->pdfText('Rech.Nr.'), 1, 0, 'L', true);
+                $pdf->Cell(20, 7, $this->pdfText('Kd.Nr.'), 1, 0, 'L', true);
+                $pdf->Cell(45, 7, $this->pdfText('Name'), 1, 0, 'L', true);
+                $pdf->Cell(48, 7, $this->pdfText('E-Mail'), 1, 0, 'L', true);
+                $pdf->Cell(25, 7, $this->pdfText('Betrag'), 1, 0, 'R', true);
+                $pdf->Cell(25, 7, $this->pdfText('Status'), 1, 1, 'C', true);
 
                 $pdf->SetFont('Helvetica', '', 8);
                 foreach ($emailInvoices as $inv) {
                     if ($pdf->GetY() > 265) {
                         $pdf->AddPage();
                     }
-                    $pdf->Cell(25, 6, $inv->invoice_number, 1);
-                    $pdf->Cell(25, 6, $inv->corporateCustomer?->customer_number ?? '-', 1);
-                    $pdf->Cell(55, 6, $this->pdfText(substr($inv->corporateCustomer?->name ?? '-', 0, 30)), 1);
-                    $pdf->Cell(55, 6, $this->pdfText(substr($inv->corporateCustomer?->email ?? '-', 0, 35)), 1);
-                    $pdf->Cell(25, 6, number_format($inv->amount, 2, ',', '.') . ' EUR', 1, 1, 'R');
+                    $pdf->Cell(22, 6, $inv->invoice_number, 1);
+                    $pdf->Cell(20, 6, $inv->corporateCustomer?->customer_number ?? '-', 1);
+                    $pdf->Cell(45, 6, $this->pdfText(substr($inv->corporateCustomer?->name ?? '-', 0, 25)), 1);
+                    $pdf->Cell(48, 6, $this->pdfText(substr($inv->corporateCustomer?->email ?? '-', 0, 30)), 1);
+                    $pdf->Cell(25, 6, number_format($inv->amount, 2, ',', '.') . ' EUR', 1, 0, 'R');
+
+                    // Status mit Farbe
+                    $status = $inv->email_status ?? 'ausstehend';
+                    $statusLabel = match ($status) {
+                        'sent' => 'Versendet',
+                        'failed' => 'FEHLER',
+                        default => 'Ausstehend',
+                    };
+                    if ($status === 'sent') {
+                        $pdf->SetTextColor(22, 163, 74);
+                    } elseif ($status === 'failed') {
+                        $pdf->SetTextColor(220, 38, 38);
+                    } else {
+                        $pdf->SetTextColor(161, 161, 170);
+                    }
+                    $pdf->Cell(25, 6, $this->pdfText($statusLabel), 1, 1, 'C');
+                    $pdf->SetTextColor(0, 0, 0);
                 }
                 $pdf->Ln(5);
             }
 
             // Druck-Versand Sektion
             $printInvoices = $invoices->filter(fn ($i) => $i->corporateCustomer?->send_via_print);
+            $printDone = $printInvoices->where('print_status', 'printed')->count();
+            $printPending = $printInvoices->count() - $printDone;
+
             if ($printInvoices->isNotEmpty()) {
-                $this->pdfSection($pdf, 'Druck-Versand (' . $printInvoices->count() . ' Rechnungen)');
+                $printStatusText = "{$printInvoices->count()} Rechnungen";
+                if ($printDone > 0) $printStatusText .= " | {$printDone} gedruckt";
+                if ($printPending > 0) $printStatusText .= " | {$printPending} ausstehend";
+                $this->pdfSection($pdf, "Druck-Versand ({$printStatusText})");
 
                 $pdf->SetFont('Helvetica', 'B', 8);
                 $pdf->SetFillColor(240, 240, 240);
-                $pdf->Cell(25, 7, $this->pdfText('Rech.Nr.'), 1, 0, 'L', true);
-                $pdf->Cell(25, 7, $this->pdfText('Kd.Nr.'), 1, 0, 'L', true);
-                $pdf->Cell(60, 7, $this->pdfText('Name'), 1, 0, 'L', true);
-                $pdf->Cell(75, 7, $this->pdfText('Adresse'), 1, 1, 'L', true);
+                $pdf->Cell(22, 7, $this->pdfText('Rech.Nr.'), 1, 0, 'L', true);
+                $pdf->Cell(20, 7, $this->pdfText('Kd.Nr.'), 1, 0, 'L', true);
+                $pdf->Cell(45, 7, $this->pdfText('Name'), 1, 0, 'L', true);
+                $pdf->Cell(53, 7, $this->pdfText('Adresse'), 1, 0, 'L', true);
+                $pdf->Cell(22, 7, $this->pdfText('Betrag'), 1, 0, 'R', true);
+                $pdf->Cell(23, 7, $this->pdfText('Status'), 1, 1, 'C', true);
 
                 $pdf->SetFont('Helvetica', '', 8);
                 foreach ($printInvoices as $inv) {
@@ -355,10 +434,20 @@ class ViewInvoiceBatch extends ViewRecord
                     }
                     $c = $inv->corporateCustomer;
                     $address = $c ? "{$c->street}, {$c->zip} {$c->city}" : '-';
-                    $pdf->Cell(25, 6, $inv->invoice_number, 1);
-                    $pdf->Cell(25, 6, $c?->customer_number ?? '-', 1);
-                    $pdf->Cell(60, 6, $this->pdfText(substr($c?->name ?? '-', 0, 35)), 1);
-                    $pdf->Cell(75, 6, $this->pdfText(substr($address, 0, 45)), 1, 1);
+                    $pdf->Cell(22, 6, $inv->invoice_number, 1);
+                    $pdf->Cell(20, 6, $c?->customer_number ?? '-', 1);
+                    $pdf->Cell(45, 6, $this->pdfText(substr($c?->name ?? '-', 0, 25)), 1);
+                    $pdf->Cell(53, 6, $this->pdfText(substr($address, 0, 32)), 1);
+                    $pdf->Cell(22, 6, number_format($inv->amount, 2, ',', '.') . ' EUR', 1, 0, 'R');
+
+                    $pStatus = $inv->print_status === 'printed' ? 'Gedruckt' : 'Ausstehend';
+                    if ($inv->print_status === 'printed') {
+                        $pdf->SetTextColor(22, 163, 74);
+                    } else {
+                        $pdf->SetTextColor(161, 161, 170);
+                    }
+                    $pdf->Cell(23, 6, $this->pdfText($pStatus), 1, 1, 'C');
+                    $pdf->SetTextColor(0, 0, 0);
                 }
                 $pdf->Ln(5);
             }
@@ -367,10 +456,53 @@ class ViewInvoiceBatch extends ViewRecord
             $this->pdfSection($pdf, 'Zusammenfassung');
             $pdf->SetFont('Helvetica', '', 10);
             $totalAmount = $invoices->sum('amount');
-            $pdf->Cell(0, 7, $this->pdfText("Gesamt: {$invoices->count()} Rechnungen | " . number_format($totalAmount, 2, ',', '.') . " EUR"), 0, 1);
-            $pdf->Cell(0, 7, $this->pdfText("E-Mail: {$emailInvoices->count()} | Druck: {$printInvoices->count()}"), 0, 1);
+            $emailAmount = $emailInvoices->sum('amount');
+            $printAmount = $printInvoices->sum('amount');
 
-            // Speichern
+            $pdf->Cell(0, 7, $this->pdfText("Gesamt: {$invoices->count()} Rechnungen | " . number_format($totalAmount, 2, ',', '.') . " EUR"), 0, 1);
+            $pdf->Ln(2);
+
+            // Detail-Box E-Mail
+            $pdf->SetFont('Helvetica', 'B', 9);
+            $pdf->Cell(0, 6, $this->pdfText('E-Mail-Versand:'), 0, 1);
+            $pdf->SetFont('Helvetica', '', 9);
+            $pdf->Cell(0, 5, $this->pdfText("  Anzahl: {$emailInvoices->count()} | Betrag: " . number_format($emailAmount, 2, ',', '.') . " EUR"), 0, 1);
+            if ($emailSent > 0) {
+                $pdf->SetTextColor(22, 163, 74);
+                $pdf->Cell(0, 5, $this->pdfText("  Versendet: {$emailSent}"), 0, 1);
+                $pdf->SetTextColor(0, 0, 0);
+            }
+            if ($emailFailed > 0) {
+                $pdf->SetTextColor(220, 38, 38);
+                $pdf->Cell(0, 5, $this->pdfText("  Fehlgeschlagen: {$emailFailed}"), 0, 1);
+                $pdf->SetTextColor(0, 0, 0);
+            }
+            if ($emailPending > 0) {
+                $pdf->Cell(0, 5, $this->pdfText("  Ausstehend: {$emailPending}"), 0, 1);
+            }
+            $pdf->Ln(2);
+
+            // Detail-Box Druck
+            $pdf->SetFont('Helvetica', 'B', 9);
+            $pdf->Cell(0, 6, $this->pdfText('Druck-Versand:'), 0, 1);
+            $pdf->SetFont('Helvetica', '', 9);
+            $pdf->Cell(0, 5, $this->pdfText("  Anzahl: {$printInvoices->count()} | Betrag: " . number_format($printAmount, 2, ',', '.') . " EUR"), 0, 1);
+            if ($printDone > 0) {
+                $pdf->SetTextColor(22, 163, 74);
+                $pdf->Cell(0, 5, $this->pdfText("  Gedruckt: {$printDone}"), 0, 1);
+                $pdf->SetTextColor(0, 0, 0);
+            }
+            if ($printPending > 0) {
+                $pdf->Cell(0, 5, $this->pdfText("  Ausstehend: {$printPending}"), 0, 1);
+            }
+
+            $pdf->Ln(5);
+            $pdf->SetFont('Helvetica', 'I', 8);
+            $pdf->SetTextColor(128, 128, 128);
+            $pdf->Cell(0, 5, $this->pdfText('Erstellt am ' . now()->format('d.m.Y') . ' um ' . now()->format('H:i') . ' Uhr'), 0, 1, 'R');
+            $pdf->SetTextColor(0, 0, 0);
+
+            // Speichern und Download
             $filename = 'reports/Versandbericht_' . now()->format('Y-m-d_His') . '.pdf';
             $outputPath = Storage::path($filename);
             $dir = dirname($outputPath);
@@ -379,10 +511,18 @@ class ViewInvoiceBatch extends ViewRecord
             }
             $pdf->Output($outputPath, 'F');
 
+            $this->lastReportPath = $filename;
+
             Notification::make()
                 ->title('Versand-Bericht erstellt')
                 ->success()
                 ->send();
+
+            return response()->streamDownload(function () use ($filename) {
+                echo Storage::get($filename);
+            }, 'Versandbericht_' . now()->format('Y-m-d_His') . '.pdf', [
+                'Content-Type' => 'application/pdf',
+            ]);
         } catch (\Exception $e) {
             Notification::make()
                 ->title('Fehler: ' . $e->getMessage())
@@ -475,11 +615,14 @@ class ViewInvoiceBatch extends ViewRecord
             Mail::to($invoice->corporateCustomer->email)
                 ->send(new InvoiceMail($invoice));
 
-            $invoice->update(['status' => 'sent', 'sent_at' => now()]);
+            $invoice->update(['email_status' => 'sent', 'sent_at' => now()]);
 
             Notification::make()->title('E-Mail gesendet an ' . $invoice->corporateCustomer->email)->success()->send();
         } catch (\Exception $e) {
-            $invoice->update(['status' => 'failed']);
+            $invoice->update([
+                'email_status' => 'failed',
+                'email_error' => substr($e->getMessage(), 0, 500),
+            ]);
             Notification::make()->title('Fehler: ' . $e->getMessage())->danger()->send();
         }
     }

@@ -29,7 +29,7 @@ return new class extends Migration
             $table->string('zip', 10)->nullable()->comment('Postleitzahl');
             $table->string('city', 255)->nullable()->comment('Stadt');
             $table->string('phone', 100)->nullable()->comment('Telefonnummer');
-            $table->string('email', 255)->default('smp4000@me.com')->comment('E-Mail fuer Rechnungsversand');
+            $table->string('email', 255)->default('keine-email@platzhalter.local')->comment('E-Mail fuer Rechnungsversand');
 
             // Bankdaten (DSGVO-verschluesselt)
             $table->text('iban')->nullable()->comment('IBAN (verschluesselt)');

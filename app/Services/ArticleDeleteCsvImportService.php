@@ -23,6 +23,8 @@ use Illuminate\Support\Facades\Log;
  */
 class ArticleDeleteCsvImportService
 {
+    use \App\Traits\ValidatesCsvRows;
+
     private ?string $stationNumber = null;
     private ?Carbon $csvPrintedAt = null;
     private ?GasStation $gasStation = null;
@@ -48,6 +50,10 @@ class ArticleDeleteCsvImportService
     {
         // 1. CSV einlesen
         $lines = $this->readCsvFile($filePath);
+
+        if (! $this->validateCsvNotEmpty(implode("\n", $lines), 5)) {
+            throw new \Exception('CSV-Datei ist leer oder enthaelt zu wenige Zeilen.');
+        }
 
         // 2. Metadaten extrahieren (Stationsnummer + Druckdatum)
         $this->extractMetadata($lines);

@@ -27,15 +27,26 @@ class ArticleGroupResource extends Resource
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Einstellungen';
-
-    protected static ?string $modelLabel = 'Artikelgruppe';
-
-    protected static ?string $pluralModelLabel = 'Artikelgruppen';
-
     protected static ?int $navigationSort = 30;
 
     protected static ?string $recordTitleAttribute = 'article_group_04';
+
+    // --- Getter-Overrides fuer uebersetzte Labels ---
+
+    public static function getModelLabel(): string
+    {
+        return __('partner.article_group.label');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('partner.article_group.plural');
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return __('partner.article_group.nav_group');
+    }
 
     // --- Autorisierung ---
 
@@ -93,65 +104,65 @@ class ArticleGroupResource extends Resource
         return $schema->components([
             // Geschaeftsbereich
             TextInput::make('business_area_id')
-                ->label('Geschäftsbereich-ID')
+                ->label(__('partner.article_group.fields.business_area_id'))
                 ->numeric()
                 ->nullable(),
             TextInput::make('business_area')
-                ->label('Geschäftsbereich')
+                ->label(__('partner.article_group.fields.business_area'))
                 ->maxLength(50),
 
             // EKW-Konto
             TextInput::make('revenue_account_id')
-                ->label('EKW-Konto-ID')
+                ->label(__('partner.article_group.fields.ekw_account_id'))
                 ->numeric()
                 ->nullable(),
             TextInput::make('revenue_account')
-                ->label('EKW-Konto')
+                ->label(__('partner.article_group.fields.ekw_account'))
                 ->maxLength(50),
 
             // Warengruppe
             TextInput::make('product_group_id')
-                ->label('Warengruppe-ID')
+                ->label(__('partner.article_group.fields.product_group_id'))
                 ->numeric()
                 ->nullable(),
             TextInput::make('product_group')
-                ->label('Warengruppe')
+                ->label(__('partner.article_group.fields.product_group'))
                 ->maxLength(50),
 
             // Artikelgruppe Ebene 4
             TextInput::make('article_group_04_id')
-                ->label('Artikelgruppe 04 ID')
+                ->label(__('partner.article_group.fields.group_04_id'))
                 ->numeric()
                 ->nullable(),
             TextInput::make('article_group_04')
-                ->label('Artikelgruppe 04')
+                ->label(__('partner.article_group.fields.group_04'))
                 ->maxLength(50),
 
             // Artikelgruppe Ebene 3
             TextInput::make('article_group_03_id')
-                ->label('Artikelgruppe 03 ID')
+                ->label(__('partner.article_group.fields.group_03_id'))
                 ->numeric()
                 ->nullable(),
             TextInput::make('article_group_03')
-                ->label('Artikelgruppe 03')
+                ->label(__('partner.article_group.fields.group_03'))
                 ->maxLength(50),
 
             // Artikelgruppe Ebene 2/1
             TextInput::make('article_group_02_01_id')
-                ->label('Artikelgruppe 02/01 ID')
+                ->label(__('partner.article_group.fields.group_02_01_id'))
                 ->numeric()
                 ->nullable(),
             TextInput::make('article_group_02_01')
-                ->label('Artikelgruppe 02/01')
+                ->label(__('partner.article_group.fields.group_02_01'))
                 ->maxLength(50),
 
             // MwSt
             Select::make('vat_category')
-                ->label('MwSt-Kategorie')
+                ->label(__('partner.article_group.fields.vat_category'))
                 ->options([
-                    'A' => 'A - 19% (volle MwSt)',
-                    'B' => 'B - 7% (ermäßigte MwSt)',
-                    'C' => 'C - 0% (ohne MwSt)',
+                    'A' => __('partner.article_group.vat_categories.A'),
+                    'B' => __('partner.article_group.vat_categories.B'),
+                    'C' => __('partner.article_group.vat_categories.C'),
                 ])
                 ->default('A')
                 ->required()
@@ -161,22 +172,22 @@ class ArticleGroupResource extends Resource
                     $set('vat_rate', $rates[$state] ?? 19.00);
                 }),
             TextInput::make('vat_rate')
-                ->label('MwSt-Satz (%)')
+                ->label(__('partner.article_group.fields.vat_rate'))
                 ->numeric()
                 ->default(19.00)
                 ->disabled()
                 ->dehydrated(),
 
             Select::make('youth_protection')
-                ->label('Jugendschutz')
+                ->label(__('partner.article_group.fields.youth_protection'))
                 ->options([
-                    '0' => 'Kein Jugendschutz',
-                    '16' => 'Ab 16 Jahren',
-                    '18' => 'Ab 18 Jahren',
+                    '0' => __('partner.article_group.youth_protections.none'),
+                    '16' => __('partner.article_group.youth_protections.16'),
+                    '18' => __('partner.article_group.youth_protections.18'),
                 ])
                 ->default('0'),
             TextInput::make('lease_rate')
-                ->label('Pachtsatz')
+                ->label(__('partner.article_group.fields.lease_rate'))
                 ->numeric()
                 ->default(0.00)
                 ->step(0.01),
@@ -190,7 +201,7 @@ class ArticleGroupResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('business_area')
-                    ->label('Geschäftsbereich')
+                    ->label(__('partner.article_group.fields.business_area'))
                     ->sortable()
                     ->searchable()
                     ->badge()
@@ -204,23 +215,23 @@ class ArticleGroupResource extends Resource
                     }),
 
                 TextColumn::make('revenue_account')
-                    ->label('EKW-Konto')
+                    ->label(__('partner.article_group.fields.ekw_account'))
                     ->searchable()
                     ->toggleable(),
 
                 TextColumn::make('article_group_04')
-                    ->label('Artikelgruppe')
+                    ->label(__('partner.article_group.label'))
                     ->searchable()
                     ->sortable()
                     ->weight('bold'),
 
                 TextColumn::make('article_group_03')
-                    ->label('Untergruppe')
+                    ->label(__('partner.article_group.table.subgroup'))
                     ->searchable()
                     ->toggleable(),
 
                 BadgeColumn::make('vat_category')
-                    ->label('MwSt')
+                    ->label(__('partner.article_group.table.vat'))
                     ->formatStateUsing(fn (string $state): string => match ($state) {
                         'A' => '19%',
                         'B' => '7%',
@@ -235,27 +246,29 @@ class ArticleGroupResource extends Resource
                     }),
 
                 TextColumn::make('is_system')
-                    ->label('Typ')
-                    ->formatStateUsing(fn (bool $state): string => $state ? 'System' : 'Eigene')
+                    ->label(__('partner.article_group.table.type'))
+                    ->formatStateUsing(fn (bool $state): string => $state
+                        ? __('partner.article_group.badges.system')
+                        : __('partner.article_group.badges.custom'))
                     ->badge()
                     ->color(fn (bool $state): string => $state ? 'gray' : 'primary'),
             ])
             ->defaultSort('business_area_id', 'asc')
             ->filters([
                 SelectFilter::make('business_area_id')
-                    ->label('Geschäftsbereich')
+                    ->label(__('partner.article_group.fields.business_area'))
                     ->options(ArticleGroup::getBusinessAreaOptions()),
                 SelectFilter::make('vat_category')
-                    ->label('MwSt-Kategorie')
+                    ->label(__('partner.article_group.fields.vat_category'))
                     ->options([
-                        'A' => '19% (volle MwSt)',
-                        'B' => '7% (ermäßigte MwSt)',
-                        'C' => '0% (ohne MwSt)',
+                        'A' => __('partner.article_group.filters.vat_A'),
+                        'B' => __('partner.article_group.filters.vat_B'),
+                        'C' => __('partner.article_group.filters.vat_C'),
                     ]),
                 TernaryFilter::make('is_system')
-                    ->label('Typ')
-                    ->trueLabel('Nur System')
-                    ->falseLabel('Nur eigene'),
+                    ->label(__('partner.article_group.filters.type'))
+                    ->trueLabel(__('partner.article_group.filters.type_system'))
+                    ->falseLabel(__('partner.article_group.filters.type_custom')),
             ])
             ->actions([
                 Actions\EditAction::make()

@@ -18,6 +18,9 @@ class CorporateCustomer extends \Illuminate\Database\Eloquent\Model
 {
     use HasFactory, HasUuids, SoftDeletes, Auditable;
 
+    /** Platzhalter-E-Mail fuer Kunden ohne echte Adresse */
+    const PLACEHOLDER_EMAIL = 'keine-email@platzhalter.local';
+
     protected $fillable = [
         'gas_station_id',
         'customer_number',

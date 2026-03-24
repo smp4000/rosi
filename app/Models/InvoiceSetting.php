@@ -19,7 +19,11 @@ class InvoiceSetting extends \Illuminate\Database\Eloquent\Model
      */
     public static function get(string $key, mixed $default = null, ?string $tenantId = null): mixed
     {
-        $tenantId = $tenantId ?? auth()->user()?->tenant_id;
+        try {
+            $tenantId = $tenantId ?? auth()->user()?->tenant_id;
+        } catch (\Exception $e) {
+            $tenantId = session('tenant_id');
+        }
         if (! $tenantId) {
             return $default;
         }
@@ -40,7 +44,11 @@ class InvoiceSetting extends \Illuminate\Database\Eloquent\Model
      */
     public static function set(string $key, mixed $value, ?string $tenantId = null): void
     {
-        $tenantId = $tenantId ?? auth()->user()?->tenant_id;
+        try {
+            $tenantId = $tenantId ?? auth()->user()?->tenant_id;
+        } catch (\Exception $e) {
+            $tenantId = session('tenant_id');
+        }
         if (! $tenantId) {
             return;
         }

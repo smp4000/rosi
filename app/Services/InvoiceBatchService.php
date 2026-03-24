@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Enums\BatchStatus;
+use App\Enums\ImportStatus;
+use App\Enums\InvoiceStatus;
 use App\Models\CorporateCustomer;
 use App\Models\Invoice;
 use App\Models\InvoiceBatch;
@@ -38,13 +41,15 @@ class InvoiceBatchService
         set_time_limit(0);
 
         $batch->update([
-            'status' => 'processing',
+            'status' => BatchStatus::PROCESSING->value,
             'started_at' => now(),
         ]);
 
         foreach ($pdfPaths as $pdfPath) {
             try {
-                $this->processSinglePdf($pdfPath);
+                DB::transaction(function () use ($pdfPath) {
+                    $this->processSinglePdf($pdfPath);
+                });
             } catch (\Exception $e) {
                 Log::error('Batch-Verarbeitung Fehler', [
                     'batch_id' => $batch->id,
@@ -68,7 +73,7 @@ class InvoiceBatchService
         }
 
         $batch->update([
-            'status' => 'completed',
+            'status' => BatchStatus::COMPLETED->value,
             'completed_at' => now(),
         ]);
     }
@@ -166,8 +171,8 @@ class InvoiceBatchService
             'tax_amount' => $zugferdData['tax_amount'] ?? null,
             'pdf_path' => $storagePath,
             'zugferd_data' => $zugferdData,
-            'status' => 'processed',
-            'import_status' => 'success',
+            'status' => InvoiceStatus::PROCESSED->value,
+            'import_status' => ImportStatus::SUCCESS->value,
         ]);
 
         // 8. Rechnungspositionen speichern
@@ -218,8 +223,8 @@ class InvoiceBatchService
             'tax_amount' => $zugferdData['tax_amount'] ?? null,
             'pdf_path' => $storagePath,
             'zugferd_data' => $zugferdData,
-            'status' => 'uploaded',
-            'import_status' => 'error',
+            'status' => InvoiceStatus::UPLOADED->value,
+            'import_status' => ImportStatus::ERROR->value,
             'import_error_message' => $errorMessage,
         ]);
 
@@ -252,6 +257,14 @@ class InvoiceBatchService
             );
         } else {
             $storagePath = 'invoices/' . now()->format('Y/m') . '/' . basename($pdfPath);
+        }
+
+        if (! file_exists($pdfPath)) {
+            \Illuminate\Support\Facades\Log::error('InvoiceBatchService: PDF-Datei nicht gefunden', [
+                'pfad' => $pdfPath,
+            ]);
+
+            return 'invoices/fehler/' . basename($pdfPath);
         }
 
         if (! Storage::exists($storagePath)) {

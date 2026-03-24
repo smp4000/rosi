@@ -34,6 +34,10 @@ class InvoiceImportPage extends Page implements HasForms
 
     protected static string|\UnitEnum|null $navigationGroup = 'Rechnungen';
 
+    public function getTitle(): string { return __('partner.invoice_import.title'); }
+    public static function getNavigationLabel(): string { return __('partner.invoice_import.title'); }
+    public static function getNavigationGroup(): ?string { return __('partner.invoice.nav_group'); }
+
     protected static ?int $navigationSort = 21;
 
     protected string $view = 'filament.partner.pages.invoice-import';
@@ -44,23 +48,23 @@ class InvoiceImportPage extends Page implements HasForms
     public function form(Schema $schema): Schema
     {
         return $schema->statePath('data')->components([
-            Section::make('ZUGFeRD-PDFs hochladen')
-                ->description('Laden Sie Rechnungs-PDFs aus dem Kassensystem hoch. Tankstelle und Kunden werden automatisch aus den ZUGFeRD-Daten erkannt.')
+            Section::make(__('partner.invoice_import.section'))
+                ->description(__('partner.invoice_import.section_desc'))
                 ->schema([
                     FileUpload::make('pdf_files')
-                        ->label('PDF-Dateien')
+                        ->label(__('partner.invoice_import.field_label'))
                         ->acceptedFileTypes(['application/pdf', '.pdf'])
                         ->disk('local')
                         ->directory('temp/invoice-imports')
                         ->maxSize(10240)
                         ->multiple()
                         ->required()
-                        ->helperText('ZUGFeRD-PDFs aus dem Kassensystem (max. 10 MB pro Datei). Tankstelle wird automatisch erkannt.'),
+                        ->helperText(__('partner.invoice_import.field_hint')),
                 ])
                 ->columns(1),
 
             // Ergebnis des letzten Imports
-            Section::make('Letzter Import')
+            Section::make(__('partner.invoice_import.last_import'))
                 ->schema([
                     Placeholder::make('batch_result')
                         ->label('')
@@ -69,8 +73,8 @@ class InvoiceImportPage extends Page implements HasForms
                 ->visible(fn () => $this->lastBatch !== null),
 
             // Import-Historie
-            Section::make('Letzte Imports')
-                ->description('Uebersicht der letzten 10 Rechnungs-Imports')
+            Section::make(__('partner.invoice_import.last_imports'))
+                ->description(__('partner.invoice_import.last_imports_desc'))
                 ->schema([
                     Placeholder::make('import_history')
                         ->label('')
@@ -88,7 +92,7 @@ class InvoiceImportPage extends Page implements HasForms
         $pdfFiles = $this->data['pdf_files'] ?? [];
 
         if (empty($pdfFiles)) {
-            Notification::make()->title('Keine Dateien ausgewaehlt')->danger()->send();
+            Notification::make()->title(__('partner.invoice_import.messages.no_files'))->danger()->send();
 
             return;
         }
@@ -123,7 +127,7 @@ class InvoiceImportPage extends Page implements HasForms
         }
 
         if (empty($pdfPaths)) {
-            Notification::make()->title('Keine gueltigen PDF-Dateien gefunden')->danger()->send();
+            Notification::make()->title(__('partner.invoice_import.messages.no_valid_pdfs'))->danger()->send();
 
             return;
         }
@@ -144,8 +148,8 @@ class InvoiceImportPage extends Page implements HasForms
 
         if (! $gasStationId) {
             Notification::make()
-                ->title('Tankstelle nicht erkannt')
-                ->body('Die Tankstelle konnte nicht automatisch aus den ZUGFeRD-Daten ermittelt werden. Bitte pruefen Sie die PDF-Dateien.')
+                ->title(__('partner.invoice_import.messages.station_not_found'))
+                ->body(__('partner.invoice_import.messages.station_not_found_desc'))
                 ->danger()
                 ->send();
 
@@ -173,33 +177,36 @@ class InvoiceImportPage extends Page implements HasForms
 
             if ($batch->error_count > 0) {
                 Notification::make()
-                    ->title('Import teilweise abgeschlossen')
+                    ->title(__('partner.invoice_import.messages.import_partial'))
                     ->body($batch->summary)
                     ->warning()
                     ->send();
             } else {
                 Notification::make()
-                    ->title('Import erfolgreich!')
+                    ->title(__('partner.invoice_import.messages.import_success'))
                     ->body($batch->summary)
                     ->success()
                     ->send();
             }
         } catch (\Exception $e) {
             Notification::make()
-                ->title('Import fehlgeschlagen')
+                ->title(__('partner.invoice_import.messages.import_failed'))
                 ->body($e->getMessage())
                 ->danger()
                 ->send();
-        }
-
-        // Temp-Dateien aufraeumen
-        foreach ($pdfPaths as $path) {
-            if (file_exists($path)) {
-                @unlink($path);
+        } finally {
+            // Temp-Dateien aufraeumen (auch bei Exception)
+            foreach ($pdfPaths as $path) {
+                if (file_exists($path)) {
+                    @unlink($path);
+                }
             }
-        }
 
-        $this->data['pdf_files'] = [];
+            $this->data['pdf_files'] = [];
+
+            // Alte Temp-Dateien aufraeumen (aelter als 1 Stunde)
+            $this->cleanupOldTempFiles();
+        }
 
         // Nach Import zur Batch-Detail-Seite weiterleiten
         if (isset($batch) && $batch->id) {
@@ -345,5 +352,29 @@ class InvoiceImportPage extends Page implements HasForms
         $html .= '</tbody></table>';
 
         return new HtmlString($html);
+    }
+
+    /**
+     * Raeumt Temp-Dateien auf, die aelter als 1 Stunde sind.
+     */
+    private function cleanupOldTempFiles(): void
+    {
+        $dirs = [
+            storage_path('app/private/livewire-tmp'),
+            storage_path('app/private/temp/invoice-imports'),
+        ];
+
+        foreach ($dirs as $dir) {
+            if (! is_dir($dir)) {
+                continue;
+            }
+
+            $files = glob($dir . '/*');
+            foreach ($files as $file) {
+                if (is_file($file) && filemtime($file) < time() - 3600) {
+                    @unlink($file);
+                }
+            }
+        }
     }
 }

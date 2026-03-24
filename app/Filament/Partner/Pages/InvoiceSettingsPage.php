@@ -2,6 +2,7 @@
 
 namespace App\Filament\Partner\Pages;
 
+use App\Models\CorporateCustomer;
 use App\Models\InvoiceSetting;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -26,6 +27,11 @@ class InvoiceSettingsPage extends Page implements HasForms
 
     protected static ?string $title = 'Rechnungsversand-Einstellungen';
 
+    public function getTitle(): string
+    {
+        return __('partner.invoice_settings.title');
+    }
+
     protected static ?string $slug = 'invoice-settings';
 
     protected static string|\UnitEnum|null $navigationGroup = 'Einstellungen';
@@ -43,7 +49,7 @@ class InvoiceSettingsPage extends Page implements HasForms
             'bcc_email' => InvoiceSetting::get('bcc_email', ''),
             'email_delay_seconds' => (int) InvoiceSetting::get('email_delay_seconds', 3),
             'show_amount_in_email' => InvoiceSetting::enabled('show_amount_in_email') || InvoiceSetting::get('show_amount_in_email') === null,
-            'default_customer_email' => InvoiceSetting::get('default_customer_email', 'smp4000@me.com'),
+            'default_customer_email' => InvoiceSetting::get('default_customer_email', CorporateCustomer::PLACEHOLDER_EMAIL),
         ];
 
         $this->form->fill($this->data);
@@ -52,47 +58,47 @@ class InvoiceSettingsPage extends Page implements HasForms
     public function form(Schema $schema): Schema
     {
         return $schema->statePath('data')->components([
-            Section::make('E-Mail-Versand')
-                ->description('Einstellungen fuer den automatischen E-Mail-Versand')
+            Section::make(__('partner.invoice_settings.email_section'))
+                ->description(__('partner.invoice_settings.email_section_desc'))
                 ->icon('heroicon-o-envelope')
                 ->schema([
                     Toggle::make('bcc_enabled')
-                        ->label('BCC-Kopie aktivieren')
-                        ->helperText('Eine unsichtbare Kopie jeder E-Mail an die BCC-Adresse senden (Kunde sieht es nicht)')
+                        ->label(__('partner.invoice_settings.bcc_enabled'))
+                        ->helperText(__('partner.invoice_settings.bcc_hint'))
                         ->live(),
 
                     TextInput::make('bcc_email')
-                        ->label('BCC-Adresse')
+                        ->label(__('partner.invoice_settings.bcc_email'))
                         ->email()
                         ->required(fn ($get) => $get('bcc_enabled'))
                         ->visible(fn ($get) => $get('bcc_enabled'))
-                        ->helperText('Diese Adresse erhaelt eine unsichtbare Kopie jeder versendeten Rechnung')
+                        ->helperText(__('partner.invoice_settings.bcc_email_hint'))
                         ->prefixIcon('heroicon-o-envelope'),
 
                     TextInput::make('email_delay_seconds')
-                        ->label('Verzoegerung zwischen E-Mails (Sekunden)')
+                        ->label(__('partner.invoice_settings.delay_label'))
                         ->numeric()
                         ->default(3)
                         ->minValue(1)
                         ->maxValue(30)
-                        ->suffix('Sek.')
-                        ->helperText('Strato erlaubt ca. 1 E-Mail alle 3 Sekunden. Standard: 3')
+                        ->suffix(__('partner.common.sek'))
+                        ->helperText(__('partner.invoice_settings.delay_hint'))
                         ->prefixIcon('heroicon-o-clock'),
 
                     Toggle::make('show_amount_in_email')
-                        ->label('Betrag in E-Mail anzeigen')
-                        ->helperText('Gesamtbetrag der Rechnung in der E-Mail anzeigen')
+                        ->label(__('partner.invoice_settings.show_amount'))
+                        ->helperText(__('partner.invoice_settings.show_amount_hint'))
                         ->default(true),
                 ]),
 
-            Section::make('Kunden-Defaults')
-                ->description('Standardwerte fuer neue Kunden')
+            Section::make(__('partner.invoice_settings.customer_defaults'))
+                ->description(__('partner.invoice_settings.customer_defaults_desc'))
                 ->icon('heroicon-o-user-plus')
                 ->schema([
                     TextInput::make('default_customer_email')
-                        ->label('Standard-E-Mail fuer neue Kunden')
+                        ->label(__('partner.invoice_settings.default_email'))
                         ->email()
-                        ->helperText('Neue Kunden erhalten diese Platzhalter-Adresse bis eine echte eingetragen wird')
+                        ->helperText(__('partner.invoice_settings.default_email_hint'))
                         ->prefixIcon('heroicon-o-envelope'),
                 ]),
         ]);
@@ -106,10 +112,10 @@ class InvoiceSettingsPage extends Page implements HasForms
         InvoiceSetting::set('bcc_email', $data['bcc_email'] ?? '');
         InvoiceSetting::set('email_delay_seconds', (string) ($data['email_delay_seconds'] ?? 3));
         InvoiceSetting::set('show_amount_in_email', ($data['show_amount_in_email'] ?? true) ? 'true' : 'false');
-        InvoiceSetting::set('default_customer_email', $data['default_customer_email'] ?? 'smp4000@me.com');
+        InvoiceSetting::set('default_customer_email', $data['default_customer_email'] ?? CorporateCustomer::PLACEHOLDER_EMAIL);
 
         Notification::make()
-            ->title('Einstellungen gespeichert')
+            ->title(__('partner.invoice_settings.saved'))
             ->success()
             ->send();
     }

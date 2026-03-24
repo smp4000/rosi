@@ -31,7 +31,7 @@
     {{-- Fortschrittsbalken E-Mail-Versand --}}
     @if($this->isSending)
         @php
-            $pollDelay = max(5, (int) \App\Models\InvoiceSetting::get('email_delay_seconds', 5));
+            $pollDelay = max(5, (int) \App\Models\InvoiceSetting::get('email_delay_seconds', 3));
         @endphp
         <div wire:poll.{{ $pollDelay }}s="sendNextEmail" style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
@@ -83,11 +83,11 @@
     <div style="display: flex; gap: 4px; border-bottom: 2px solid #e5e7eb; margin-bottom: 16px;">
         @php
             $tabs = [
-                'email' => ['label' => 'E-Mail-Versand', 'icon' => '📧', 'count' => $this->getEmailInvoices()->count()],
-                'print' => ['label' => 'Druck-Versand', 'icon' => '🖨️', 'count' => $this->getPrintInvoices()->count()],
+                'email' => ['label' => 'E-Mail-Versand', 'icon' => '📧', 'count' => $this->getEmailInvoicesCount()],
+                'print' => ['label' => 'Druck-Versand', 'icon' => '🖨️', 'count' => $this->getPrintInvoicesCount()],
                 'new_customers' => ['label' => 'Neue Kunden', 'icon' => '👤', 'count' => $this->record->new_customers_count],
-                'errors' => ['label' => 'Fehler', 'icon' => '⚠️', 'count' => $this->getErrorInvoices()->count()],
-                'duplicates' => ['label' => 'Duplikate', 'icon' => '🔄', 'count' => $this->getDuplicateInvoices()->count()],
+                'errors' => ['label' => 'Fehler', 'icon' => '⚠️', 'count' => $this->getErrorInvoicesCount()],
+                'duplicates' => ['label' => 'Duplikate', 'icon' => '🔄', 'count' => $this->getDuplicateInvoicesCount()],
             ];
         @endphp
         @foreach($tabs as $key => $tab)
@@ -148,6 +148,16 @@
                         @endforeach
                     </tbody>
                 </table>
+                @if($emailInvoices->lastPage() > 1)
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-top: 1px solid #e5e7eb; font-size: 0.85rem; color: #6b7280;">
+                        <span>Zeige {{ $emailInvoices->firstItem() }}–{{ $emailInvoices->lastItem() }} von {{ $emailInvoices->total() }}</span>
+                        <div style="display: flex; gap: 4px;">
+                            @for($p = 1; $p <= $emailInvoices->lastPage(); $p++)
+                                <button wire:click="goToEmailPage({{ $p }})" style="padding: 4px 10px; border-radius: 4px; border: 1px solid {{ $p === $emailInvoices->currentPage() ? '#3b82f6' : '#d1d5db' }}; background: {{ $p === $emailInvoices->currentPage() ? '#3b82f6' : '#fff' }}; color: {{ $p === $emailInvoices->currentPage() ? '#fff' : '#374151' }}; cursor: pointer; font-size: 0.8rem;">{{ $p }}</button>
+                            @endfor
+                        </div>
+                    </div>
+                @endif
             </div>
         @endif
     @endif
@@ -159,7 +169,7 @@
         @else
             @if($this->lastPrintPdfPath)
                 <div style="padding: 12px 16px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between;">
-                    <span style="color: #16a34a; font-size: 0.9rem;">✅ Sammel-PDF erstellt ({{ $printInvoices->count() }} Rechnungen)</span>
+                    <span style="color: #16a34a; font-size: 0.9rem;">✅ Sammel-PDF erstellt ({{ $printInvoices->total() }} Rechnungen)</span>
                     <a href="/sammel-pdf/{{ basename($this->lastPrintPdfPath) }}" target="_blank" style="background: #16a34a; color: #fff; padding: 6px 16px; border-radius: 6px; text-decoration: none; font-size: 0.85rem;">🖨️ PDF herunterladen</a>
                 </div>
             @endif
@@ -192,6 +202,16 @@
                         @endforeach
                     </tbody>
                 </table>
+                @if($printInvoices->lastPage() > 1)
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-top: 1px solid #e5e7eb; font-size: 0.85rem; color: #6b7280;">
+                        <span>Zeige {{ $printInvoices->firstItem() }}–{{ $printInvoices->lastItem() }} von {{ $printInvoices->total() }}</span>
+                        <div style="display: flex; gap: 4px;">
+                            @for($p = 1; $p <= $printInvoices->lastPage(); $p++)
+                                <button wire:click="goToPrintPage({{ $p }})" style="padding: 4px 10px; border-radius: 4px; border: 1px solid {{ $p === $printInvoices->currentPage() ? '#3b82f6' : '#d1d5db' }}; background: {{ $p === $printInvoices->currentPage() ? '#3b82f6' : '#fff' }}; color: {{ $p === $printInvoices->currentPage() ? '#fff' : '#374151' }}; cursor: pointer; font-size: 0.8rem;">{{ $p }}</button>
+                            @endfor
+                        </div>
+                    </div>
+                @endif
             </div>
         @endif
     @endif
@@ -229,7 +249,7 @@
                                         type="email"
                                         wire:model.blur="customerEmails.{{ $cust->id }}"
                                         value="{{ $cust->email }}"
-                                        style="width: 100%; padding: 6px 10px; border: 1px solid {{ $cust->email === 'smp4000@me.com' ? '#fbbf24' : '#d1d5db' }}; border-radius: 6px; font-size: 0.85rem; background: {{ $cust->email === 'smp4000@me.com' ? '#fffbeb' : '#fff' }};"
+                                        style="width: 100%; padding: 6px 10px; border: 1px solid {{ $cust->email === \App\Models\CorporateCustomer::PLACEHOLDER_EMAIL ? '#fbbf24' : '#d1d5db' }}; border-radius: 6px; font-size: 0.85rem; background: {{ $cust->email === \App\Models\CorporateCustomer::PLACEHOLDER_EMAIL ? '#fffbeb' : '#fff' }};"
                                         placeholder="E-Mail eingeben"
                                     />
                                 </td>
@@ -297,6 +317,16 @@
                         @endforeach
                     </tbody>
                 </table>
+                @if($errorInvoices->lastPage() > 1)
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-top: 1px solid #e5e7eb; font-size: 0.85rem; color: #6b7280;">
+                        <span>Zeige {{ $errorInvoices->firstItem() }}–{{ $errorInvoices->lastItem() }} von {{ $errorInvoices->total() }}</span>
+                        <div style="display: flex; gap: 4px;">
+                            @for($p = 1; $p <= $errorInvoices->lastPage(); $p++)
+                                <button wire:click="goToErrorPage({{ $p }})" style="padding: 4px 10px; border-radius: 4px; border: 1px solid {{ $p === $errorInvoices->currentPage() ? '#3b82f6' : '#d1d5db' }}; background: {{ $p === $errorInvoices->currentPage() ? '#3b82f6' : '#fff' }}; color: {{ $p === $errorInvoices->currentPage() ? '#fff' : '#374151' }}; cursor: pointer; font-size: 0.8rem;">{{ $p }}</button>
+                            @endfor
+                        </div>
+                    </div>
+                @endif
             </div>
         @endif
     @endif
@@ -325,6 +355,16 @@
                         @endforeach
                     </tbody>
                 </table>
+                @if($duplicateInvoices->lastPage() > 1)
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-top: 1px solid #e5e7eb; font-size: 0.85rem; color: #6b7280;">
+                        <span>Zeige {{ $duplicateInvoices->firstItem() }}–{{ $duplicateInvoices->lastItem() }} von {{ $duplicateInvoices->total() }}</span>
+                        <div style="display: flex; gap: 4px;">
+                            @for($p = 1; $p <= $duplicateInvoices->lastPage(); $p++)
+                                <button wire:click="goToDuplicatePage({{ $p }})" style="padding: 4px 10px; border-radius: 4px; border: 1px solid {{ $p === $duplicateInvoices->currentPage() ? '#3b82f6' : '#d1d5db' }}; background: {{ $p === $duplicateInvoices->currentPage() ? '#3b82f6' : '#fff' }}; color: {{ $p === $duplicateInvoices->currentPage() ? '#fff' : '#374151' }}; cursor: pointer; font-size: 0.8rem;">{{ $p }}</button>
+                            @endfor
+                        </div>
+                    </div>
+                @endif
             </div>
         @endif
     @endif

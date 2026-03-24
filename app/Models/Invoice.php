@@ -31,6 +31,9 @@ class Invoice extends \Illuminate\Database\Eloquent\Model
         'status',
         'import_status',
         'import_error_message',
+        'email_status',
+        'email_error',
+        'print_status',
         'sent_at',
         'printed_at',
     ];
@@ -68,6 +71,11 @@ class Invoice extends \Illuminate\Database\Eloquent\Model
     public function items(): HasMany
     {
         return $this->hasMany(InvoiceItem::class);
+    }
+
+    public function logs(): HasMany
+    {
+        return $this->hasMany(InvoiceLog::class);
     }
 
     // ── Scopes ──

@@ -18,6 +18,8 @@ use Illuminate\Support\Facades\Log;
  */
 class CorporateCustomerCsvImportService
 {
+    use \App\Traits\ValidatesCsvRows;
+
     private ?string $stationNumber = null;
     private ?Carbon $csvPrintedAt = null;
     private ?GasStation $gasStation = null;
@@ -40,6 +42,11 @@ class CorporateCustomerCsvImportService
     public function import(string $filePath, string $originalFilename, ?string $userId = null): ArticleImport
     {
         $lines = $this->readCsvFile($filePath);
+
+        if (! $this->validateCsvNotEmpty(implode("\n", $lines), 3)) {
+            throw new \Exception('CSV-Datei ist leer oder enthaelt zu wenige Zeilen.');
+        }
+
         $this->extractMetadata($lines);
 
         if (! $this->stationNumber) {
@@ -437,10 +444,11 @@ class CorporateCustomerCsvImportService
             ];
 
             if (! $existing) {
+                $defaultEmail = \App\Models\InvoiceSetting::get('default_customer_email', CorporateCustomer::PLACEHOLDER_EMAIL);
                 CorporateCustomer::create(array_merge($saveData, [
                     'gas_station_id' => $this->gasStation->id,
                     'customer_number' => $customerNumber,
-                    'email' => 'smp4000@me.com',
+                    'email' => $defaultEmail,
                 ]));
                 $this->created++;
             } else {
@@ -467,9 +475,21 @@ class CorporateCustomerCsvImportService
                     }
                 }
 
+                // Bankdaten nur updaten wenn CSV sie liefert und bestehende leer
+                if (! empty($saveData['iban']) && empty($existing->iban)) {
+                    $changed = true;
+                } elseif (! empty($existing->iban)) {
+                    // Bestehende Bankdaten nicht ueberschreiben wenn bereits vorhanden
+                    unset($saveData['iban'], $saveData['bic'], $saveData['bank_name']);
+                }
+
                 if ($changed) {
                     $existing->update($saveData);
                     $this->updated++;
+
+                    Log::info('CSV Merge: Kundendaten aktualisiert', [
+                        'kunde' => $customerNumber,
+                    ]);
                 } else {
                     $this->unchanged++;
                 }

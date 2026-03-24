@@ -36,15 +36,24 @@ class CorporateCustomerResource extends Resource
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-building-office';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Tankstellen';
-
-    protected static ?string $modelLabel = 'Firmenkunde';
-
-    protected static ?string $pluralModelLabel = 'Firmenkunden';
-
     protected static ?int $navigationSort = 14;
 
     protected static ?string $recordTitleAttribute = 'name';
+
+    public static function getNavigationGroup(): ?string
+    {
+        return __('partner.corporate_customer.nav_group');
+    }
+
+    public static function getModelLabel(): string
+    {
+        return __('partner.corporate_customer.label');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('partner.corporate_customer.plural');
+    }
 
     public static function getNavigationBadge(): ?string
     {
@@ -83,18 +92,24 @@ class CorporateCustomerResource extends Resource
                     $invoiceCount = $record->invoices()->count();
                     $totalAmount = $record->invoices()->sum('amount');
                     $lastInvoice = $record->invoices()->orderByDesc('invoice_date')->first();
+                    $safeName = e($record->name ?? 'K');
+                    $safeEmail = e($record->email ?? '');
                     $initial = strtoupper(substr($record->name ?? 'K', 0, 1));
                     $lastDate = ($lastInvoice?->invoice_date instanceof \Carbon\Carbon) ? $lastInvoice->invoice_date->format('d.m.Y') : ($lastInvoice?->invoice_date ?? '-');
-                    $emailDisplay = $record->email ? " &nbsp; ✉ {$record->email}" : '';
-                    $emailBtn = ($record->email && $record->email !== 'smp4000@me.com')
-                        ? "<a href='mailto:{$record->email}' style='display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border:1px solid #e5e7eb;border-radius:8px;text-decoration:none;color:#374151;font-size:0.85rem;'>✉ E-Mail</a>"
+                    $emailDisplay = $safeEmail ? " &nbsp; ✉ {$safeEmail}" : '';
+                    $emailBtn = ($record->email && $record->email !== CorporateCustomer::PLACEHOLDER_EMAIL)
+                        ? "<a href='mailto:{$safeEmail}' style='display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border:1px solid #e5e7eb;border-radius:8px;text-decoration:none;color:#374151;font-size:0.85rem;'>✉ " . __('partner.corporate_customer.fields.email') . "</a>"
                         : '';
+
+                    $statsInvoices = __('partner.corporate_customer.stats.invoices');
+                    $statsTotalAmount = __('partner.corporate_customer.stats.total_amount');
+                    $statsLastInvoice = __('partner.corporate_customer.stats.last_invoice');
 
                     $html = "<div style='background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:24px;'>";
                     $html .= "<div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:" . ($invoiceCount > 0 ? '20px' : '0') . ";'>";
                     $html .= "<div style='display:flex;align-items:center;gap:16px;'>";
                     $html .= "<div style='width:56px;height:56px;border-radius:50%;background:#dc2626;color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:bold;'>{$initial}</div>";
-                    $html .= "<div><div style='font-size:1.2rem;font-weight:700;color:#1a202c;'>{$record->name}</div>";
+                    $html .= "<div><div style='font-size:1.2rem;font-weight:700;color:#1a202c;'>{$safeName}</div>";
                     $html .= "<div style='font-size:0.85rem;color:#6b7280;'># {$record->customer_number}{$emailDisplay}</div></div></div>";
                     $html .= $emailBtn;
                     $html .= "</div>";
@@ -102,9 +117,9 @@ class CorporateCustomerResource extends Resource
                     if ($invoiceCount > 0) {
                         $totalFormatted = number_format($totalAmount, 2, ',', '.');
                         $html .= "<div style='display:grid;grid-template-columns:repeat(3,1fr);gap:16px;'>";
-                        $html .= "<div style='background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;'><div style='font-size:0.75rem;color:#dc2626;font-weight:600;text-transform:uppercase;'>Rechnungen</div><div style='font-size:1.5rem;font-weight:700;'>{$invoiceCount}</div></div>";
-                        $html .= "<div style='background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;'><div style='font-size:0.75rem;color:#dc2626;font-weight:600;text-transform:uppercase;'>Gesamtbetrag</div><div style='font-size:1.5rem;font-weight:700;'>{$totalFormatted} &euro;</div></div>";
-                        $html .= "<div style='background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;'><div style='font-size:0.75rem;color:#dc2626;font-weight:600;text-transform:uppercase;'>Letzte Rechnung</div><div style='font-size:1.5rem;font-weight:700;'>{$lastDate}</div></div>";
+                        $html .= "<div style='background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;'><div style='font-size:0.75rem;color:#dc2626;font-weight:600;text-transform:uppercase;'>{$statsInvoices}</div><div style='font-size:1.5rem;font-weight:700;'>{$invoiceCount}</div></div>";
+                        $html .= "<div style='background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;'><div style='font-size:0.75rem;color:#dc2626;font-weight:600;text-transform:uppercase;'>{$statsTotalAmount}</div><div style='font-size:1.5rem;font-weight:700;'>{$totalFormatted} &euro;</div></div>";
+                        $html .= "<div style='background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;'><div style='font-size:0.75rem;color:#dc2626;font-weight:600;text-transform:uppercase;'>{$statsLastInvoice}</div><div style='font-size:1.5rem;font-weight:700;'>{$lastDate}</div></div>";
                         $html .= "</div>";
                     }
 
@@ -114,31 +129,31 @@ class CorporateCustomerResource extends Resource
                 })
                 ->columnSpanFull(),
 
-            Tabs::make('Firmenkunde')
+            Tabs::make(__('partner.corporate_customer.label'))
                 ->tabs([
                     // ========== TAB 1: STAMMDATEN ==========
-                    Tab::make('Stammdaten')
+                    Tab::make(__('partner.corporate_customer.tabs.stammdaten'))
                         ->icon('heroicon-o-user')
                         ->schema([
                             // Platzhalter-E-Mail Warnung
                             Placeholder::make('placeholder_email_warning')
                                 ->label('')
                                 ->visibleOn('edit')
-                                ->visible(fn (Get $get): bool => ($get('email') === 'smp4000@me.com') && ($get('send_via_email') ?? true))
+                                ->visible(fn (Get $get): bool => ($get('email') === CorporateCustomer::PLACEHOLDER_EMAIL) && ($get('send_via_email') ?? true))
                                 ->content(new HtmlString(
                                     '<div style="padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;display:flex;align-items:flex-start;gap:12px;">'
                                     . '<span style="font-size:1.3rem;">⚠️</span>'
                                     . '<div>'
-                                    . '<div style="font-weight:600;color:#b45309;">Platzhalter-E-Mail erkannt</div>'
-                                    . '<div style="font-size:0.85rem;color:#92400e;">Bitte eine echte E-Mail-Adresse eintragen, sonst gehen alle Rechnungen an smp4000@me.com.</div>'
+                                    . '<div style="font-weight:600;color:#b45309;">' . __('partner.corporate_customer.warnings.placeholder_email') . '</div>'
+                                    . '<div style="font-size:0.85rem;color:#92400e;">' . __('partner.corporate_customer.warnings.placeholder_email_desc', ['email' => CorporateCustomer::PLACEHOLDER_EMAIL]) . '</div>'
                                     . '</div></div>'
                                 ))
                                 ->columnSpanFull(),
 
-                            Section::make('Zuordnung')
+                            Section::make(__('partner.corporate_customer.sections.zuordnung'))
                                 ->schema([
                                     Select::make('gas_station_id')
-                                        ->label('Tankstelle')
+                                        ->label(__('partner.corporate_customer.fields.gas_station'))
                                         ->options(function () use ($tenantId) {
                                             return GasStation::where('tenant_id', $tenantId)->pluck('name', 'id');
                                         })
@@ -147,7 +162,7 @@ class CorporateCustomerResource extends Resource
                                         ->preload(),
 
                                     TextInput::make('customer_number')
-                                        ->label('Firmennummer')
+                                        ->label(__('partner.corporate_customer.fields.customer_number'))
                                         ->required()
                                         ->numeric()
                                         ->unique(ignoreRecord: true, modifyRuleUsing: function ($rule, Get $get) {
@@ -156,62 +171,62 @@ class CorporateCustomerResource extends Resource
                                 ])
                                 ->columns(2),
 
-                            Section::make('Kontaktdaten')
+                            Section::make(__('partner.corporate_customer.sections.kontaktdaten'))
                                 ->schema([
                                     Select::make('salutation')
-                                        ->label('Anrede')
+                                        ->label(__('partner.corporate_customer.fields.salutation'))
                                         ->options([
-                                            'Herr' => 'Herr',
-                                            'Frau' => 'Frau',
-                                            'Firma' => 'Firma',
-                                            'Herr Dr.' => 'Herr Dr.',
-                                            'Frau Dr.' => 'Frau Dr.',
-                                            'Herr Dr. med.' => 'Herr Dr. med.',
-                                            'Herr Dr. dent.' => 'Herr Dr. dent.',
-                                            'Herrn' => 'Herrn',
-                                            'An die' => 'An die',
+                                            'Herr' => __('partner.corporate_customer.salutations.Herr'),
+                                            'Frau' => __('partner.corporate_customer.salutations.Frau'),
+                                            'Firma' => __('partner.corporate_customer.salutations.Firma'),
+                                            'Herr Dr.' => __('partner.corporate_customer.salutations.Herr Dr.'),
+                                            'Frau Dr.' => __('partner.corporate_customer.salutations.Frau Dr.'),
+                                            'Herr Dr. med.' => __('partner.corporate_customer.salutations.Herr Dr. med.'),
+                                            'Herr Dr. dent.' => __('partner.corporate_customer.salutations.Herr Dr. dent.'),
+                                            'Herrn' => __('partner.corporate_customer.salutations.Herrn'),
+                                            'An die' => __('partner.corporate_customer.salutations.An die'),
                                         ])
                                         ->searchable(),
 
                                     TextInput::make('name')
-                                        ->label('Name / Firma')
+                                        ->label(__('partner.corporate_customer.fields.name'))
                                         ->required()
                                         ->maxLength(255),
 
                                     TextInput::make('name_2')
-                                        ->label('Name Zeile 2')
+                                        ->label(__('partner.corporate_customer.fields.name_2'))
                                         ->maxLength(255),
 
                                     TextInput::make('department')
-                                        ->label('Abteilung / Zusatz')
+                                        ->label(__('partner.corporate_customer.fields.department'))
                                         ->maxLength(255),
 
                                     TextInput::make('street')
-                                        ->label('Strasse')
+                                        ->label(__('partner.corporate_customer.fields.street'))
                                         ->maxLength(255),
 
                                     TextInput::make('zip')
-                                        ->label('PLZ')
+                                        ->label(__('partner.corporate_customer.fields.zip'))
                                         ->maxLength(10),
 
                                     TextInput::make('city')
-                                        ->label('Stadt')
+                                        ->label(__('partner.corporate_customer.fields.city'))
                                         ->maxLength(255),
 
                                     TextInput::make('phone')
-                                        ->label('Telefon')
+                                        ->label(__('partner.corporate_customer.fields.phone'))
                                         ->tel()
                                         ->maxLength(100),
 
                                     TextInput::make('email')
-                                        ->label('E-Mail')
+                                        ->label(__('partner.corporate_customer.fields.email'))
                                         ->email()
                                         ->maxLength(255)
-                                        ->default('smp4000@me.com')
-                                        ->helperText('Fuer zukuenftigen Rechnungsversand'),
+                                        ->default(CorporateCustomer::PLACEHOLDER_EMAIL)
+                                        ->helperText(__('partner.corporate_customer.fields.email_hint')),
 
                                     TextInput::make('notes')
-                                        ->label('Notizen')
+                                        ->label(__('partner.corporate_customer.fields.notes'))
                                         ->maxLength(500)
                                         ->columnSpanFull(),
                                 ])
@@ -219,17 +234,17 @@ class CorporateCustomerResource extends Resource
                         ]),
 
                     // ========== TAB 2: BANKDATEN ==========
-                    Tab::make('Bankdaten')
+                    Tab::make(__('partner.corporate_customer.tabs.bankdaten'))
                         ->icon('heroicon-o-banknotes')
                         ->schema([
-                            Section::make('Zahlungsart')
+                            Section::make(__('partner.corporate_customer.sections.zahlungsart'))
                                 ->schema([
                                     Select::make('payment_method')
-                                        ->label('Zahlart')
+                                        ->label(__('partner.corporate_customer.fields.payment_method'))
                                         ->options([
-                                            'Bar' => 'Bar',
-                                            'SEPA - Basislastschrift' => 'SEPA - Basislastschrift',
-                                            'SEPA - Firmenlastschrift' => 'SEPA - Firmenlastschrift',
+                                            'Bar' => __('partner.corporate_customer.payment_methods.Bar'),
+                                            'SEPA - Basislastschrift' => __('partner.corporate_customer.payment_methods.SEPA - Basislastschrift'),
+                                            'SEPA - Firmenlastschrift' => __('partner.corporate_customer.payment_methods.SEPA - Firmenlastschrift'),
                                         ])
                                         ->default('Bar')
                                         ->required()
@@ -237,10 +252,10 @@ class CorporateCustomerResource extends Resource
                                 ])
                                 ->columns(1),
 
-                            Section::make('SEPA-Bankverbindung')
+                            Section::make(__('partner.corporate_customer.sections.sepa_bank'))
                                 ->schema([
                                     TextInput::make('iban')
-                                        ->label('IBAN')
+                                        ->label(__('partner.corporate_customer.fields.iban'))
                                         ->maxLength(34)
                                         ->live(onBlur: true)
                                         ->afterStateUpdated(function (Set $set, ?string $state) {
@@ -257,24 +272,24 @@ class CorporateCustomerResource extends Resource
                                         })
                                         ->hintAction(
                                             \Filament\Actions\Action::make('iban_rechner')
-                                                ->label('IBAN-Rechner')
+                                                ->label(__('partner.corporate_customer.iban_calculator.label'))
                                                 ->icon('heroicon-o-calculator')
                                                 ->color('gray')
                                                 ->size('sm')
                                                 ->form([
                                                     TextInput::make('blz')
-                                                        ->label('Bankleitzahl (BLZ)')
+                                                        ->label(__('partner.corporate_customer.iban_calculator.blz'))
                                                         ->required()
                                                         ->maxLength(8)
-                                                        ->placeholder('8-stellige BLZ'),
+                                                        ->placeholder(__('partner.corporate_customer.iban_calculator.blz_placeholder')),
                                                     TextInput::make('kontonummer')
-                                                        ->label('Kontonummer')
+                                                        ->label(__('partner.corporate_customer.iban_calculator.kontonummer'))
                                                         ->required()
                                                         ->maxLength(10)
-                                                        ->placeholder('Max. 10 Stellen'),
+                                                        ->placeholder(__('partner.corporate_customer.iban_calculator.kontonummer_placeholder')),
                                                 ])
-                                                ->modalHeading('IBAN aus BLZ + Kontonummer berechnen')
-                                                ->modalSubmitActionLabel('Uebernehmen')
+                                                ->modalHeading(__('partner.corporate_customer.iban_calculator.modal_heading'))
+                                                ->modalSubmitActionLabel(__('partner.corporate_customer.iban_calculator.modal_submit'))
                                                 ->modalWidth('md')
                                                 ->action(function (array $data, Set $set) {
                                                     $iban = EmployeeResource::calculateGermanIbanPublic(
@@ -295,19 +310,19 @@ class CorporateCustomerResource extends Resource
                                         ),
 
                                     TextInput::make('bic')
-                                        ->label('BIC')
+                                        ->label(__('partner.corporate_customer.fields.bic'))
                                         ->maxLength(11),
 
                                     TextInput::make('bank_name')
-                                        ->label('Bank')
+                                        ->label(__('partner.corporate_customer.fields.bank_name'))
                                         ->maxLength(255),
 
                                     TextInput::make('mandate_reference')
-                                        ->label('SEPA-Mandatsreferenz')
+                                        ->label(__('partner.corporate_customer.fields.mandate_reference'))
                                         ->maxLength(100),
 
                                     TextInput::make('contract_number')
-                                        ->label('Vertragsnummer')
+                                        ->label(__('partner.corporate_customer.fields.contract_number'))
                                         ->maxLength(100),
                                 ])
                                 ->columns(2)
@@ -315,27 +330,27 @@ class CorporateCustomerResource extends Resource
                         ]),
 
                     // ========== TAB 3: KONDITIONEN ==========
-                    Tab::make('Konditionen')
+                    Tab::make(__('partner.corporate_customer.tabs.konditionen'))
                         ->icon('heroicon-o-calculator')
                         ->schema([
-                            Section::make('Finanzen')
+                            Section::make(__('partner.corporate_customer.sections.finanzen'))
                                 ->schema([
                                     TextInput::make('discount_percent')
-                                        ->label('Skonto')
+                                        ->label(__('partner.corporate_customer.fields.discount_percent'))
                                         ->numeric()
                                         ->step(0.01)
                                         ->suffix('%')
                                         ->default(0.00),
 
                                     TextInput::make('credit_limit')
-                                        ->label('Kreditlimit')
+                                        ->label(__('partner.corporate_customer.fields.credit_limit'))
                                         ->numeric()
                                         ->step(0.01)
                                         ->prefix('EUR')
                                         ->default(0.00),
 
                                     TextInput::make('prepayment')
-                                        ->label('Vorauszahlung')
+                                        ->label(__('partner.corporate_customer.fields.prepayment'))
                                         ->numeric()
                                         ->step(0.01)
                                         ->prefix('EUR')
@@ -343,53 +358,53 @@ class CorporateCustomerResource extends Resource
                                 ])
                                 ->columns(3),
 
-                            Section::make('Druckoptionen')
+                            Section::make(__('partner.corporate_customer.sections.druckoptionen'))
                                 ->schema([
                                     Toggle::make('print_delivery_note')
-                                        ->label('Lieferschein drucken')
+                                        ->label(__('partner.corporate_customer.fields.print_delivery_note'))
                                         ->default(false),
 
                                     Toggle::make('print_prepayment')
-                                        ->label('Vorauszahlung drucken')
+                                        ->label(__('partner.corporate_customer.fields.print_prepayment'))
                                         ->default(false),
                                 ])
                                 ->columns(2),
 
-                            Section::make('Rechnungsversand')
-                                ->description('Wie erhaelt der Kunde seine Rechnungen?')
+                            Section::make(__('partner.corporate_customer.sections.rechnungsversand'))
+                                ->description(__('partner.corporate_customer.sections.rechnungsversand_desc'))
                                 ->schema([
                                     Toggle::make('send_via_email')
-                                        ->label('Per E-Mail versenden')
-                                        ->helperText('Rechnung als PDF per E-Mail')
+                                        ->label(__('partner.corporate_customer.fields.send_via_email'))
+                                        ->helperText(__('partner.corporate_customer.fields.send_via_email_hint'))
                                         ->default(true),
 
                                     Toggle::make('send_via_print')
-                                        ->label('Drucken')
-                                        ->helperText('Im Sammel-PDF fuer Druck')
+                                        ->label(__('partner.corporate_customer.fields.send_via_print'))
+                                        ->helperText(__('partner.corporate_customer.fields.send_via_print_hint'))
                                         ->default(false),
 
                                     Toggle::make('is_active')
-                                        ->label('Kunde aktiv')
-                                        ->helperText('Inaktive Kunden werden uebersprungen')
+                                        ->label(__('partner.corporate_customer.fields.is_active'))
+                                        ->helperText(__('partner.corporate_customer.fields.is_active_hint'))
                                         ->default(true),
                                 ])
                                 ->columns(3),
                         ]),
 
                     // ========== TAB 4: TANKKARTEN ==========
-                    Tab::make('Tankkarten')
+                    Tab::make(__('partner.corporate_customer.tabs.tankkarten'))
                         ->icon('heroicon-o-credit-card')
                         ->schema([
                             Placeholder::make('fuel_cards_info')
                                 ->label('')
                                 ->content(function (?CorporateCustomer $record): HtmlString {
                                     if (! $record) {
-                                        return new HtmlString('<span style="color:#6b7280;">Speichern Sie den Firmenkunden zuerst, um Tankkarten hinzuzufuegen.</span>');
+                                        return new HtmlString('<span style="color:#6b7280;">' . __('partner.corporate_customer.fuel_cards_info.save_first') . '</span>');
                                     }
                                     $count = $record->fuelCards()->count();
                                     $icon = $count > 0 ? '💳' : '📭';
 
-                                    return new HtmlString("<span style='font-size:0.9rem;'>{$icon} {$count} Tankkarte(n) zugeordnet. Verwalten Sie die Karten im Tab unterhalb.</span>");
+                                    return new HtmlString("<span style='font-size:0.9rem;'>{$icon} " . __('partner.corporate_customer.fuel_cards_info.count', ['count' => $count]) . "</span>");
                                 }),
                         ])
                         ->visibleOn('edit'),
@@ -405,35 +420,35 @@ class CorporateCustomerResource extends Resource
         return $table
             ->columns([
             TextColumn::make('gasStation.name')
-                    ->label('Tankstelle')
+                    ->label(__('partner.corporate_customer.fields.gas_station'))
                     ->description(fn ($record) => $record->gasStation?->station_number_shop ?? $record->gasStation?->station_number ?? '')
                     ->sortable()
-                    ->toggleable(),  
+                    ->toggleable(),
 
                 TextColumn::make('customer_number')
-                    ->label('Firmen-Nr.')
+                    ->label(__('partner.corporate_customer.table.customer_number'))
                     ->sortable()
                     ->searchable()
                     ->fontFamily('mono'),
 
                 TextColumn::make('name')
-                    ->label('Name / Firma')
+                    ->label(__('partner.corporate_customer.fields.name'))
                     ->searchable()
                     ->sortable()
                     ->weight('bold')
                     ->description(fn (CorporateCustomer $record): ?string => $record->department),
 
                 TextColumn::make('city')
-                    ->label('Stadt')
+                    ->label(__('partner.corporate_customer.fields.city'))
                     ->sortable()
                     ->toggleable(),
 
                 BadgeColumn::make('payment_method')
-                    ->label('Zahlart')
+                    ->label(__('partner.corporate_customer.fields.payment_method'))
                     ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'Bar' => 'Bar',
-                        'SEPA - Basislastschrift' => 'SEPA Basis',
-                        'SEPA - Firmenlastschrift' => 'SEPA Firma',
+                        'Bar' => __('partner.corporate_customer.payment_methods.Bar'),
+                        'SEPA - Basislastschrift' => __('partner.corporate_customer.payment_display.sepa_basis'),
+                        'SEPA - Firmenlastschrift' => __('partner.corporate_customer.payment_display.sepa_firma'),
                         default => $state,
                     })
                     ->color(fn (string $state): string => match ($state) {
@@ -444,24 +459,24 @@ class CorporateCustomerResource extends Resource
                     }),
 
                 TextColumn::make('fuel_cards_count')
-                    ->label('Tankkarten')
+                    ->label(__('partner.corporate_customer.table.fuel_cards'))
                     ->counts('fuelCards')
                     ->sortable()
                     ->badge()
                     ->color('warning'),
 
                 TextColumn::make('email')
-                    ->label('E-Mail')
+                    ->label(__('partner.corporate_customer.fields.email'))
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('credit_limit')
-                    ->label('Limit')
+                    ->label(__('partner.corporate_customer.table.limit'))
                     ->money('EUR')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('imported_at')
-                    ->label('Importiert')
+                    ->label(__('partner.corporate_customer.table.imported_at'))
                     ->dateTime('d.m.Y')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -469,17 +484,17 @@ class CorporateCustomerResource extends Resource
             ->defaultSort('customer_number', 'asc')
             ->filters([
                 SelectFilter::make('gas_station_id')
-                    ->label('Tankstelle')
+                    ->label(__('partner.corporate_customer.fields.gas_station'))
                     ->options(function () use ($tenantId) {
                         return GasStation::where('tenant_id', $tenantId)->pluck('name', 'id');
                     }),
 
                 SelectFilter::make('payment_method')
-                    ->label('Zahlart')
+                    ->label(__('partner.corporate_customer.fields.payment_method'))
                     ->options([
-                        'Bar' => 'Bar',
-                        'SEPA - Basislastschrift' => 'SEPA - Basislastschrift',
-                        'SEPA - Firmenlastschrift' => 'SEPA - Firmenlastschrift',
+                        'Bar' => __('partner.corporate_customer.payment_methods.Bar'),
+                        'SEPA - Basislastschrift' => __('partner.corporate_customer.payment_methods.SEPA - Basislastschrift'),
+                        'SEPA - Firmenlastschrift' => __('partner.corporate_customer.payment_methods.SEPA - Firmenlastschrift'),
                     ]),
 
                 TrashedFilter::make(),

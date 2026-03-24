@@ -3,8 +3,12 @@
 namespace App\Filament\Partner\Resources\InvoiceBatchResource\Pages;
 
 use App\Filament\Partner\Resources\InvoiceBatchResource;
+use App\Enums\EmailStatus;
+use App\Enums\ImportStatus;
+use App\Enums\PrintStatus;
 use App\Mail\InvoiceMail;
 use App\Models\Invoice;
+use App\Models\InvoiceLog;
 use App\Models\InvoiceSetting;
 use App\Services\PdfMergerService;
 use Filament\Actions;
@@ -69,7 +73,7 @@ class ViewInvoiceBatch extends ViewRecord
         ]);
 
         Notification::make()
-            ->title("Kunde {$customer->name} gespeichert")
+            ->title(__('partner.invoice_batch.messages.customer_saved', ['name' => $customer->name]))
             ->success()
             ->duration(3000)
             ->send();
@@ -82,12 +86,12 @@ class ViewInvoiceBatch extends ViewRecord
         return [
             // Komplett-Versand
             Actions\Action::make('komplett_versand')
-                ->label('Komplett-Versand')
+                ->label(__('partner.invoice_batch.actions.complete_send'))
                 ->icon('heroicon-o-rocket-launch')
                 ->color('success')
                 ->requiresConfirmation()
-                ->modalHeading('Komplett-Versand starten?')
-                ->modalDescription('E-Mails werden versendet und Druck-PDF wird erstellt.')
+                ->modalHeading(__('partner.invoice_batch.actions.complete_send') . '?')
+                ->modalDescription(__('partner.invoice_batch.confirm.print_pdf_desc'))
                 ->hidden(fn () => $this->isSending)
                 ->action(function () {
                     $this->doCreatePrintPdf();
@@ -96,7 +100,7 @@ class ViewInvoiceBatch extends ViewRecord
 
             // Alle E-Mails versenden
             Actions\Action::make('send_all_emails')
-                ->label('Alle E-Mails versenden')
+                ->label(__('partner.invoice_batch.actions.send_all_emails'))
                 ->icon('heroicon-o-envelope')
                 ->color('info')
                 ->requiresConfirmation()
@@ -105,53 +109,56 @@ class ViewInvoiceBatch extends ViewRecord
 
             // Sammel-PDF erzeugen + downloaden
             Actions\Action::make('create_print_pdf')
-                ->label('Sammel-PDF erzeugen')
+                ->label(__('partner.invoice_batch.actions.create_print_pdf'))
                 ->icon('heroicon-o-printer')
                 ->color('warning')
                 ->requiresConfirmation()
-                ->modalHeading('Sammel-PDF fuer Druck erstellen?')
-                ->modalDescription('Alle Druck-Rechnungen werden in einem PDF zusammengefasst und heruntergeladen.')
+                ->modalHeading(__('partner.invoice_batch.confirm.print_pdf'))
+                ->modalDescription(__('partner.invoice_batch.confirm.print_pdf_desc'))
                 ->action(function () {
                     $this->doCreatePrintPdf();
 
-                    if ($this->lastPrintPdfPath && Storage::exists($this->lastPrintPdfPath)) {
-                        return response()->streamDownload(function () {
-                            echo Storage::get($this->lastPrintPdfPath);
-                        }, 'Sammel_Druck_' . now()->format('Y-m-d_His') . '.pdf', [
-                            'Content-Type' => 'application/pdf',
-                        ]);
+                    if ($this->lastPrintPdfPath) {
+                        $filename = basename($this->lastPrintPdfPath);
+                        $this->redirect(route('print-pdf.download', ['filename' => $filename]));
                     }
                 }),
 
             // Als gedruckt markieren
             Actions\Action::make('mark_printed')
-                ->label('Als gedruckt markieren')
+                ->label(__('partner.invoice_batch.actions.mark_printed'))
                 ->icon('heroicon-o-check')
                 ->color('warning')
                 ->requiresConfirmation()
                 ->action(function () {
-                    $count = Invoice::where('batch_id', $this->record->id)
-                        ->where('import_status', 'success')
-                        ->where('print_status', '!=', 'printed')
+                    $invoices = Invoice::where('batch_id', $this->record->id)
+                        ->where('import_status', ImportStatus::SUCCESS->value)
+                        ->where('print_status', '!=', PrintStatus::PRINTED->value)
                         ->whereHas('corporateCustomer', fn ($q) => $q->where('send_via_print', true))
-                        ->update(['print_status' => 'printed', 'printed_at' => now()]);
+                        ->with('gasStation')
+                        ->get();
+
+                    foreach ($invoices as $invoice) {
+                        $invoice->update(['print_status' => PrintStatus::PRINTED->value, 'printed_at' => now()]);
+                        InvoiceLog::logPrint($invoice, $this->record->id);
+                    }
 
                     Notification::make()
-                        ->title("{$count} Rechnungen als gedruckt markiert")
+                        ->title(__('partner.invoice_batch.messages.marked_printed', ['count' => $invoices->count()]))
                         ->success()
                         ->send();
                 }),
 
             // Neuer Import
             Actions\Action::make('neuer_import')
-                ->label('Neuer Import')
+                ->label(__('partner.invoice_batch.actions.new_import'))
                 ->icon('heroicon-o-arrow-up-tray')
                 ->color('gray')
                 ->url(route('filament.partner.pages.invoice-import')),
 
             // Versand-Bericht
             Actions\Action::make('versand_bericht')
-                ->label('Versand-Bericht')
+                ->label(__('partner.invoice_batch.actions.report'))
                 ->icon('heroicon-o-document-text')
                 ->color('gray')
                 ->action(fn () => $this->generateVersandBericht()),
@@ -165,8 +172,8 @@ class ViewInvoiceBatch extends ViewRecord
         $batch = $this->record;
 
         $count = Invoice::where('batch_id', $batch->id)
-            ->where('import_status', 'success')
-            ->where('email_status', '!=', 'sent')
+            ->where('import_status', ImportStatus::SUCCESS->value)
+            ->where('email_status', '!=', EmailStatus::SENT->value)
             ->whereHas('corporateCustomer', function ($q) {
                 $q->where('send_via_email', true)
                   ->where('is_active', true)
@@ -176,7 +183,7 @@ class ViewInvoiceBatch extends ViewRecord
             ->count();
 
         if ($count === 0) {
-            Notification::make()->title('Keine E-Mails zu versenden')->warning()->send();
+            Notification::make()->title(__('partner.invoice_batch.messages.no_emails'))->warning()->send();
 
             return;
         }
@@ -206,8 +213,8 @@ class ViewInvoiceBatch extends ViewRecord
 
         // Naechste nicht-gesendete Rechnung holen (pending = noch nicht versucht)
         $invoice = Invoice::where('batch_id', $batch->id)
-            ->where('import_status', 'success')
-            ->where('email_status', 'pending')
+            ->where('import_status', ImportStatus::SUCCESS->value)
+            ->where('email_status', EmailStatus::PENDING->value)
             ->whereHas('corporateCustomer', function ($q) {
                 $q->where('send_via_email', true)
                   ->where('is_active', true)
@@ -232,9 +239,10 @@ class ViewInvoiceBatch extends ViewRecord
         if (! $hasPdf) {
             \Log::warning("E-Mail-Versand: Kein PDF fuer Rechnung {$invoice->invoice_number}");
             $invoice->update([
-                'email_status' => 'failed',
+                'email_status' => EmailStatus::FAILED->value,
                 'email_error' => 'Kein PDF vorhanden',
             ]);
+            InvoiceLog::logEmail($invoice, EmailStatus::FAILED->value, $email ?? '', 'Kein PDF vorhanden', $batch->id);
             $this->sendingFailed++;
 
             // Pruefen ob fertig
@@ -249,9 +257,10 @@ class ViewInvoiceBatch extends ViewRecord
             Mail::to($email)->send(new InvoiceMail($invoice));
 
             $invoice->update([
-                'email_status' => 'sent',
+                'email_status' => EmailStatus::SENT->value,
                 'sent_at' => now(),
             ]);
+            InvoiceLog::logEmail($invoice, EmailStatus::SENT->value, $email, null, $batch->id);
             $this->sendingSent++;
 
             \Log::info("E-Mail versendet: Rechnung {$invoice->invoice_number} an {$email}");
@@ -263,9 +272,10 @@ class ViewInvoiceBatch extends ViewRecord
                 'error' => $e->getMessage(),
             ]);
             $invoice->update([
-                'email_status' => 'failed',
+                'email_status' => EmailStatus::FAILED->value,
                 'email_error' => substr($e->getMessage(), 0, 500),
             ]);
+            InvoiceLog::logEmail($invoice, EmailStatus::FAILED->value, $email, $e->getMessage(), $batch->id);
             $this->sendingFailed++;
         }
 
@@ -281,13 +291,13 @@ class ViewInvoiceBatch extends ViewRecord
 
         if ($this->sendingFailed > 0) {
             Notification::make()
-                ->title("{$this->sendingSent} gesendet, {$this->sendingFailed} fehlgeschlagen")
+                ->title(__('partner.invoice_batch.messages.sending_partial', ['sent' => $this->sendingSent, 'failed' => $this->sendingFailed]))
                 ->warning()
                 ->duration(10000)
                 ->send();
         } else {
             Notification::make()
-                ->title("Alle {$this->sendingSent} E-Mails erfolgreich versendet!")
+                ->title(__('partner.invoice_batch.messages.sending_finished', ['count' => $this->sendingSent]))
                 ->success()
                 ->send();
         }
@@ -297,7 +307,7 @@ class ViewInvoiceBatch extends ViewRecord
     {
         $this->isSending = false;
         Notification::make()
-            ->title("Versand abgebrochen ({$this->sendingSent} gesendet, {$this->sendingFailed} fehlgeschlagen)")
+            ->title(__('partner.invoice_batch.messages.sending_cancelled', ['sent' => $this->sendingSent, 'failed' => $this->sendingFailed]))
             ->warning()
             ->send();
     }
@@ -306,12 +316,14 @@ class ViewInvoiceBatch extends ViewRecord
 
     public string $lastPrintPdfPath = '';
 
+    public string $lastReportPath = '';
+
     private function doCreatePrintPdf(): void
     {
         $batch = $this->record;
 
         $invoices = Invoice::where('batch_id', $batch->id)
-            ->where('import_status', 'success')
+            ->where('import_status', ImportStatus::SUCCESS->value)
             ->whereHas('corporateCustomer', function ($q) {
                 $q->where('send_via_print', true)
                   ->where('is_active', true);
@@ -319,7 +331,7 @@ class ViewInvoiceBatch extends ViewRecord
             ->get();
 
         if ($invoices->isEmpty()) {
-            Notification::make()->title('Keine Druck-Rechnungen vorhanden')->info()->send();
+            Notification::make()->title(__('partner.invoice_batch.messages.no_print_invoices'))->info()->send();
 
             return;
         }
@@ -331,8 +343,8 @@ class ViewInvoiceBatch extends ViewRecord
             $this->lastPrintPdfPath = $mergedPath;
 
             Notification::make()
-                ->title("{$invoices->count()} Rechnungen als Sammel-PDF erstellt")
-                ->body('Das PDF kann unter Druck-Versand heruntergeladen werden.')
+                ->title(__('partner.invoice_batch.messages.print_pdf_created', ['count' => $invoices->count()]))
+                ->body(__('partner.invoice_batch.messages.print_pdf_download'))
                 ->success()
                 ->send();
         } catch (\Exception $e) {
@@ -349,13 +361,13 @@ class ViewInvoiceBatch extends ViewRecord
     {
         $batch = $this->record;
         $invoices = Invoice::where('batch_id', $batch->id)
-            ->where('import_status', 'success')
+            ->where('import_status', ImportStatus::SUCCESS->value)
             ->with(['corporateCustomer', 'gasStation'])
             ->orderBy('invoice_number')
             ->get();
 
         if ($invoices->isEmpty()) {
-            Notification::make()->title('Keine Rechnungen fuer Bericht vorhanden')->warning()->send();
+            Notification::make()->title(__('partner.invoice_batch.messages.no_invoices_for_report'))->warning()->send();
 
             return null;
         }
@@ -534,15 +546,12 @@ class ViewInvoiceBatch extends ViewRecord
             $this->lastReportPath = $filename;
 
             Notification::make()
-                ->title('Versand-Bericht erstellt')
+                ->title(__('partner.invoice_batch.messages.report_created'))
                 ->success()
                 ->send();
 
-            return response()->streamDownload(function () use ($filename) {
-                echo Storage::get($filename);
-            }, 'Versandbericht_' . now()->format('Y-m-d_His') . '.pdf', [
-                'Content-Type' => 'application/pdf',
-            ]);
+            $reportFilename = basename($filename);
+            $this->redirect(route('report.download', ['filename' => $reportFilename]));
         } catch (\Exception $e) {
             Notification::make()
                 ->title('Fehler: ' . $e->getMessage())
@@ -553,7 +562,24 @@ class ViewInvoiceBatch extends ViewRecord
 
     private function pdfText(string $text): string
     {
-        return iconv('UTF-8', 'ISO-8859-1//TRANSLIT//IGNORE', $text) ?: $text;
+        // Haeufige UTF-8 Sonderzeichen die iconv TRANSLIT nicht korrekt mappt
+        $replacements = [
+            "\xE2\x80\x93" => '-',   // EN DASH
+            "\xE2\x80\x94" => '-',   // EM DASH
+            "\xE2\x80\x9E" => '"',   // DOUBLE LOW-9 QUOTE (deutsch oeffnend)
+            "\xE2\x80\x9C" => '"',   // LEFT DOUBLE QUOTE
+            "\xE2\x80\x9D" => '"',   // RIGHT DOUBLE QUOTE
+            "\xE2\x80\x98" => "'",   // LEFT SINGLE QUOTE
+            "\xE2\x80\x99" => "'",   // RIGHT SINGLE QUOTE
+            "\xE2\x80\xA6" => '...', // ELLIPSIS
+            "\xC3\x9F" => "\xDF",    // ß → ISO-8859-1 ß
+        ];
+        $text = str_replace(array_keys($replacements), array_values($replacements), $text);
+
+        // UTF-8 → ISO-8859-1 (Umlaute aeoeue bleiben erhalten)
+        $result = @iconv('UTF-8', 'ISO-8859-1//TRANSLIT', $text);
+
+        return $result !== false ? $result : (@iconv('UTF-8', 'ISO-8859-1//IGNORE', $text) ?: $text);
     }
 
     private function pdfSection(Fpdi $pdf, string $title): void
@@ -569,45 +595,95 @@ class ViewInvoiceBatch extends ViewRecord
         $pdf->Ln(3);
     }
 
-    // ── Tab-Daten ──
+    // ── Tab-Daten (paginiert) ──
 
-    public function getEmailInvoices()
+    public int $emailPage = 1;
+    public int $printPage = 1;
+    public int $errorPage = 1;
+    public int $duplicatePage = 1;
+    public int $perPage = 25;
+
+    private function emailQuery()
     {
         return Invoice::where('batch_id', $this->record->id)
-            ->where('import_status', 'success')
+            ->where('import_status', ImportStatus::SUCCESS->value)
             ->whereHas('corporateCustomer', fn ($q) => $q->where('send_via_email', true))
             ->with(['corporateCustomer', 'gasStation'])
-            ->orderBy('invoice_number')
-            ->get();
+            ->orderBy('invoice_number');
+    }
+
+    private function printQuery()
+    {
+        return Invoice::where('batch_id', $this->record->id)
+            ->where('import_status', ImportStatus::SUCCESS->value)
+            ->whereHas('corporateCustomer', fn ($q) => $q->where('send_via_print', true))
+            ->with(['corporateCustomer', 'gasStation'])
+            ->orderBy('invoice_number');
+    }
+
+    private function errorQuery()
+    {
+        return Invoice::where('batch_id', $this->record->id)
+            ->where('import_status', ImportStatus::ERROR->value)
+            ->with(['corporateCustomer', 'gasStation'])
+            ->orderBy('invoice_number');
+    }
+
+    private function duplicateQuery()
+    {
+        return Invoice::where('batch_id', $this->record->id)
+            ->where('import_status', ImportStatus::DUPLICATE->value)
+            ->with(['corporateCustomer', 'gasStation'])
+            ->orderBy('invoice_number');
+    }
+
+    /** Fuer Tab-Badges (nur zaehlen, kein Laden) */
+    public function getEmailInvoicesCount(): int
+    {
+        return $this->emailQuery()->count();
+    }
+
+    public function getPrintInvoicesCount(): int
+    {
+        return $this->printQuery()->count();
+    }
+
+    public function getErrorInvoicesCount(): int
+    {
+        return $this->errorQuery()->count();
+    }
+
+    public function getDuplicateInvoicesCount(): int
+    {
+        return $this->duplicateQuery()->count();
+    }
+
+    /** Fuer Tab-Inhalte (paginiert) */
+    public function getEmailInvoices()
+    {
+        return $this->emailQuery()->paginate($this->perPage, ['*'], 'emailPage', $this->emailPage);
     }
 
     public function getPrintInvoices()
     {
-        return Invoice::where('batch_id', $this->record->id)
-            ->where('import_status', 'success')
-            ->whereHas('corporateCustomer', fn ($q) => $q->where('send_via_print', true))
-            ->with(['corporateCustomer', 'gasStation'])
-            ->orderBy('invoice_number')
-            ->get();
+        return $this->printQuery()->paginate($this->perPage, ['*'], 'printPage', $this->printPage);
     }
 
     public function getErrorInvoices()
     {
-        return Invoice::where('batch_id', $this->record->id)
-            ->where('import_status', 'error')
-            ->with(['corporateCustomer', 'gasStation'])
-            ->orderBy('invoice_number')
-            ->get();
+        return $this->errorQuery()->paginate($this->perPage, ['*'], 'errorPage', $this->errorPage);
     }
 
     public function getDuplicateInvoices()
     {
-        return Invoice::where('batch_id', $this->record->id)
-            ->where('import_status', 'duplicate')
-            ->with(['corporateCustomer', 'gasStation'])
-            ->orderBy('invoice_number')
-            ->get();
+        return $this->duplicateQuery()->paginate($this->perPage, ['*'], 'duplicatePage', $this->duplicatePage);
     }
+
+    /** Pagination-Navigation */
+    public function goToEmailPage(int $page): void { $this->emailPage = $page; }
+    public function goToPrintPage(int $page): void { $this->printPage = $page; }
+    public function goToErrorPage(int $page): void { $this->errorPage = $page; }
+    public function goToDuplicatePage(int $page): void { $this->duplicatePage = $page; }
 
     public function getNewCustomers()
     {
@@ -626,7 +702,7 @@ class ViewInvoiceBatch extends ViewRecord
         $invoice = Invoice::with(['corporateCustomer', 'gasStation'])->find($invoiceId);
 
         if (! $invoice || ! $invoice->corporateCustomer?->email) {
-            Notification::make()->title('Keine E-Mail-Adresse vorhanden')->danger()->send();
+            Notification::make()->title(__('partner.invoice_batch.messages.no_email_address'))->danger()->send();
 
             return;
         }
@@ -635,14 +711,16 @@ class ViewInvoiceBatch extends ViewRecord
             Mail::to($invoice->corporateCustomer->email)
                 ->send(new InvoiceMail($invoice));
 
-            $invoice->update(['email_status' => 'sent', 'sent_at' => now()]);
+            $invoice->update(['email_status' => EmailStatus::SENT->value, 'sent_at' => now()]);
+            InvoiceLog::logEmail($invoice, EmailStatus::SENT->value, $invoice->corporateCustomer->email, null, $invoice->batch_id);
 
-            Notification::make()->title('E-Mail gesendet an ' . $invoice->corporateCustomer->email)->success()->send();
+            Notification::make()->title(__('partner.invoice_batch.messages.email_sent_to', ['email' => $invoice->corporateCustomer->email]))->success()->send();
         } catch (\Exception $e) {
             $invoice->update([
-                'email_status' => 'failed',
+                'email_status' => EmailStatus::FAILED->value,
                 'email_error' => substr($e->getMessage(), 0, 500),
             ]);
+            InvoiceLog::logEmail($invoice, EmailStatus::FAILED->value, $invoice->corporateCustomer->email, $e->getMessage(), $invoice->batch_id);
             Notification::make()->title('Fehler: ' . $e->getMessage())->danger()->send();
         }
     }

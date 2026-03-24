@@ -6,6 +6,7 @@ use App\Filament\Partner\Resources\InvoiceResource\Pages;
 use App\Mail\InvoiceMail;
 use App\Models\GasStation;
 use App\Models\Invoice;
+use App\Models\InvoiceLog;
 use Filament\Actions;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -45,6 +46,21 @@ class InvoiceResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'invoice_number';
 
+    public static function getModelLabel(): string
+    {
+        return __('partner.invoice.label');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('partner.invoice.plural');
+    }
+
+    public static function getNavigationGroup(): ?string
+    {
+        return __('partner.invoice.nav_group');
+    }
+
     public static function getNavigationBadge(): ?string
     {
         $tenantId = auth()->user()?->tenant_id;
@@ -77,94 +93,94 @@ class InvoiceResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema->components([
-            Tabs::make('Rechnung')
+            Tabs::make(__('partner.invoice.label'))
                 ->tabs([
                     // ========== TAB 1: RECHNUNG ==========
-                    Tab::make('Rechnung')
+                    Tab::make(__('partner.invoice.tabs.rechnung'))
                         ->icon('heroicon-o-document-text')
                         ->schema([
-                            Section::make('Rechnungsdaten')
+                            Section::make(__('partner.invoice.tabs.rechnung'))
                                 ->schema([
                                     TextInput::make('invoice_number')
-                                        ->label('Rechnungsnummer')
+                                        ->label(__('partner.invoice.fields.invoice_number'))
                                         ->disabled(),
 
                                     TextInput::make('invoice_date')
-                                        ->label('Rechnungsdatum')
+                                        ->label(__('partner.invoice.fields.invoice_date'))
                                         ->disabled()
                                         ->formatStateUsing(fn ($state) => $state instanceof \Carbon\Carbon ? $state->format('d.m.Y') : $state),
 
                                     TextInput::make('amount')
-                                        ->label('Bruttobetrag')
+                                        ->label(__('partner.invoice.fields.amount'))
                                         ->disabled()
                                         ->prefix('EUR'),
 
                                     TextInput::make('net_amount')
-                                        ->label('Nettobetrag')
+                                        ->label(__('partner.invoice.fields.net_amount'))
                                         ->disabled()
                                         ->prefix('EUR'),
 
                                     TextInput::make('tax_amount')
-                                        ->label('MwSt')
+                                        ->label(__('partner.invoice.fields.tax_amount'))
                                         ->disabled()
                                         ->prefix('EUR'),
 
                                     Select::make('status')
-                                        ->label('Status')
+                                        ->label(__('partner.invoice.fields.status'))
                                         ->options([
-                                            'uploaded' => 'Hochgeladen',
-                                            'processed' => 'Verarbeitet',
-                                            'sent' => 'Versendet',
-                                            'printed' => 'Gedruckt',
-                                            'failed' => 'Fehlgeschlagen',
+                                            'uploaded' => __('partner.invoice.statuses.uploaded'),
+                                            'processed' => __('partner.invoice.statuses.processed'),
+                                            'sent' => __('partner.invoice.statuses.sent'),
+                                            'printed' => __('partner.invoice.statuses.printed'),
+                                            'failed' => __('partner.invoice.statuses.failed'),
                                         ])
                                         ->disabled(),
                                 ])
                                 ->columns(3),
 
-                            Section::make('PDF')
+                            Section::make(__('partner.invoice.fields.pdf_path'))
                                 ->schema([
                                     Placeholder::make('pdf_link')
                                         ->label('')
                                         ->content(function (?Invoice $record): HtmlString {
                                             if (! $record || ! $record->pdf_path || ! Storage::exists($record->pdf_path)) {
-                                                return new HtmlString('<span style="color:#9ca3af;">Kein PDF vorhanden</span>');
+                                                return new HtmlString('<span style="color:#9ca3af;">' . __('partner.invoice.messages.no_pdf') . '</span>');
                                             }
 
-                                            return new HtmlString('<span style="font-size:1.2rem;">📄 PDF verfuegbar: ' . basename($record->pdf_path) . '</span>');
+                                            return new HtmlString('<span style="font-size:1.2rem;">📄 ' . __('partner.invoice.messages.pdf_available') . ': ' . basename($record->pdf_path) . '</span>');
                                         }),
                                 ]),
                         ]),
 
                     // ========== TAB 2: KUNDE ==========
-                    Tab::make('Kunde')
+                    Tab::make(__('partner.invoice.tabs.kunde'))
                         ->icon('heroicon-o-building-office')
                         ->schema([
                             Placeholder::make('customer_info')
                                 ->label('')
                                 ->content(function (?Invoice $record): HtmlString {
                                     if (! $record || ! $record->corporateCustomer) {
-                                        return new HtmlString('<span style="color:#dc2626;">⚠️ Kein Kunde zugeordnet</span>');
+                                        return new HtmlString('<span style="color:#dc2626;">⚠️ ' . __('partner.invoice.messages.no_customer') . '</span>');
                                     }
                                     $c = $record->corporateCustomer;
                                     $html = "<div style='padding:12px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px;'>";
                                     $html .= "<strong style='font-size:1.1rem;'>{$c->display_name}</strong><br>";
-                                    $html .= "Firmen-Nr.: {$c->customer_number}<br>";
+                                    $html .= __('partner.invoice.fields.customer_number') . ": {$c->customer_number}<br>";
                                     if ($c->street) {
                                         $html .= "{$c->street}, {$c->zip} {$c->city}<br>";
                                     }
                                     if ($c->email) {
                                         $html .= "📧 {$c->email}<br>";
                                     }
-                                    $html .= "Zahlart: {$c->payment_method}<br>";
+                                    $html .= __('partner.invoice.fields.payment_method') . ": {$c->payment_method}<br>";
                                     $sendMethod = [];
                                     if ($c->send_via_email) {
                                         $sendMethod[] = '📧 E-Mail';
                                     }
                                     if ($c->send_via_print) {
-                                        $sendMethod[] = '🖨️ Druck';
+                                        $sendMethod[] = '🖨️ ' . __('partner.invoice.statuses.printed');
                                     }
-                                    $html .= 'Versand: ' . (! empty($sendMethod) ? implode(' + ', $sendMethod) : 'Nicht konfiguriert');
+                                    $html .= __('partner.invoice.fields.send_method') . ': ' . (! empty($sendMethod) ? implode(' + ', $sendMethod) : 'Nicht konfiguriert');
                                     $html .= '</div>';
 
                                     return new HtmlString($html);
@@ -172,7 +188,7 @@ class InvoiceResource extends Resource
                         ]),
 
                     // ========== TAB 3: POSITIONEN ==========
-                    Tab::make('Positionen')
+                    Tab::make(__('partner.invoice.tabs.positionen'))
                         ->icon('heroicon-o-list-bullet')
                         ->schema([
                             Placeholder::make('items_table')
@@ -185,15 +201,15 @@ class InvoiceResource extends Resource
                                     $items = $record->items;
 
                                     if ($items->isEmpty()) {
-                                        return new HtmlString('<span style="color:#9ca3af;">Keine Positionen vorhanden</span>');
+                                        return new HtmlString('<span style="color:#9ca3af;">' . __('partner.invoice.messages.no_items') . '</span>');
                                     }
 
                                     $html = '<table style="width:100%; border-collapse:collapse; font-size:0.9rem;">';
                                     $html .= '<thead><tr style="border-bottom:2px solid #e5e7eb;">';
-                                    $html .= '<th style="padding:8px; text-align:left;">Artikel</th>';
-                                    $html .= '<th style="padding:8px; text-align:right;">Menge</th>';
-                                    $html .= '<th style="padding:8px; text-align:right;">Einzelpreis</th>';
-                                    $html .= '<th style="padding:8px; text-align:right;">Gesamt</th>';
+                                    $html .= '<th style="padding:8px; text-align:left;">' . __('partner.invoice.fields.article') . '</th>';
+                                    $html .= '<th style="padding:8px; text-align:right;">' . __('partner.invoice.fields.quantity') . '</th>';
+                                    $html .= '<th style="padding:8px; text-align:right;">' . __('partner.invoice.fields.unit_price') . '</th>';
+                                    $html .= '<th style="padding:8px; text-align:right;">' . __('partner.invoice.fields.total') . '</th>';
                                     $html .= '</tr></thead><tbody>';
 
                                     foreach ($items as $item) {
@@ -222,34 +238,34 @@ class InvoiceResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('invoice_number')
-                    ->label('Rechnungsnr.')
+                    ->label(__('partner.invoice.fields.invoice_number'))
                     ->sortable()
                     ->searchable()
                     ->fontFamily('mono'),
 
                 TextColumn::make('corporateCustomer.name')
-                    ->label('Kunde')
+                    ->label(__('partner.invoice.fields.customer'))
                     ->searchable()
                     ->sortable(),
 
                 TextColumn::make('gasStation.name')
-                    ->label('Tankstelle')
+                    ->label(__('partner.invoice.fields.gas_station'))
                     ->sortable()
                     ->toggleable(),
 
                 TextColumn::make('amount')
-                    ->label('Betrag')
+                    ->label(__('partner.invoice.fields.betrag'))
                     ->money('EUR')
                     ->sortable(),
 
                 BadgeColumn::make('status')
-                    ->label('Status')
+                    ->label(__('partner.invoice.fields.status'))
                     ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'uploaded' => 'Hochgeladen',
-                        'processed' => 'Verarbeitet',
-                        'sent' => 'Versendet',
-                        'printed' => 'Gedruckt',
-                        'failed' => 'Fehlgeschlagen',
+                        'uploaded' => __('partner.invoice.statuses.uploaded'),
+                        'processed' => __('partner.invoice.statuses.processed'),
+                        'sent' => __('partner.invoice.statuses.sent'),
+                        'printed' => __('partner.invoice.statuses.printed'),
+                        'failed' => __('partner.invoice.statuses.failed'),
                         default => $state,
                     })
                     ->color(fn (string $state): string => match ($state) {
@@ -262,12 +278,12 @@ class InvoiceResource extends Resource
                     }),
 
                 TextColumn::make('invoice_date')
-                    ->label('Datum')
+                    ->label(__('partner.invoice.fields.datum'))
                     ->date('d.m.Y')
                     ->sortable(),
 
                 TextColumn::make('import_error_message')
-                    ->label('Fehler')
+                    ->label(__('partner.invoice.fields.fehler'))
                     ->limit(30)
                     ->toggleable(isToggledHiddenByDefault: true)
                     ->color('danger'),
@@ -275,27 +291,27 @@ class InvoiceResource extends Resource
             ->defaultSort('invoice_date', 'desc')
             ->filters([
                 SelectFilter::make('gas_station_id')
-                    ->label('Tankstelle')
+                    ->label(__('partner.invoice.fields.gas_station'))
                     ->options(function () use ($tenantId) {
                         return GasStation::where('tenant_id', $tenantId)->pluck('name', 'id');
                     }),
 
                 SelectFilter::make('status')
-                    ->label('Status')
+                    ->label(__('partner.invoice.fields.status'))
                     ->options([
-                        'uploaded' => 'Hochgeladen',
-                        'processed' => 'Verarbeitet',
-                        'sent' => 'Versendet',
-                        'printed' => 'Gedruckt',
-                        'failed' => 'Fehlgeschlagen',
+                        'uploaded' => __('partner.invoice.statuses.uploaded'),
+                        'processed' => __('partner.invoice.statuses.processed'),
+                        'sent' => __('partner.invoice.statuses.sent'),
+                        'printed' => __('partner.invoice.statuses.printed'),
+                        'failed' => __('partner.invoice.statuses.failed'),
                     ]),
 
                 SelectFilter::make('import_status')
                     ->label('Import-Status')
                     ->options([
-                        'success' => 'Erfolgreich',
-                        'error' => 'Fehler',
-                        'duplicate' => 'Duplikat',
+                        'success' => __('partner.invoice.import_statuses.success'),
+                        'error' => __('partner.invoice.import_statuses.error'),
+                        'duplicate' => __('partner.invoice.import_statuses.duplicate'),
                     ]),
             ])
             ->actions([
@@ -305,8 +321,11 @@ class InvoiceResource extends Resource
                     ->icon('heroicon-o-envelope')
                     ->color('success')
                     ->requiresConfirmation()
-                    ->modalHeading('Rechnung per E-Mail senden?')
-                    ->modalDescription(fn (Invoice $record): string => "Rechnung {$record->invoice_number} an {$record->corporateCustomer?->email} senden?")
+                    ->modalHeading(__('partner.invoice.messages.send_confirm'))
+                    ->modalDescription(fn (Invoice $record): string => __('partner.invoice.messages.send_description', [
+                        'number' => $record->invoice_number,
+                        'email' => $record->corporateCustomer?->email,
+                    ]))
                     ->visible(fn (Invoice $record): bool => $record->corporateCustomer?->email && $record->pdf_path && Storage::exists($record->pdf_path))
                     ->action(function (Invoice $record) {
                         try {
@@ -314,13 +333,20 @@ class InvoiceResource extends Resource
                                 ->send(new InvoiceMail($record));
 
                             $record->update([
-                                'status' => 'sent',
+                                'email_status' => 'sent',
                                 'sent_at' => now(),
                             ]);
+                            InvoiceLog::logEmail($record, 'sent', $record->corporateCustomer->email, null, $record->batch_id);
 
-                            Notification::make()->title('E-Mail versendet!')->success()->send();
+                            Notification::make()->title(__('partner.invoice.messages.email_sent'))->success()->send();
                         } catch (\Exception $e) {
-                            Notification::make()->title('Fehler: ' . $e->getMessage())->danger()->send();
+                            $record->update([
+                                'email_status' => 'failed',
+                                'email_error' => substr($e->getMessage(), 0, 500),
+                            ]);
+                            InvoiceLog::logEmail($record, 'failed', $record->corporateCustomer->email, $e->getMessage(), $record->batch_id);
+
+                            Notification::make()->title(__('partner.common.error') . ': ' . $e->getMessage())->danger()->send();
                         }
                     }),
                 Actions\Action::make('download_pdf')

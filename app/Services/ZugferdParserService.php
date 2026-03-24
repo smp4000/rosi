@@ -211,12 +211,22 @@ class ZugferdParserService
 
         // Wenn Strasse vorhanden, auch danach filtern
         if ($street) {
-            // Strassennamen normalisieren fuer Vergleich
-            $normalizedStreet = preg_replace('/\bStr\.?\b/i', 'Str', $street);
-            $query->where('street', 'LIKE', '%' . substr($normalizedStreet, 0, 10) . '%');
+            $streetName = $this->extractStreetName($street);
+            $query->where('street', 'LIKE', '%' . $streetName . '%');
         }
 
-        return $query->first();
+        $results = $query->get();
+
+        if ($results->count() > 1) {
+            \Illuminate\Support\Facades\Log::warning('ZUGFeRD: Mehrere Tankstellen fuer Adresse gefunden', [
+                'plz' => $postal,
+                'stadt' => $city,
+                'strasse' => $street,
+                'treffer' => $results->count(),
+            ]);
+        }
+
+        return $results->first();
     }
 
     /**
@@ -244,6 +254,40 @@ class ZugferdParserService
             ->first();
 
         if ($customer) {
+            // Ergaenzende Felder aus ZUGFeRD updaten (Merge-Logik)
+            $updates = [];
+
+            // Name nur updaten wenn Platzhalter ("Kunde 123")
+            $buyerName = $zugferdData['buyer_name'] ?? null;
+            if ($buyerName && preg_match('/^Kunde\s+\d+$/', $customer->name)) {
+                $updates['name'] = $buyerName;
+            }
+
+            // Email nur updaten wenn aktuell Placeholder und ZUGFeRD echte Email liefert
+            $buyerEmail = $zugferdData['buyer_email'] ?? null;
+            if ($buyerEmail && $customer->email === CorporateCustomer::PLACEHOLDER_EMAIL) {
+                $updates['email'] = $buyerEmail;
+            }
+
+            // Adresse nur ergaenzen wenn leer
+            if (empty($customer->street) && ! empty($zugferdData['buyer_street'])) {
+                $updates['street'] = $zugferdData['buyer_street'];
+            }
+            if (empty($customer->zip) && ! empty($zugferdData['buyer_postal'])) {
+                $updates['zip'] = $zugferdData['buyer_postal'];
+            }
+            if (empty($customer->city) && ! empty($zugferdData['buyer_city'])) {
+                $updates['city'] = $zugferdData['buyer_city'];
+            }
+
+            if (! empty($updates)) {
+                $customer->update($updates);
+                \Log::info('ZUGFeRD Merge: Kundendaten ergaenzt', [
+                    'kunde' => $customer->customer_number,
+                    'felder' => array_keys($updates),
+                ]);
+            }
+
             return $customer;
         }
 
@@ -253,7 +297,7 @@ class ZugferdParserService
                 'gas_station_id' => $gasStationId,
                 'customer_number' => (int) $customerNumber,
                 'name' => $zugferdData['buyer_name'] ?? 'Kunde ' . $customerNumber,
-                'email' => $zugferdData['buyer_email'] ?? \App\Models\InvoiceSetting::get('default_customer_email', 'smp4000@me.com'),
+                'email' => $zugferdData['buyer_email'] ?? \App\Models\InvoiceSetting::get('default_customer_email', \App\Models\CorporateCustomer::PLACEHOLDER_EMAIL),
                 'street' => $zugferdData['buyer_street'] ?? null,
                 'zip' => $zugferdData['buyer_postal'] ?? null,
                 'city' => $zugferdData['buyer_city'] ?? null,
@@ -337,5 +381,30 @@ class ZugferdParserService
     public function hasZugferdData(string $pdfPath): bool
     {
         return $this->extractXmlFromPdf($pdfPath) !== null;
+    }
+
+    /**
+     * Extrahiert Strassenname ohne Hausnummer und normalisiert Abkuerzungen.
+     * "Hauptstr. 12a" → "Hauptstr"
+     * "Am Marktplatz 3" → "Am Marktplatz"
+     * "A 7" → "A 7" (Autobahn, keine Hausnummer)
+     */
+    private function extractStreetName(string $street): string
+    {
+        $street = trim($street);
+
+        // Hausnummer am Ende entfernen (Zahl + optionaler Buchstabe)
+        $withoutNumber = preg_replace('/\s+\d+\s*[a-zA-Z]?\s*$/', '', $street);
+
+        // Nur entfernen wenn noch etwas uebrig bleibt (z.B. "A 7" behalten)
+        if (! empty($withoutNumber) && strlen($withoutNumber) > 1) {
+            $street = $withoutNumber;
+        }
+
+        // Abkuerzungen normalisieren
+        $street = preg_replace('/\bStra(?:ss|ß)e\b/i', 'Str', $street);
+        $street = preg_replace('/\bStr\.\b/i', 'Str', $street);
+
+        return trim($street);
     }
 }

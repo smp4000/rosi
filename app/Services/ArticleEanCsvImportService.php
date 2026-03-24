@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\Log;
  */
 class ArticleEanCsvImportService
 {
+    use \App\Traits\ValidatesCsvRows;
     private ?string $stationNumber = null;
     private ?Carbon $csvPrintedAt = null;
     private ?GasStation $gasStation = null;
@@ -46,6 +47,11 @@ class ArticleEanCsvImportService
     public function import(string $filePath, string $originalFilename, ?string $userId = null): ArticleImport
     {
         $lines = $this->readCsvFile($filePath);
+
+        if (! $this->validateCsvNotEmpty(implode("\n", $lines), 5)) {
+            throw new \Exception('CSV-Datei ist leer oder enthaelt zu wenige Zeilen.');
+        }
+
         $this->extractMetadata($lines);
 
         if (! $this->stationNumber) {

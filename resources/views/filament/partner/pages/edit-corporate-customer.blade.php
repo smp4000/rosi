@@ -24,7 +24,7 @@
                     </div>
                 </div>
             </div>
-            @if($customer->email && $customer->email !== 'smp4000@me.com')
+            @if($customer->email && $customer->email !== \App\Models\CorporateCustomer::PLACEHOLDER_EMAIL)
                 <a href="mailto:{{ $customer->email }}" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border: 1px solid #e5e7eb; border-radius: 8px; text-decoration: none; color: #374151; font-size: 0.85rem;">
                     ✉ E-Mail
                 </a>

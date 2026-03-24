@@ -154,6 +154,17 @@ Route::middleware('auth')->group(function () {
             return response()->file($path, ['Content-Type' => 'application/pdf']);
         })->where('filename', '.*')->name('print-pdf.download');
 
+        // Versand-Bericht herunterladen
+        Route::get('/versand-bericht/{filename}', function (string $filename) {
+            $filename = basename($filename);
+            $path = storage_path('app/private/reports/' . $filename);
+            if (! file_exists($path)) {
+                abort(404, 'Versand-Bericht nicht gefunden');
+            }
+
+            return response()->download($path, $filename, ['Content-Type' => 'application/pdf']);
+        })->where('filename', '.*')->name('report.download');
+
         // Rechnungs-PDF anzeigen/downloaden
         Route::get('/rechnung/{invoice}/pdf', function (\App\Models\Invoice $invoice) {
             if (! $invoice->pdf_path || ! \Illuminate\Support\Facades\Storage::exists($invoice->pdf_path)) {

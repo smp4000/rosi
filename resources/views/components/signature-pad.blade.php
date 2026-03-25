@@ -8,94 +8,58 @@
     <div
         x-data="{
             isDrawing: false,
-            canvas: null,
             ctx: null,
             lastX: 0,
             lastY: 0,
             hasSignature: false,
+            ready: false,
 
             init() {
-                this.canvas = this.$refs.canvas;
-                this.ctx = this.canvas.getContext('2d');
-                this.resizeCanvas();
+                const c = this.$refs.sigCanvas;
+                if (!c) return;
 
-                // Bestehende Signatur laden
+                // Sofort Context holen ohne width/height zu aendern (wuerde Canvas loeschen)
+                this.ctx = c.getContext('2d');
+                this.ctx.strokeStyle = '#1e293b';
+                this.ctx.lineWidth = 2.5;
+                this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
+                this.ready = true;
+
                 const existing = $wire.get('{{ $statePath }}');
                 if (existing) {
                     const img = new Image();
-                    img.onload = () => {
-                        this.ctx.drawImage(img, 0, 0);
-                        this.hasSignature = true;
-                    };
+                    img.onload = () => { this.ctx.drawImage(img, 0, 0); this.hasSignature = true; };
                     img.src = existing;
                 }
             },
 
-            resizeCanvas() {
-                const rect = this.canvas.parentElement.getBoundingClientRect();
-                this.canvas.width = rect.width;
-                this.canvas.height = {{ $height }};
-                this.ctx.strokeStyle = '#1e293b';
-                this.ctx.lineWidth = 2;
-                this.ctx.lineCap = 'round';
-                this.ctx.lineJoin = 'round';
-            },
-
             getPos(e) {
-                const rect = this.canvas.getBoundingClientRect();
-                const touch = e.touches ? e.touches[0] : e;
-                return {
-                    x: touch.clientX - rect.left,
-                    y: touch.clientY - rect.top
-                };
+                const c = this.$refs.sigCanvas;
+                const rect = c.getBoundingClientRect();
+                const t = e.touches ? e.touches[0] : e;
+                const scaleX = c.width / rect.width;
+                const scaleY = c.height / rect.height;
+                return { x: (t.clientX - rect.left) * scaleX, y: (t.clientY - rect.top) * scaleY };
             },
-
-            startDrawing(e) {
-                e.preventDefault();
-                this.isDrawing = true;
-                const pos = this.getPos(e);
-                this.lastX = pos.x;
-                this.lastY = pos.y;
-            },
-
-            draw(e) {
-                if (!this.isDrawing) return;
-                e.preventDefault();
-                const pos = this.getPos(e);
-                this.ctx.beginPath();
-                this.ctx.moveTo(this.lastX, this.lastY);
-                this.ctx.lineTo(pos.x, pos.y);
-                this.ctx.stroke();
-                this.lastX = pos.x;
-                this.lastY = pos.y;
-                this.hasSignature = true;
-            },
-
-            stopDrawing() {
-                this.isDrawing = false;
-                if (this.hasSignature) {
-                    $wire.set('{{ $statePath }}', this.canvas.toDataURL('image/png'));
-                }
-            },
-
-            clear() {
-                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                this.hasSignature = false;
-                $wire.set('{{ $statePath }}', null);
-            }
+            startDrawing(e) { if (!this.ready) this.setup(); e.preventDefault(); this.isDrawing = true; const p = this.getPos(e); this.lastX = p.x; this.lastY = p.y; },
+            draw(e) { if (!this.isDrawing) return; e.preventDefault(); const p = this.getPos(e); this.ctx.beginPath(); this.ctx.moveTo(this.lastX, this.lastY); this.ctx.lineTo(p.x, p.y); this.ctx.stroke(); this.lastX = p.x; this.lastY = p.y; this.hasSignature = true; },
+            stopDrawing() { this.isDrawing = false; if (this.hasSignature) { $wire.set('{{ $statePath }}', this.$refs.sigCanvas.toDataURL('image/png')); } },
+            clear() { this.ctx.clearRect(0, 0, this.$refs.sigCanvas.width, this.$refs.sigCanvas.height); this.hasSignature = false; $wire.set('{{ $statePath }}', null); }
         }"
-        class="space-y-2"
     >
         @if($confirmationText)
-            <p class="text-sm text-gray-600 italic">{{ $confirmationText }}</p>
+            <p style="font-size: 13px; color: #6b7280; font-style: italic; margin-bottom: 8px;">{{ $confirmationText }}</p>
         @endif
 
-        <div class="relative rounded-lg border-2 border-dashed border-gray-300 bg-white overflow-hidden"
-             :class="{ 'border-primary-400': isDrawing }">
+        {{-- Zeichenflaeche --}}
+        <div style="width: 100%; padding: 0; margin: 0;">
             <canvas
-                x-ref="canvas"
-                class="w-full cursor-crosshair touch-none"
-                style="height: {{ $height }}px"
+                x-ref="sigCanvas"
+                width="500"
+                height="{{ $height }}"
+                style="display: block; width: 100%; height: {{ $height }}px; border: 2px solid #9ca3af; border-radius: 8px; background: #f8fafc; cursor: crosshair; touch-action: none;"
+                x-bind:style="isDrawing ? 'display: block; width: 100%; height: {{ $height }}px; border: 2px solid #6366f1; border-radius: 8px; background: #ffffff; cursor: crosshair; touch-action: none;' : 'display: block; width: 100%; height: {{ $height }}px; border: 2px solid #9ca3af; border-radius: 8px; background: #f8fafc; cursor: crosshair; touch-action: none;'"
                 @mousedown="startDrawing($event)"
                 @mousemove="draw($event)"
                 @mouseup="stopDrawing()"
@@ -104,24 +68,17 @@
                 @touchmove="draw($event)"
                 @touchend="stopDrawing()"
             ></canvas>
-
-            {{-- Hint wenn leer --}}
-            <div x-show="!hasSignature" class="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <span class="text-sm text-gray-400">Hier unterschreiben (Maus oder Touch)</span>
-            </div>
         </div>
 
-        <div class="flex justify-end">
+        {{-- Hint + Loeschen --}}
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+            <span x-show="!hasSignature" style="font-size: 12px; color: #9ca3af;">Hier unterschreiben (Maus oder Touch)</span>
+            <span x-show="hasSignature" style="font-size: 12px; color: #9ca3af;">&nbsp;</span>
             <button
                 type="button"
                 @click="clear()"
-                class="inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-red-600 hover:bg-red-50 transition"
-            >
-                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-                Unterschrift loeschen
-            </button>
+                style="font-size: 12px; color: #6b7280; background: none; border: 1px solid #d1d5db; border-radius: 4px; padding: 2px 8px; cursor: pointer;"
+            >✕ Loeschen</button>
         </div>
     </div>
 </x-dynamic-component>

@@ -24,8 +24,11 @@ class ChatService
             return $conversation;
         }
 
+        // tenant_id: Partner-Tenant verwenden (Admin hat kein tenant_id)
+        $tenantId = $userA->tenant_id ?? $userB->tenant_id;
+
         return ChatConversation::create([
-            'tenant_id' => $userA->tenant_id,
+            'tenant_id' => $tenantId,
             'participant_one_id' => $userA->id,
             'participant_two_id' => $userB->id,
         ]);

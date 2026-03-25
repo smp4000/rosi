@@ -9,7 +9,8 @@ use App\Enums\PrintStatus;
 use App\Mail\InvoiceMail;
 use App\Models\Invoice;
 use App\Models\InvoiceLog;
-use App\Models\InvoiceSetting;
+use App\Models\TenantSetting;
+use App\Services\TenantMailerService;
 use App\Services\PdfMergerService;
 use Filament\Actions;
 use Filament\Notifications\Notification;
@@ -254,7 +255,7 @@ class ViewInvoiceBatch extends ViewRecord
         }
 
         try {
-            Mail::to($email)->send(new InvoiceMail($invoice));
+            TenantMailerService::send(new InvoiceMail($invoice), $email);
 
             $invoice->update([
                 'email_status' => EmailStatus::SENT->value,

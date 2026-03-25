@@ -88,7 +88,7 @@ class InvoicesRelationManager extends RelationManager
                         }
 
                         try {
-                            Mail::to($customer->email)->send(new InvoiceMail($record));
+                            \App\Services\TenantMailerService::send(new InvoiceMail($record), $customer->email);
                             $record->update(['status' => 'sent', 'sent_at' => now()]);
                             Notification::make()->title('E-Mail versendet!')->success()->send();
                         } catch (\Exception $e) {

@@ -444,7 +444,7 @@ class CorporateCustomerCsvImportService
             ];
 
             if (! $existing) {
-                $defaultEmail = \App\Models\InvoiceSetting::get('default_customer_email', CorporateCustomer::PLACEHOLDER_EMAIL);
+                $defaultEmail = \App\Models\TenantSetting::get('default_customer_email', CorporateCustomer::PLACEHOLDER_EMAIL, null, 'invoice');
                 CorporateCustomer::create(array_merge($saveData, [
                     'gas_station_id' => $this->gasStation->id,
                     'customer_number' => $customerNumber,

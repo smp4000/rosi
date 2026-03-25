@@ -52,6 +52,8 @@ class PartnerPanelProvider extends PanelProvider
             ->font('Inter')
             ->sidebarCollapsibleOnDesktop()
             ->maxContentWidth('full')
+            ->databaseNotifications()
+            ->databaseNotificationsPolling('30s')
             ->discoverResources(in: app_path('Filament/Partner/Resources'), for: 'App\\Filament\\Partner\\Resources')
             ->discoverPages(in: app_path('Filament/Partner/Pages'), for: 'App\\Filament\\Partner\\Pages')
             ->pages([

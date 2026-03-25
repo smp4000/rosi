@@ -7,7 +7,8 @@ use App\Mail\InvoiceMail;
 use App\Models\GasStation;
 use App\Models\Invoice;
 use App\Models\InvoiceLog;
-use App\Models\InvoiceSetting;
+use App\Models\TenantSetting;
+use App\Services\TenantMailerService;
 use Filament\Actions;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
@@ -197,7 +198,7 @@ class EmailLogResource extends Resource
                         }
 
                         try {
-                            Mail::to($record->recipient)->send(new InvoiceMail($invoice));
+                            TenantMailerService::send(new InvoiceMail($invoice), $record->recipient);
 
                             $invoice->update(['email_status' => 'sent', 'sent_at' => now()]);
                             InvoiceLog::logEmail($invoice, 'sent', $record->recipient, null, $invoice->batch_id);
@@ -252,7 +253,7 @@ class EmailLogResource extends Resource
                             return;
                         }
 
-                        $delay = max(5, (int) InvoiceSetting::get('email_delay_seconds', 3));
+                        $delay = max(5, (int) TenantSetting::get('email_delay_seconds', 3, null, 'invoice'));
                         $sent = 0;
                         $failed = 0;
 
@@ -270,7 +271,7 @@ class EmailLogResource extends Resource
                             }
 
                             try {
-                                Mail::to($log->recipient)->send(new InvoiceMail($invoice));
+                                TenantMailerService::send(new InvoiceMail($invoice), $log->recipient);
                                 $invoice->update(['email_status' => 'sent', 'sent_at' => now()]);
                                 InvoiceLog::logEmail($invoice, 'sent', $log->recipient, null, $invoice->batch_id);
                                 $sent++;

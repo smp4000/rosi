@@ -131,16 +131,41 @@ class DocumentResource extends Resource
                     Tab::make('Signatur')
                         ->icon('heroicon-o-pencil')
                         ->schema([
+                            // --- Mitarbeiter-Unterschrift ---
                             Placeholder::make('signature_info')
                                 ->label(__('partner.document.fields.signed_at'))
                                 ->content(fn ($record) => $record?->signed_at
                                     ? $record->signed_at->format('d.m.Y H:i') . ' von ' . ($record->signed_by_name ?? '-')
                                     : 'Noch nicht unterschrieben'),
+
+                            // Mitarbeiter-Signatur anzeigen (wenn vorhanden)
+                            Placeholder::make('signature_preview')
+                                ->label('Unterschrift Mitarbeiter')
+                                ->content(fn ($record) => $record?->signature_data
+                                    ? new \Illuminate\Support\HtmlString(
+                                        '<img src="' . $record->signature_data . '" alt="Unterschrift" class="max-h-20 border rounded p-1 bg-white">'
+                                    )
+                                    : '-')
+                                ->visible(fn ($record) => $record?->signature_data),
+
+                            // --- Gegenzeichnung ---
                             Placeholder::make('counter_signature_info')
                                 ->label(__('partner.document.fields.counter_signed_at'))
                                 ->content(fn ($record) => $record?->counter_signed_at
-                                    ? $record->counter_signed_at->format('d.m.Y H:i')
+                                    ? $record->counter_signed_at->format('d.m.Y H:i') . ' von ' . (auth()->user()?->name ?? '-')
                                     : 'Noch nicht gegengezeichnet'),
+
+                            // Gegenzeichnung anzeigen (wenn vorhanden)
+                            Placeholder::make('counter_signature_preview')
+                                ->label('Gegenzeichnung')
+                                ->content(fn ($record) => $record?->counter_signature_data
+                                    ? new \Illuminate\Support\HtmlString(
+                                        '<img src="' . $record->counter_signature_data . '" alt="Gegenzeichnung" class="max-h-20 border rounded p-1 bg-white">'
+                                    )
+                                    : '-')
+                                ->visible(fn ($record) => $record?->counter_signature_data),
+
+                            // Hinweis: Gegenzeichnen ueber den Header-Button "Gegenzeichnen" (Modal mit SignaturePad)
                         ]),
 
                     Tab::make('Versand')

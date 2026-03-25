@@ -297,7 +297,7 @@ class ZugferdParserService
                 'gas_station_id' => $gasStationId,
                 'customer_number' => (int) $customerNumber,
                 'name' => $zugferdData['buyer_name'] ?? 'Kunde ' . $customerNumber,
-                'email' => $zugferdData['buyer_email'] ?? \App\Models\InvoiceSetting::get('default_customer_email', \App\Models\CorporateCustomer::PLACEHOLDER_EMAIL),
+                'email' => $zugferdData['buyer_email'] ?? \App\Models\TenantSetting::get('default_customer_email', \App\Models\CorporateCustomer::PLACEHOLDER_EMAIL, null, 'invoice'),
                 'street' => $zugferdData['buyer_street'] ?? null,
                 'zip' => $zugferdData['buyer_postal'] ?? null,
                 'city' => $zugferdData['buyer_city'] ?? null,

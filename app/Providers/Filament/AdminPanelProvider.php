@@ -48,6 +48,8 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make('DSGVO & Audit')
                     ->icon('heroicon-o-shield-check')
                     ->collapsed(),
+                NavigationGroup::make('System')
+                    ->icon('heroicon-o-cog-6-tooth'),
             ])
             ->sidebarCollapsibleOnDesktop()
             ->maxContentWidth('full')

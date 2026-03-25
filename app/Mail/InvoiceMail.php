@@ -3,7 +3,7 @@
 namespace App\Mail;
 
 use App\Models\Invoice;
-use App\Models\InvoiceSetting;
+use App\Models\TenantSetting;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * E-Mail mit Firmenkundenrechnung als PDF-Anhang.
- * Respektiert InvoiceSettings (BCC, Betrag anzeigen).
+ * Respektiert TenantSettings (BCC, Betrag anzeigen).
  */
 class InvoiceMail extends Mailable
 {
@@ -35,8 +35,8 @@ class InvoiceMail extends Mailable
         // BCC aus Settings
         $bcc = [];
         try {
-            if (InvoiceSetting::enabled('bcc_enabled', $this->tenantId)) {
-                $bccEmail = InvoiceSetting::get('bcc_email', null, $this->tenantId);
+            if (TenantSetting::enabled('bcc_enabled', $this->tenantId, 'invoice')) {
+                $bccEmail = TenantSetting::get('bcc_email', null, $this->tenantId, 'invoice');
                 if ($bccEmail) {
                     $bcc = [new \Illuminate\Mail\Mailables\Address($bccEmail)];
                 }
@@ -63,8 +63,8 @@ class InvoiceMail extends Mailable
         // Betrag anzeigen aus Settings (Default: true)
         $showAmount = true;
         try {
-            $val = InvoiceSetting::get('show_amount_in_email', null, $this->tenantId);
-            $showAmount = ($val === null) ? true : InvoiceSetting::enabled('show_amount_in_email', $this->tenantId);
+            $val = TenantSetting::get('show_amount_in_email', null, $this->tenantId, 'invoice');
+            $showAmount = ($val === null) ? true : TenantSetting::enabled('show_amount_in_email', $this->tenantId, 'invoice');
         } catch (\Exception $e) {
             // Settings nicht verfuegbar
         }

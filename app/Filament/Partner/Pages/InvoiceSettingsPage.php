@@ -3,7 +3,7 @@
 namespace App\Filament\Partner\Pages;
 
 use App\Models\CorporateCustomer;
-use App\Models\InvoiceSetting;
+use App\Models\TenantSetting;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -45,11 +45,11 @@ class InvoiceSettingsPage extends Page implements HasForms
     public function mount(): void
     {
         $this->data = [
-            'bcc_enabled' => InvoiceSetting::enabled('bcc_enabled'),
-            'bcc_email' => InvoiceSetting::get('bcc_email', ''),
-            'email_delay_seconds' => (int) InvoiceSetting::get('email_delay_seconds', 3),
-            'show_amount_in_email' => InvoiceSetting::enabled('show_amount_in_email') || InvoiceSetting::get('show_amount_in_email') === null,
-            'default_customer_email' => InvoiceSetting::get('default_customer_email', CorporateCustomer::PLACEHOLDER_EMAIL),
+            'bcc_enabled' => TenantSetting::enabled('bcc_enabled', null, 'invoice'),
+            'bcc_email' => TenantSetting::get('bcc_email', '', null, 'invoice'),
+            'email_delay_seconds' => (int) TenantSetting::get('email_delay_seconds', 3, null, 'invoice'),
+            'show_amount_in_email' => TenantSetting::enabled('show_amount_in_email', null, 'invoice') || TenantSetting::get('show_amount_in_email', null, null, 'invoice') === null,
+            'default_customer_email' => TenantSetting::get('default_customer_email', CorporateCustomer::PLACEHOLDER_EMAIL, null, 'invoice'),
         ];
 
         $this->form->fill($this->data);
@@ -108,11 +108,11 @@ class InvoiceSettingsPage extends Page implements HasForms
     {
         $data = $this->data;
 
-        InvoiceSetting::set('bcc_enabled', $data['bcc_enabled'] ? 'true' : 'false');
-        InvoiceSetting::set('bcc_email', $data['bcc_email'] ?? '');
-        InvoiceSetting::set('email_delay_seconds', (string) ($data['email_delay_seconds'] ?? 3));
-        InvoiceSetting::set('show_amount_in_email', ($data['show_amount_in_email'] ?? true) ? 'true' : 'false');
-        InvoiceSetting::set('default_customer_email', $data['default_customer_email'] ?? CorporateCustomer::PLACEHOLDER_EMAIL);
+        TenantSetting::set('bcc_enabled', $data['bcc_enabled'] ? 'true' : 'false', null, 'invoice');
+        TenantSetting::set('bcc_email', $data['bcc_email'] ?? '', null, 'invoice');
+        TenantSetting::set('email_delay_seconds', (string) ($data['email_delay_seconds'] ?? 3), null, 'invoice');
+        TenantSetting::set('show_amount_in_email', ($data['show_amount_in_email'] ?? true) ? 'true' : 'false', null, 'invoice');
+        TenantSetting::set('default_customer_email', $data['default_customer_email'] ?? CorporateCustomer::PLACEHOLDER_EMAIL, null, 'invoice');
 
         Notification::make()
             ->title(__('partner.invoice_settings.saved'))

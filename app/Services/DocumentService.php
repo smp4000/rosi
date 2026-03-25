@@ -7,6 +7,7 @@ use App\Models\Document;
 use App\Models\DocumentTemplate;
 use App\Models\GasStation;
 use App\Models\User;
+use App\Notifications\DocumentSignedNotification;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -162,6 +163,34 @@ class DocumentService
             'signed_at' => now(),
             'status' => 'signed',
         ]);
+
+        // Partner/Ersteller benachrichtigen
+        $this->notifyPartnerAboutSignature($document);
+    }
+
+    /**
+     * Partner-User(s) ueber neue Unterschrift benachrichtigen.
+     */
+    protected function notifyPartnerAboutSignature(Document $document): void
+    {
+        try {
+            $tenant = $document->tenant;
+            if (! $tenant) {
+                return;
+            }
+
+            // Alle Tenant-User benachrichtigen ausser dem Mitarbeiter der unterschrieben hat
+            $partnerUsers = $tenant->users()
+                ->where('id', '!=', $document->user_id)
+                ->get();
+
+            foreach ($partnerUsers as $user) {
+                $user->notify(new DocumentSignedNotification($document->fresh()));
+            }
+        } catch (\Exception $e) {
+            // Notification-Fehler soll Signing nicht blockieren
+            \Illuminate\Support\Facades\Log::warning('Notification nach Unterschrift fehlgeschlagen: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -174,6 +203,12 @@ class DocumentService
             'counter_signed_at' => now(),
             'status' => 'counter_signed',
         ]);
+
+        // Zugehoerige "Dokument unterschrieben"-Notifications als gelesen markieren
+        $partner->unreadNotifications()
+            ->where('type', DocumentSignedNotification::class)
+            ->where('data', 'like', '%' . $document->id . '%')
+            ->update(['read_at' => now()]);
     }
 
     /**

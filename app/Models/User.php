@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notification;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
@@ -25,7 +26,7 @@ use Filament\Panel;
  */
 class User extends Authenticatable implements MustVerifyEmail, FilamentUser
 {
-    use HasFactory, HasUuids, Notifiable, SoftDeletes, HasRoles, Auditable;
+    use HasFactory, HasUuids, HasApiTokens, Notifiable, SoftDeletes, HasRoles, Auditable;
 
     /**
      * Felder, die vom Audit-Logging ausgeschlossen werden.
@@ -46,12 +47,14 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
         'last_login_at',
         'two_factor_secret',
         'two_factor_confirmed_at',
+        'pin_hash',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
         'two_factor_secret',
+        'pin_hash',
     ];
 
     protected function casts(): array

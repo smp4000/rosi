@@ -137,6 +137,7 @@ class EditEmployee extends EditRecord
         $existingIds = $user->bankAccounts()->pluck('id')->toArray();
         $keepIds = [];
 
+        $sortOrder = 0;
         foreach ($accounts as $index => $account) {
             $iban = $account['iban'] ?? null;
             if (! $iban) continue;
@@ -149,12 +150,15 @@ class EditEmployee extends EditRecord
                 'iban' => $iban,
                 'bic' => $account['bic'] ?: null,
                 'bank_name' => $account['bank_name'] ?: null,
-                'sort_order' => $index,
+                'sort_order' => $sortOrder++,
             ];
 
             if (! empty($account['id']) && in_array($account['id'], $existingIds)) {
-                // Update
-                EmployeeBankAccount::where('id', $account['id'])->update($data);
+                // Update ueber Model (damit encrypted Casts greifen!)
+                $existing = EmployeeBankAccount::find($account['id']);
+                if ($existing) {
+                    $existing->fill($data)->save();
+                }
                 $keepIds[] = $account['id'];
             } else {
                 // Create

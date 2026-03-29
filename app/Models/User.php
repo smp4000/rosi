@@ -48,6 +48,7 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
         'two_factor_secret',
         'two_factor_confirmed_at',
         'pin_hash',
+        'scan_code',
     ];
 
     protected $hidden = [
@@ -55,6 +56,7 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
         'remember_token',
         'two_factor_secret',
         'pin_hash',
+        'scan_code',
     ];
 
     protected function casts(): array

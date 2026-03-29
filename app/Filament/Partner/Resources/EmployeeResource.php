@@ -36,6 +36,9 @@ use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\HtmlString;
+use Illuminate\Support\Str;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 /**
  * Filament Resource fuer die Mitarbeiter-Verwaltung im Partner-Panel.
@@ -218,6 +221,22 @@ class EmployeeResource extends Resource
                                 ->label(__('partner.employee.fields.phone'))
                                 ->tel()
                                 ->maxLength(50),
+
+                            TextInput::make('scan_code')
+                                ->label('Scan-Code (POS Login)')
+                                ->helperText('Eindeutiger Code fuer Login per Scanner/NFC/QR-Code an der POS-App.')
+                                ->unique(ignoreRecord: true)
+                                ->maxLength(255)
+                                ->placeholder('z.B. Badge-Nummer oder NFC-UID')
+                                ->suffixAction(
+                                    \Filament\Actions\Action::make('generate_scan_code')
+                                        ->icon('heroicon-o-arrow-path')
+                                        ->tooltip('Zufaelligen Code generieren')
+                                        ->action(function (Set $set) {
+                                            $set('scan_code', strtoupper(Str::random(12)));
+                                        })
+                                ),
+
                             Select::make('employeeProfile.gender')
                                 ->label(__('partner.employee.fields.gender'))
                                 ->options(__('partner.employee.genders')),
@@ -1435,6 +1454,87 @@ class EmployeeResource extends Resource
                     ->visible(fn () => auth()->user()?->type === 'partner'),
             ])
             ->actions([
+                // ── POS Login QR-Code anzeigen/generieren ──
+                Actions\Action::make('pos_login_qr')
+                    ->label('POS Login-Code')
+                    ->icon('heroicon-o-qr-code')
+                    ->color('info')
+                    ->modalHeading(fn ($record) => 'POS Login-Code: ' . $record->name)
+                    ->modalContent(function ($record) {
+                        $scanCode = $record->scan_code;
+
+                        if (! $scanCode) {
+                            return new HtmlString(
+                                '<div style="text-align:center;padding:24px">'
+                                . '<p style="color:#999;margin-bottom:12px">Kein Scan-Code hinterlegt.</p>'
+                                . '<p style="font-size:13px;color:#666">Bitte zuerst im Mitarbeiter-Profil unter "Stammdaten" einen Scan-Code generieren.</p>'
+                                . '</div>'
+                            );
+                        }
+
+                        $qrSvg = QrCode::size(250)->margin(2)->generate($scanCode);
+                        $qrBase64 = base64_encode($qrSvg);
+
+                        return new HtmlString(
+                            '<div style="text-align:center;padding:8px">'
+                            // Info
+                            . '<div style="margin-bottom:16px;font-size:13px;color:#666">'
+                            . 'Diesen QR-Code auf den Mitarbeiter-Ausweis drucken oder als Badge verwenden.'
+                            . '</div>'
+                            // QR Code
+                            . '<div style="display:inline-block;background:white;padding:16px;border:2px solid #e5e7eb;border-radius:12px;margin-bottom:16px">'
+                            . '<img src="data:image/svg+xml;base64,' . $qrBase64 . '" style="width:250px;height:250px" />'
+                            . '</div>'
+                            // Name
+                            . '<div style="font-size:18px;font-weight:bold;margin-bottom:4px">'
+                            . e($record->name)
+                            . '</div>'
+                            // Code zum Kopieren
+                            . '<div style="margin-top:12px;padding:8px 12px;background:#f5f5f5;border-radius:6px;font-family:monospace;font-size:14px;letter-spacing:2px;user-select:all">'
+                            . e($scanCode)
+                            . '</div>'
+                            . '<div style="margin-top:8px;font-size:11px;color:#999">Code antippen zum Kopieren</div>'
+                            . '</div>'
+                        );
+                    })
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Schliessen')
+                    ->extraModalFooterActions(fn ($record) => [
+                        Actions\Action::make('generate_and_show')
+                            ->label($record->scan_code ? 'Neuen Code generieren' : 'Code generieren')
+                            ->icon('heroicon-o-arrow-path')
+                            ->color($record->scan_code ? 'warning' : 'success')
+                            ->requiresConfirmation($record->scan_code ? true : false)
+                            ->modalDescription($record->scan_code ? 'Der bisherige Code wird ungueltig. Der Mitarbeiter muss den neuen Code verwenden.' : null)
+                            ->action(function () use ($record) {
+                                $newCode = strtoupper(Str::random(12));
+                                $record->update(['scan_code' => $newCode]);
+
+                                \Filament\Notifications\Notification::make()
+                                    ->title('Neuer Scan-Code generiert')
+                                    ->body("Code fuer {$record->name}: {$newCode}")
+                                    ->success()
+                                    ->send();
+                            }),
+                        Actions\Action::make('print_badge')
+                            ->label('Ausweis drucken')
+                            ->icon('heroicon-o-printer')
+                            ->color('gray')
+                            ->visible((bool) $record->scan_code)
+                            ->url(fn () => route('employee.badge', $record))
+                            ->openUrlInNewTab(),
+                    ]),
+
+                // ── Ausweis als PDF drucken ──
+                Actions\Action::make('print_badge_direct')
+                    ->label('Ausweis')
+                    ->icon('heroicon-o-identification')
+                    ->color('gray')
+                    ->tooltip('Mitarbeiter-Ausweis als PDF drucken')
+                    ->visible(fn ($record) => (bool) $record->scan_code)
+                    ->url(fn ($record) => route('employee.badge', $record))
+                    ->openUrlInNewTab(),
+
                 Actions\ViewAction::make(),
                 Actions\EditAction::make(),
                 Actions\Action::make('delete_employee')

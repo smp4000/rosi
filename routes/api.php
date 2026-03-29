@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AppVersionController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DeviceController;
 use Illuminate\Http\Request;
@@ -30,6 +31,10 @@ Route::prefix('v1')->group(function () {
         ]);
     })->name('api.v1.ping');
 
+    // --- App-Versionshistorie ---
+    Route::get('/app-versions', [AppVersionController::class, 'index'])
+        ->name('api.v1.app-versions');
+
     // --- Geraete-Registrierung ---
 
     // QR-Code: App scannt Setup-QR vom Admin
@@ -44,11 +49,19 @@ Route::prefix('v1')->group(function () {
     Route::post('/devices/invite/accept', [DeviceController::class, 'acceptInvite'])
         ->name('api.v1.devices.invite.accept');
 
+    // Geraet pruefen: Ist das Geraet noch registriert und aktiv?
+    Route::get('/devices/verify', [DeviceController::class, 'verify'])
+        ->name('api.v1.devices.verify');
+
     // --- Authentifizierung ---
 
     // Mitarbeiter-Login (PIN + Device-Token)
     Route::post('/auth/login', [AuthController::class, 'login'])
         ->name('api.v1.auth.login');
+
+    // Scan-Login: Code (Scanner/NFC/Kamera) + Device-Token
+    Route::post('/auth/scan-login', [AuthController::class, 'scanLogin'])
+        ->name('api.v1.auth.scan-login');
 
     // Mitarbeiterliste einer Station (fuer Login-Screen)
     Route::get('/auth/station-employees', [AuthController::class, 'stationEmployees'])

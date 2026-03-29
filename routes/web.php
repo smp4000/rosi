@@ -165,6 +165,98 @@ Route::middleware('auth')->group(function () {
             return response()->download($path, $filename, ['Content-Type' => 'application/pdf']);
         })->where('filename', '.*')->name('report.download');
 
+        // Mitarbeiter-Ausweis PDF drucken
+        Route::get('/mitarbeiter/{user}/ausweis', function (\App\Models\User $user) {
+            // Sicherstellen, dass der User zum Tenant gehoert
+            $tenantId = session('tenant_id');
+            if ($user->tenant_id !== $tenantId) {
+                abort(403);
+            }
+
+            // Scan-Code pruefen
+            if (! $user->scan_code) {
+                abort(404, 'Kein Scan-Code vorhanden. Bitte zuerst einen Code generieren.');
+            }
+
+            // Zugewiesene Tankstellen laden
+            $stations = $user->gasStations()->with('brand')->get();
+            $allStationNames = $stations->pluck('name')->toArray();
+
+            // QR-Code generieren
+            $qrSvg = \SimpleSoftwareIO\QrCode\Facades\QrCode::size(300)
+                ->margin(1)
+                ->generate($user->scan_code);
+            $qrBase64 = base64_encode($qrSvg);
+
+            // Badge pro Station erstellen
+            $badges = [];
+            if ($stations->isEmpty()) {
+                // Kein Station zugewiesen — trotzdem einen Badge ohne Station
+                $badges[] = [
+                    'employee_name' => $user->name,
+                    'station_name' => 'Keine Station zugewiesen',
+                    'station_address' => '',
+                    'tenant_name' => \App\Models\Tenant::find($tenantId)?->name ?? '',
+                    'brand_name' => '',
+                    'brand_logo' => null,
+                    'scan_code' => $user->scan_code,
+                    'qr_base64' => $qrBase64,
+                    'all_stations' => [],
+                    'created_at' => now()->format('d.m.Y'),
+                ];
+            } else {
+                foreach ($stations as $station) {
+                    $stationLogo = null;
+
+                    // 1. Tankstellen-Logo (direkt am Station-Model)
+                    if ($station->logo) {
+                        $logoPath = storage_path('app/public/' . $station->logo);
+                        if (file_exists($logoPath)) {
+                            $mime = mime_content_type($logoPath);
+                            $stationLogo = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+                        }
+                    }
+
+                    // 2. Fallback: Brand-Logo
+                    if (! $stationLogo && $station->brand && $station->brand->logo) {
+                        $logoPath = storage_path('app/public/' . $station->brand->logo);
+                        if (file_exists($logoPath)) {
+                            $mime = mime_content_type($logoPath);
+                            $stationLogo = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($logoPath));
+                        }
+                    }
+
+                    $address = trim(
+                        ($station->street ?? '') . ' ' .
+                        ($station->house_number ?? '') . ', ' .
+                        ($station->zip ?? '') . ' ' .
+                        ($station->city ?? '')
+                    );
+
+                    $badges[] = [
+                        'employee_name' => $user->name,
+                        'station_name' => $station->name,
+                        'station_address' => $address,
+                        'tenant_name' => \App\Models\Tenant::find($tenantId)?->name ?? '',
+                        'brand_name' => $station->brand?->name ?? '',
+                        'brand_logo' => $stationLogo,
+                        'scan_code' => $user->scan_code,
+                        'qr_base64' => $qrBase64,
+                        'all_stations' => $allStationNames,
+                        'created_at' => now()->format('d.m.Y'),
+                    ];
+                }
+            }
+
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.employee-badge', [
+                'badges' => $badges,
+            ]);
+            $pdf->setPaper('A4');
+
+            $filename = 'Ausweis_' . str_replace(' ', '_', $user->name) . '.pdf';
+            return $pdf->stream($filename);
+        })->name('employee.badge');
+
         // Rechnungs-PDF anzeigen/downloaden
         Route::get('/rechnung/{invoice}/pdf', function (\App\Models\Invoice $invoice) {
             if (! $invoice->pdf_path || ! \Illuminate\Support\Facades\Storage::exists($invoice->pdf_path)) {

@@ -62,10 +62,11 @@ class AuthController extends ApiController
             ->where('gas_stations.id', $device->station_id)
             ->exists();
 
-        // Bei persoenlichem Geraet: user_id muss zum Geraet passen
-        if ($device->device_type === 'personal' && $device->user_id !== $user->id) {
-            return $this->error('Dieses Geraet ist einem anderen Mitarbeiter zugeordnet.', 403);
-        }
+        // HINWEIS: Persoenliche Geraete-Pruefung deaktiviert.
+        // Vorerst nur Stations-Geraete — jeder MA kann sich an jedem Geraet anmelden.
+        // if ($device->device_type === 'personal' && $device->user_id !== $user->id) {
+        //     return $this->error('Dieses Geraet ist einem anderen Mitarbeiter zugeordnet.', 403);
+        // }
 
         // 5. Sanctum API-Token erstellen (das ist der "Session-Ausweis")
         // Token laeuft nach 12 Stunden ab (eine Schicht)
@@ -174,6 +175,92 @@ class AuthController extends ApiController
         ]);
     }
 
+    /**
+     * POST /api/v1/auth/scan-login
+     *
+     * Login per gescanntem Code (MDE-Scanner, NFC, Kamera).
+     *
+     * Ablauf:
+     * 1. App schickt: code + device_token
+     * 2. API sucht Mitarbeiter anhand scan_code
+     * 3. Prueft ob Geraet erlaubt + MA an Station arbeitet
+     * 4. Gibt session_token zurueck
+     */
+    public function scanLogin(Request $request): JsonResponse
+    {
+        $request->validate([
+            'code' => 'required|string',
+            'device_token' => 'required|string',
+        ]);
+
+        // 1. Geraet finden (auch geloeschte/deaktivierte pruefen)
+        $device = $this->findDevice($request->device_token);
+
+        if (! $device) {
+            // Auch unter soft-deleted Geraeten suchen
+            $deletedDevice = $this->findDevice($request->device_token, withTrashed: true);
+            if ($deletedDevice) {
+                return $this->error('Geraet wurde entfernt. Bitte neu registrieren.', 404);
+            }
+
+            return $this->error('Geraet nicht erkannt. Bitte neu registrieren.', 401);
+        }
+
+        if (! $device->isAllowed()) {
+            return $this->error('Geraet wurde deaktiviert. Bitte Admin kontaktieren.', 403);
+        }
+
+        // 2. Mitarbeiter anhand scan_code finden
+        $user = User::where('scan_code', $request->code)
+            ->where('tenant_id', $device->tenant_id)
+            ->where('is_active', true)
+            ->first();
+
+        if (! $user) {
+            return $this->error('Code nicht erkannt. Bitte erneut scannen.', 401);
+        }
+
+        // 3. Pruefen ob MA an dieser Station arbeiten darf
+        $worksAtStation = $user->gasStations()
+            ->where('gas_stations.id', $device->station_id)
+            ->exists();
+
+        if (! $worksAtStation) {
+            return $this->error('Mitarbeiter ist dieser Station nicht zugeordnet.', 403);
+        }
+
+        // HINWEIS: Persoenliche Geraete-Pruefung deaktiviert.
+        // Vorerst nur Stations-Geraete — jeder MA kann sich an jedem Geraet anmelden.
+        // if ($device->device_type === 'personal' && $device->user_id !== $user->id) {
+        //     return $this->error('Dieses Geraet ist einem anderen Mitarbeiter zugeordnet.', 403);
+        // }
+
+        // 5. Sanctum API-Token erstellen (12 Stunden = eine Schicht)
+        $token = $user->createToken(
+            'pos-session',
+            ['pos:access'],
+            now()->addHours(12)
+        );
+
+        // 6. Letzten Kontakt aktualisieren
+        $device->touch_last_seen();
+
+        return $this->success([
+            'session_token' => $token->plainTextToken,
+            'expires_at' => $token->accessToken->expires_at->toIso8601String(),
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'type' => $user->type,
+            ],
+            'station' => [
+                'id' => $device->station->id,
+                'name' => $device->station->name,
+            ],
+        ], 'Erfolgreich angemeldet.');
+    }
+
     // ── Hilfsmethoden ────────────────────────────────────────
 
     /**
@@ -181,10 +268,18 @@ class AuthController extends ApiController
      * Wir muessen alle Geraete durchgehen und den Hash vergleichen,
      * weil wir den Token gehasht speichern (Sicherheit).
      */
-    private function findDevice(string $plainToken): ?Device
+    private function findDevice(string $plainToken, bool $withTrashed = false): ?Device
     {
-        // Performance: Nur aktive Geraete pruefen
-        $devices = Device::where('is_active', true)->get();
+        $query = Device::query();
+
+        if ($withTrashed) {
+            $query->withTrashed();
+        } else {
+            // Performance: Nur aktive Geraete pruefen
+            $query->where('is_active', true);
+        }
+
+        $devices = $query->whereNotNull('device_token_hash')->get();
 
         foreach ($devices as $device) {
             if (Hash::check($plainToken, $device->device_token_hash)) {

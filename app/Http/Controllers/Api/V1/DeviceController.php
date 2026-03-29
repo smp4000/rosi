@@ -148,6 +148,55 @@ class DeviceController extends ApiController
     }
 
     /**
+     * GET /api/v1/devices/verify?device_token=...
+     *
+     * Pruefen ob das Geraet noch registriert und aktiv ist.
+     * Wird von der App beim Start aufgerufen, um zu erkennen ob
+     * das Geraet im Dashboard geloescht oder deaktiviert wurde.
+     */
+    public function verify(Request $request): JsonResponse
+    {
+        $request->validate([
+            'device_token' => 'required|string',
+        ]);
+
+        // Unter allen Geraeten suchen (auch deaktivierte, NICHT geloeschte)
+        $devices = Device::whereNotNull('device_token_hash')->get();
+
+        foreach ($devices as $device) {
+            if (Hash::check($request->device_token, $device->device_token_hash)) {
+                if (! $device->isAllowed()) {
+                    return $this->error('Geraet wurde deaktiviert.', 403);
+                }
+
+                // Geraet ist gueltig und aktiv
+                $device->touch_last_seen();
+
+                return $this->success([
+                    'device_id' => $device->id,
+                    'station_name' => $device->station->name ?? 'Station',
+                    'is_active' => $device->is_active,
+                ], 'Geraet ist registriert.');
+            }
+        }
+
+        // Auch unter soft-deleted Geraeten suchen
+        $trashedDevices = Device::onlyTrashed()
+            ->whereNotNull('device_token_hash')
+            ->where('device_token_hash', 'not like', 'DELETED_%')
+            ->get();
+
+        foreach ($trashedDevices as $device) {
+            if (Hash::check($request->device_token, $device->device_token_hash)) {
+                return $this->error('Geraet wurde entfernt. Bitte neu registrieren.', 404);
+            }
+        }
+
+        // Token passt zu keinem Geraet
+        return $this->error('Geraet nicht gefunden. Bitte neu registrieren.', 404);
+    }
+
+    /**
      * GET /api/v1/devices/invite/{token}/info
      *
      * Einladungs-Info abrufen.

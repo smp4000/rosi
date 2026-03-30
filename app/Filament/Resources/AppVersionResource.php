@@ -87,9 +87,10 @@ class AppVersionResource extends Resource
 
                 TextColumn::make('changes')
                     ->label('Aenderungen')
-                    ->formatStateUsing(function ($state) {
-                        if (is_array($state)) {
-                            return count($state) . ' Aenderung(en)';
+                    ->getStateUsing(function (AppVersion $record) {
+                        $changes = $record->changes;
+                        if (is_array($changes)) {
+                            return count($changes) . ' Aenderung(en)';
                         }
                         return '—';
                     }),

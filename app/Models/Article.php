@@ -72,8 +72,7 @@ class Article extends \Illuminate\Database\Eloquent\Model
 
     public function eans(): HasMany
     {
-        return $this->hasMany(ArticleEan::class, 'article_number', 'article_number')
-            ->where('article_eans.gas_station_id', $this->gas_station_id);
+        return $this->hasMany(ArticleEan::class, 'article_number', 'article_number');
     }
 
 

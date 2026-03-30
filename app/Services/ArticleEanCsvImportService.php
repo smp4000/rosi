@@ -114,6 +114,8 @@ class ArticleEanCsvImportService
         if (! mb_check_encoding($content, 'UTF-8')) {
             $content = mb_convert_encoding($content, 'UTF-8', 'Windows-1252');
         }
+        // Non-Breaking Spaces durch normale Leerzeichen ersetzen (CSV-Artefakt)
+        $content = str_replace("\xC2\xA0", ' ', $content);
         return explode("\n", $content);
     }
 
@@ -162,8 +164,10 @@ class ArticleEanCsvImportService
                 continue; // Geschaeftsbereich oder Artikelgruppe, ueberspringen
             }
 
-            // EAN-Code in Spalte 13
+            // EAN-Code in Spalte 13 (unsichtbare Zeichen entfernen)
             $ean = isset($cols[13]) ? trim($cols[13]) : '';
+            $ean = preg_replace('/[\x{00A0}\x{200B}\x{FEFF}]/u', '', $ean);
+            $ean = trim($ean);
             if (empty($ean)) {
                 continue; // Kein EAN, ueberspringen
             }
@@ -213,6 +217,9 @@ class ArticleEanCsvImportService
         $baseUnit = isset($cols[7]) ? trim($cols[7]) : null;
         $factor = isset($cols[16]) ? trim($cols[16]) : null;
         $packaging = isset($cols[17]) ? trim($cols[17]) : null;
+
+        // Nochmal sicherstellen: EAN nur Ziffern/Buchstaben
+        $ean = preg_replace('/[^\d\w-]/', '', $ean);
 
         // Key: EAN (pro Tankstelle unique)
         $this->parsedEans[$ean] = [

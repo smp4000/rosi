@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AppVersionController;
+use App\Http\Controllers\Api\V1\ArticleController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DeviceController;
 use Illuminate\Http\Request;
@@ -52,6 +53,10 @@ Route::prefix('v1')->group(function () {
     // Geraet pruefen: Ist das Geraet noch registriert und aktiv?
     Route::get('/devices/verify', [DeviceController::class, 'verify'])
         ->name('api.v1.devices.verify');
+
+    // --- Artikelsuche (EAN, Artikelnummer, Text) ---
+    Route::get('/articles/search', [ArticleController::class, 'search'])
+        ->name('api.v1.articles.search');
 
     // --- Authentifizierung ---
 

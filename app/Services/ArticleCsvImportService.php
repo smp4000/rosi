@@ -149,6 +149,9 @@ class ArticleCsvImportService
             $content = mb_convert_encoding($content, 'UTF-8', 'Windows-1252');
         }
 
+        // Non-Breaking Spaces durch normale Leerzeichen ersetzen (CSV-Artefakt)
+        $content = str_replace("\xC2\xA0", ' ', $content);
+
         return explode("\n", $content);
     }
 

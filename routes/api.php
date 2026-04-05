@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AppVersionController;
 use App\Http\Controllers\Api\V1\ArticleController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DeviceController;
+use App\Http\Controllers\Api\V1\MhdController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -58,6 +59,20 @@ Route::prefix('v1')->group(function () {
     Route::get('/articles/search', [ArticleController::class, 'search'])
         ->name('api.v1.articles.search');
 
+    // --- MHD-Kontrolle ---
+    Route::get('/mhd', [MhdController::class, 'index'])
+        ->name('api.v1.mhd.index');
+    Route::get('/mhd/summary', [MhdController::class, 'summary'])
+        ->name('api.v1.mhd.summary');
+    Route::post('/mhd', [MhdController::class, 'store'])
+        ->name('api.v1.mhd.store');
+    Route::put('/mhd/{id}/extend', [MhdController::class, 'extend'])
+        ->name('api.v1.mhd.extend');
+    Route::post('/mhd/{id}/dispose', [MhdController::class, 'dispose'])
+        ->name('api.v1.mhd.dispose');
+    Route::delete('/mhd/{id}', [MhdController::class, 'destroy'])
+        ->name('api.v1.mhd.destroy');
+
     // --- Authentifizierung ---
 
     // Mitarbeiter-Login (PIN + Device-Token)
@@ -96,8 +111,7 @@ Route::prefix('v1')->group(function () {
         Route::put('/auth/pin', [AuthController::class, 'changePin'])
             ->name('api.v1.auth.pin');
 
-        // Hier kommen spaeter Phase 1 Routen:
-        // - POST /v1/mhd-checks          → MHD-Kontrolle
+        // Hier kommen spaeter weitere Phase 1 Routen:
         // - POST /v1/write-offs           → Abschriften
         // - POST /v1/incidents            → Stoerungen
         // - GET  /v1/shifts               → Schichtplan

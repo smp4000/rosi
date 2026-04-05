@@ -97,10 +97,11 @@ class MhdController extends ApiController
             'device_token' => 'required|string',
             'tms_no' => 'required|integer',
             'article_description' => 'required|string|max:255',
-            'mhd_date' => 'required|date',
+            'mhd_date' => 'required|date|after:today',
             'ean' => 'nullable|string|max:50',
             'supplier' => 'nullable|string|max:255',
             'delivery_date' => 'nullable|date',
+            'recorded_by' => 'nullable|string|max:255',
         ]);
 
         $device = $this->findDevice($request->device_token);
@@ -109,7 +110,7 @@ class MhdController extends ApiController
         }
 
         $stationId = $device->station_id;
-        $kenner = Mhd::generateKenner($stationId, $request->tms_no, $request->mhd_date);
+        $kenner = Mhd::generateKenner($stationId, (int) $request->tms_no, $request->mhd_date);
 
         // Duplikat-Pruefung: Aktiver Eintrag mit gleichem kenner?
         $existing = Mhd::forStation($stationId)
@@ -123,6 +124,7 @@ class MhdController extends ApiController
         $mhd = Mhd::create([
             'station_id' => $stationId,
             'date_recorded' => Carbon::today()->toDateString(),
+            'recorded_by' => $request->recorded_by,
             'tms_no' => $request->tms_no,
             'ean' => $request->ean,
             'article_description' => $request->article_description,
@@ -146,7 +148,7 @@ class MhdController extends ApiController
     {
         $request->validate([
             'device_token' => 'required|string',
-            'mhd_date' => 'required|date',
+            'mhd_date' => 'required|date|after:today',
         ]);
 
         $device = $this->findDevice($request->device_token);
@@ -245,6 +247,7 @@ class MhdController extends ApiController
             'id' => $mhd->id,
             'station_id' => $mhd->station_id,
             'date_recorded' => $mhd->date_recorded->toDateString(),
+            'recorded_by' => $mhd->recorded_by,
             'tms_no' => $mhd->tms_no,
             'ean' => $mhd->ean,
             'article_description' => $mhd->article_description,

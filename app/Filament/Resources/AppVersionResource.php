@@ -6,6 +6,7 @@ use App\Filament\Resources\AppVersionResource\Pages;
 use App\Models\AppVersion;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
@@ -13,6 +14,7 @@ use Filament\Schemas\Schema;
 use Filament\Actions;
 use Filament\Tables\Columns\BooleanColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
 /**
@@ -26,9 +28,9 @@ class AppVersionResource extends Resource
 
     protected static string|\UnitEnum|null $navigationGroup = 'POS App';
 
-    protected static ?string $modelLabel = 'App-Version';
+    protected static ?string $modelLabel = 'Version';
 
-    protected static ?string $pluralModelLabel = 'App-Versionen';
+    protected static ?string $pluralModelLabel = 'Versionshistorie';
 
     protected static ?int $navigationSort = 5;
 
@@ -36,12 +38,26 @@ class AppVersionResource extends Resource
     {
         return $schema
             ->components([
+                Select::make('platform')
+                    ->label('Plattform')
+                    ->options([
+                        'app' => 'POS-App (Android)',
+                        'web' => 'Web-Dashboard',
+                    ])
+                    ->required()
+                    ->default('app'),
+
                 TextInput::make('version')
                     ->label('Version')
-                    ->placeholder('z.B. 1.1.0')
+                    ->placeholder('z.B. 1.5.0')
                     ->required()
                     ->maxLength(20)
-                    ->unique(ignoreRecord: true),
+                    ->unique(
+                        table: 'app_versions',
+                        column: 'version',
+                        ignoreRecord: true,
+                        modifyRuleUsing: fn ($rule, $get) => $rule->where('platform', $get('platform')),
+                    ),
 
                 DatePicker::make('release_date')
                     ->label('Veroeffentlichungsdatum')
@@ -51,7 +67,7 @@ class AppVersionResource extends Resource
 
                 Toggle::make('is_published')
                     ->label('Veroeffentlicht')
-                    ->helperText('Nur veroeffentlichte Versionen werden in der App angezeigt.')
+                    ->helperText('Nur veroeffentlichte Versionen werden angezeigt.')
                     ->default(true),
 
                 Repeater::make('changes')
@@ -73,12 +89,27 @@ class AppVersionResource extends Resource
     {
         return $table
             ->columns([
+                TextColumn::make('platform')
+                    ->label('Plattform')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state) => match ($state) {
+                        'app' => 'App',
+                        'web' => 'Web',
+                        default => $state,
+                    })
+                    ->color(fn (string $state) => match ($state) {
+                        'app' => 'success',
+                        'web' => 'info',
+                        default => 'gray',
+                    })
+                    ->sortable(),
+
                 TextColumn::make('version')
                     ->label('Version')
                     ->sortable()
                     ->searchable()
                     ->badge()
-                    ->color('info'),
+                    ->color('gray'),
 
                 TextColumn::make('release_date')
                     ->label('Datum')
@@ -105,12 +136,20 @@ class AppVersionResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('release_date', 'desc')
+            ->filters([
+                SelectFilter::make('platform')
+                    ->label('Plattform')
+                    ->options([
+                        'app' => 'POS-App',
+                        'web' => 'Web-Dashboard',
+                    ]),
+            ])
             ->actions([
                 Actions\EditAction::make(),
                 Actions\DeleteAction::make(),
             ])
             ->emptyStateHeading('Noch keine Versionen erfasst')
-            ->emptyStateDescription('Erstellen Sie den ersten Versionseintrag fuer die POS-App.')
+            ->emptyStateDescription('Erstellen Sie den ersten Versionseintrag.')
             ->emptyStateIcon('heroicon-o-document-text');
     }
 

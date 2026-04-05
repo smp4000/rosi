@@ -100,6 +100,11 @@ class MhdResource extends Resource
                     ->badge()
                     ->color(fn (Mhd $record) => $record->goods_disposed ? 'gray' : 'info'),
 
+                TextColumn::make('recorded_by')
+                    ->label('Erfasst von')
+                    ->searchable()
+                    ->toggleable(),
+
                 TextColumn::make('date_recorded')
                     ->label('Erfasst am')
                     ->date('d.m.Y')
@@ -155,6 +160,7 @@ class MhdResource extends Resource
                             ->label('Neues MHD-Datum')
                             ->required()
                             ->displayFormat('d.m.Y')
+                            ->minDate(Carbon::tomorrow())
                             ->default(fn (Mhd $record) => $record->mhd_date),
                     ])
                     ->action(function (Mhd $record, array $data) {

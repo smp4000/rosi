@@ -15,6 +15,7 @@ class AppVersion extends Model
     use HasFactory, HasUuids;
 
     protected $fillable = [
+        'platform',
         'version',
         'release_date',
         'changes',

@@ -308,7 +308,7 @@ class ArticleDeleteCsvImportService
         $lines = array_slice(explode("\n", $content), 0, 10);
         $headerText = implode("\n", $lines);
 
-        return str_contains($headerText, 'Kenner') && str_contains($headerText, 'schen');
+        return str_contains($headerText, 'mit Kenner') && str_contains($headerText, 'schen');
     }
 
     /**

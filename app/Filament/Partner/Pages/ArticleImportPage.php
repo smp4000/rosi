@@ -9,6 +9,7 @@ use App\Services\ArticleDeleteCsvImportService;
 use App\Services\ArticleEanCsvImportService;
 use App\Services\ArticleLockCsvImportService;
 use App\Services\CorporateCustomerCsvImportService;
+use App\Services\DeliveryNoteCsvImportService;
 use App\Services\FuelCardCsvImportService;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
@@ -67,13 +68,13 @@ class ArticleImportPage extends Page implements HasForms
             ],
             'lock_list' => [
                 'label' => 'Sperrliste',
-                'pattern' => 'Sperren',
+                'pattern' => ['mit Kenner', 'Sperren'],
                 'icon' => '🔒',
                 'priority' => 3,
             ],
             'delete_list' => [
                 'label' => 'Löschliste',
-                'pattern' => 'schen',
+                'pattern' => ['mit Kenner', 'schen'],
                 'icon' => '🗑️',
                 'priority' => 4,
             ],
@@ -88,6 +89,12 @@ class ArticleImportPage extends Page implements HasForms
                 'pattern' => 'Teilnehmerliste',
                 'icon' => '💳',
                 'priority' => 6,
+            ],
+            'delivery_note' => [
+                'label' => 'Lieferschein (MHD-Import)',
+                'pattern' => ['"Pos."', '"TMS Nr."', '"min MHD"'],
+                'icon' => '📋',
+                'priority' => 7,
             ],
         ];
     }
@@ -152,9 +159,11 @@ class ArticleImportPage extends Page implements HasForms
 
         foreach ($files as $fileRef) {
             $fullPath = null;
+            $originalFilename = null;
 
             if ($fileRef instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
                 $fullPath = $fileRef->getRealPath();
+                $originalFilename = $fileRef->getClientOriginalName();
             } else {
                 $fullPath = $this->resolveFilePath($fileRef);
                 if (! $fullPath) {
@@ -183,7 +192,7 @@ class ArticleImportPage extends Page implements HasForms
                 continue;
             }
 
-            $info = $this->analyzeFile($fullPath);
+            $info = $this->analyzeFile($fullPath, $originalFilename);
 
             $stationName = '-';
             if ($info['station_number']) {
@@ -200,7 +209,8 @@ class ArticleImportPage extends Page implements HasForms
 
             $this->analyzed_files[] = [
                 'path' => $fullPath,
-                'filename' => basename($fullPath),
+                'filename' => $originalFilename ?: basename($fullPath),
+                'original_filename' => $originalFilename,
                 'type_label' => $info['type_label'] ?: '❓ Unbekannt',
                 'station_number' => $info['station_number'] ?: '-',
                 'station_name' => $stationName,
@@ -329,6 +339,7 @@ class ArticleImportPage extends Page implements HasForms
                     'lock_list' => (new ArticleLockCsvImportService())->import($fullPath, $file['filename'], auth()->id()),
                     'corporate_customers' => (new CorporateCustomerCsvImportService())->import($fullPath, $file['filename'], auth()->id()),
                     'fuel_cards' => (new FuelCardCsvImportService())->import($fullPath, $file['filename'], auth()->id()),
+                    'delivery_note' => (new DeliveryNoteCsvImportService())->import($fullPath, $file['original_filename'] ?? $file['filename'], auth()->id()),
                     default => throw new \Exception("Typ '{$type}' nicht unterstützt."),
                 };
 
@@ -363,7 +374,7 @@ class ArticleImportPage extends Page implements HasForms
     /**
      * Einzelne Datei analysieren - Typ und Metadaten erkennen.
      */
-    private function analyzeFile(string $fullPath): array
+    private function analyzeFile(string $fullPath, ?string $originalFilename = null): array
     {
         $result = [
             'type' => null,
@@ -384,14 +395,22 @@ class ArticleImportPage extends Page implements HasForms
 
             // Dateityp erkennen
             // Sperr-/Loeschliste zuerst pruefen (hoehere Spezifitaet als Artikelstammdaten/EAN)
-            $patterns = self::getFilePatterns();
-            $orderedTypes = ['lock_list', 'delete_list', 'corporate_customers', 'fuel_cards', 'articles', 'ean_data'];
+            $filePatterns = self::getFilePatterns();
+            $orderedTypes = ['lock_list', 'delete_list', 'delivery_note', 'corporate_customers', 'fuel_cards', 'articles', 'ean_data'];
             foreach ($orderedTypes as $type) {
-                if (! isset($patterns[$type])) {
+                if (! isset($filePatterns[$type])) {
                     continue;
                 }
-                $config = $patterns[$type];
-                if (str_contains($headerText, $config['pattern'])) {
+                $config = $filePatterns[$type];
+                $needles = is_array($config['pattern']) ? $config['pattern'] : [$config['pattern']];
+                $matched = true;
+                foreach ($needles as $needle) {
+                    if (! str_contains($headerText, $needle)) {
+                        $matched = false;
+                        break;
+                    }
+                }
+                if ($matched) {
                     $result['type'] = $type;
                     $result['type_label'] = $config['icon'] . ' ' . $config['label'];
                     $result['priority'] = $config['priority'];
@@ -409,6 +428,16 @@ class ArticleImportPage extends Page implements HasForms
                 if (preg_match('/Stationsnummer:\s*(\d+)/', $line, $m)) {
                     $result['station_number'] = $m[1];
                     break;
+                }
+            }
+
+            // Lieferschein: Stationsnummer aus Dateinamen (LS_Tankstellennummer.csv)
+            if (empty($result['station_number']) && $result['type'] === 'delivery_note') {
+                $nameForParsing = $originalFilename ?: basename($fullPath);
+                $basename = pathinfo($nameForParsing, PATHINFO_FILENAME);
+                $parts = explode('_', $basename);
+                if (count($parts) >= 2) {
+                    $result['station_number'] = end($parts);
                 }
             }
         } catch (\Exception $e) {

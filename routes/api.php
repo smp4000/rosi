@@ -75,6 +75,10 @@ Route::prefix('v1')->group(function () {
 
     // --- Authentifizierung ---
 
+    // Scan-Code fuer NFC-Tag-Beschriftung
+    Route::get('/auth/employee-scan-code/{id}', [AuthController::class, 'employeeScanCode'])
+        ->name('api.v1.auth.employee-scan-code');
+
     // Mitarbeiter-Login (PIN + Device-Token)
     Route::post('/auth/login', [AuthController::class, 'login'])
         ->name('api.v1.auth.login');

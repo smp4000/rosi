@@ -261,6 +261,52 @@ class AuthController extends ApiController
         ], 'Erfolgreich angemeldet.');
     }
 
+    /**
+     * GET /api/v1/auth/employee-scan-code/{id}?device_token=xxx
+     *
+     * Scan-Code eines Mitarbeiters abrufen (fuer NFC-Tag-Beschriftung).
+     * Nur fuer Mitarbeiter die an der gleichen Station arbeiten.
+     */
+    public function employeeScanCode(Request $request, string $id): JsonResponse
+    {
+        $request->validate([
+            'device_token' => 'required|string',
+        ]);
+
+        $device = $this->findDevice($request->device_token);
+        if (! $device) {
+            return $this->error('Geraet nicht erkannt.', 401);
+        }
+
+        $user = User::where('id', $id)
+            ->where('tenant_id', $device->tenant_id)
+            ->where('is_active', true)
+            ->first();
+
+        if (! $user) {
+            return $this->error('Mitarbeiter nicht gefunden.', 404);
+        }
+
+        // Pruefen ob MA an dieser Station arbeitet
+        $worksAtStation = $user->gasStations()
+            ->where('gas_stations.id', $device->station_id)
+            ->exists();
+
+        if (! $worksAtStation) {
+            return $this->error('Mitarbeiter ist dieser Station nicht zugeordnet.', 403);
+        }
+
+        if (empty($user->scan_code)) {
+            return $this->error('Kein Scan-Code hinterlegt. Bitte im Dashboard zuweisen.', 404);
+        }
+
+        return $this->success([
+            'employee_id' => $user->id,
+            'employee_name' => trim($user->first_name . ' ' . $user->last_name),
+            'scan_code' => $user->scan_code,
+        ], 'Scan-Code abgerufen.');
+    }
+
     // ── Hilfsmethoden ────────────────────────────────────────
 
     /**

@@ -48,6 +48,9 @@ class PartnerPanelProvider extends PanelProvider
                 NavigationGroup::make('Einstellungen')
                     ->icon('heroicon-o-cog-6-tooth')
                     ->collapsed(),
+                NavigationGroup::make('Bistro / MHD')
+                    ->icon('heroicon-o-cake')
+                    ->collapsed(),
             ])
             ->font('Inter')
             ->sidebarCollapsibleOnDesktop()

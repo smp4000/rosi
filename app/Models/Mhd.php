@@ -22,6 +22,7 @@ class Mhd extends Model
     protected $fillable = [
         'station_id',
         'date_recorded',
+        'recorded_by',
         'tms_no',
         'ean',
         'article_description',
@@ -53,7 +54,7 @@ class Mhd extends Model
     // -- Scopes --
 
     /** Nur Eintraege einer bestimmten Station */
-    public function scopeForStation($query, int $stationId)
+    public function scopeForStation($query, string $stationId)
     {
         return $query->where('station_id', $stationId);
     }
@@ -75,7 +76,7 @@ class Mhd extends Model
     /**
      * Kenner generieren: MD5 aus station_id + tms_no + mhd_date.
      */
-    public static function generateKenner(int $stationId, int $tmsNo, string $mhdDate): string
+    public static function generateKenner(string $stationId, int $tmsNo, string $mhdDate): string
     {
         return md5($stationId . $tmsNo . $mhdDate);
     }

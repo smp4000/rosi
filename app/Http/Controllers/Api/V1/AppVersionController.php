@@ -17,13 +17,15 @@ class AppVersionController extends ApiController
     public function index(Request $request): JsonResponse
     {
         $request->validate([
-            'platform' => 'nullable|in:app,web',
+            'platform' => 'nullable|in:android,web,app',
         ]);
 
         $query = AppVersion::published()->latestFirst();
 
         if ($request->filled('platform')) {
-            $query->where('platform', $request->platform);
+            // "app" als Alias fuer "android" akzeptieren
+            $platform = $request->platform === 'app' ? 'android' : $request->platform;
+            $query->where('platform', $platform);
         }
 
         $versions = $query->get()->map(fn (AppVersion $v) => [

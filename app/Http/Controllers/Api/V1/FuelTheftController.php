@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api\V1;
 use App\Models\Device;
 use App\Models\FuelTheft;
 use App\Models\GasStation;
+use App\Models\User;
+use App\Notifications\FuelTheftNotification;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -152,6 +154,26 @@ class FuelTheftController extends ApiController
             // Zahlung
             'payment_status' => 'open',
         ]);
+
+        // Bell-Notification an alle Partner/Inhaber des Mandanten senden
+        $partners = User::where('tenant_id', $station->tenant_id)
+            ->where('type', 'partner')
+            ->where('is_active', true)
+            ->get();
+
+        $notifTitle = 'Neuer Tankbetrug: ' . $station->name;
+        $notifBody = number_format($validated['amount'], 2, ',', '.') . ' EUR'
+            . ' | Zapfpunkt ' . $validated['pump_number']
+            . ' | ' . $validated['product']
+            . ' | ' . Carbon::parse($validated['incident_at'])->format('d.m.Y H:i');
+
+        foreach ($partners as $partner) {
+            $partner->notify(new FuelTheftNotification(
+                title: $notifTitle,
+                body: $notifBody,
+                level: 'danger',
+            ));
+        }
 
         return $this->success([
             'id' => $fuelTheft->id,

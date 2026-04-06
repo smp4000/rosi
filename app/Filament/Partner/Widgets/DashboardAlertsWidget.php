@@ -2,8 +2,10 @@
 
 namespace App\Filament\Partner\Widgets;
 
+use App\Models\FuelTheft;
 use App\Models\GasStation;
 use App\Models\Mhd;
+use App\Notifications\FuelTheftNotification;
 use App\Notifications\MhdAlertNotification;
 use Carbon\Carbon;
 use Filament\Widgets\Widget;
@@ -44,6 +46,34 @@ class DashboardAlertsWidget extends Widget
             return [];
         }
 
+        // --- Tankbetrug-Alerts ---
+        $newFuelThefts = FuelTheft::where('tenant_id', $tenantId)
+            ->where('status', 'submitted')
+            ->count();
+
+        if ($newFuelThefts > 0) {
+            $alerts[] = [
+                'level' => 'danger',
+                'title' => $newFuelThefts . ' ' . ($newFuelThefts === 1 ? 'neuer Tankbetrug' : 'neue Tankbetruege') . ' gemeldet',
+                'message' => 'Bitte pruefen und bearbeiten.',
+                'url' => route('filament.partner.resources.fuel-thefts.index'),
+            ];
+        }
+
+        $inProgressFuelThefts = FuelTheft::where('tenant_id', $tenantId)
+            ->where('status', 'in_progress')
+            ->count();
+
+        if ($inProgressFuelThefts > 0) {
+            $alerts[] = [
+                'level' => 'warning',
+                'title' => $inProgressFuelThefts . ' ' . ($inProgressFuelThefts === 1 ? 'Tankbetrug' : 'Tankbetruege') . ' in Bearbeitung',
+                'message' => 'Offene Faelle weiter bearbeiten.',
+                'url' => route('filament.partner.resources.fuel-thefts.index'),
+            ];
+        }
+
+        // --- MHD-Alerts ---
         $today = Carbon::today()->toDateString();
         $warningDate = Carbon::today()->addDays(7)->toDateString();
 
@@ -96,19 +126,32 @@ class DashboardAlertsWidget extends Widget
             return;
         }
 
-        // Alte MHD-Notifications dieses Users loeschen
+        // Alte Notifications dieses Users loeschen
         $user->notifications()
-            ->where('type', MhdAlertNotification::class)
+            ->whereIn('type', [
+                MhdAlertNotification::class,
+                FuelTheftNotification::class,
+            ])
             ->delete();
 
         // Aktuelle Alerts als Bell-Notifications senden
         $alerts = $this->getAlerts();
         foreach ($alerts as $alert) {
-            $user->notify(new MhdAlertNotification(
-                title: $alert['title'],
-                body: $alert['message'],
-                level: $alert['level'],
-            ));
+            // Tankbetrug-Alerts als FuelTheftNotification, Rest als MHD
+            $isFuelTheft = str_contains($alert['title'], 'Tankbetrug') || str_contains($alert['title'], 'Tankbetruege');
+            if ($isFuelTheft) {
+                $user->notify(new FuelTheftNotification(
+                    title: $alert['title'],
+                    body: $alert['message'],
+                    level: $alert['level'],
+                ));
+            } else {
+                $user->notify(new MhdAlertNotification(
+                    title: $alert['title'],
+                    body: $alert['message'],
+                    level: $alert['level'],
+                ));
+            }
         }
     }
 

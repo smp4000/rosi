@@ -24,7 +24,6 @@ class DatabaseSeeder extends Seeder
         $this->call(RolesAndPermissionsSeeder::class);
         $this->call(DocumentTemplateSeeder::class);
         $this->call(DepreciationReasonSeeder::class);
-        $this->call(GasStationSeeder::class);
 
         // Globale Team-ID fuer Super-Admin Rollen-Zuweisung
         app(PermissionRegistrar::class)->setPermissionsTeamId(RolesAndPermissionsSeeder::GLOBAL_TEAM_ID);
@@ -102,6 +101,9 @@ class DatabaseSeeder extends Seeder
 
         // Mitarbeiter bekommt 'mitarbeiter' Rolle unter Mandant
         $employee->assignRole('mitarbeiter');
+
+        // Tankstellen nach Tenant-Erstellung seeden
+        $this->call(GasStationSeeder::class);
 
         $this->command->info('Testdaten erstellt:');
         $this->command->info('  Super-Admin: admin@rosi.de / password');

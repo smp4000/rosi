@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AppVersionController;
 use App\Http\Controllers\Api\V1\ArticleController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DeviceController;
+use App\Http\Controllers\Api\V1\FuelTheftController;
 use App\Http\Controllers\Api\V1\MhdController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -114,6 +115,12 @@ Route::prefix('v1')->group(function () {
         // PIN aendern
         Route::put('/auth/pin', [AuthController::class, 'changePin'])
             ->name('api.v1.auth.pin');
+
+        // --- Tankbetrug ---
+        Route::get('/fuel-thefts/form-data', [FuelTheftController::class, 'formData'])
+            ->name('api.v1.fuel-thefts.form-data');
+        Route::post('/fuel-thefts', [FuelTheftController::class, 'store'])
+            ->name('api.v1.fuel-thefts.store');
 
         // Hier kommen spaeter weitere Phase 1 Routen:
         // - POST /v1/write-offs           → Abschriften

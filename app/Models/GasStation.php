@@ -61,6 +61,7 @@ class GasStation extends Model
         'trade_register',
         // Ausstattung
         'num_pumps',
+        'has_camera',
         'has_shop',
         'has_car_wash',
         'opening_hours',
@@ -101,6 +102,7 @@ class GasStation extends Model
             'latitude' => 'decimal:8',
             'longitude' => 'decimal:8',
             'num_pumps' => 'integer',
+            'has_camera' => 'boolean',
             'has_shop' => 'boolean',
             'has_car_wash' => 'boolean',
             'has_toll_terminal' => 'boolean',

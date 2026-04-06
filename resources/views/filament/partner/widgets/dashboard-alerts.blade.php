@@ -2,6 +2,7 @@
     $alerts = $this->getAlerts();
 @endphp
 
+<div>
 @if(count($alerts) > 0)
 <x-filament-widgets::widget>
     <div class="space-y-3">
@@ -55,3 +56,4 @@
     </div>
 </x-filament-widgets::widget>
 @endif
+</div>

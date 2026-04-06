@@ -56,7 +56,6 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
         'remember_token',
         'two_factor_secret',
         'pin_hash',
-        'scan_code',
     ];
 
     protected function casts(): array

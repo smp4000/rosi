@@ -37,6 +37,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\HtmlString;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
@@ -118,7 +119,7 @@ class EmployeeResource extends Resource
     {
         return parent::getEloquentQuery()
             ->withoutGlobalScopes([SoftDeletingScope::class])
-            ->where('type', 'employee')
+            ->whereIn('type', ['employee', 'partner'])
             ->where('tenant_id', session('tenant_id'))
             ->with(['employeeProfile', 'gasStations', 'documents', 'bankAccounts']);
     }
@@ -225,6 +226,7 @@ class EmployeeResource extends Resource
                             TextInput::make('scan_code')
                                 ->label('Scan-Code (POS Login)')
                                 ->helperText('Eindeutiger Code fuer Login per Scanner/NFC/QR-Code an der POS-App.')
+                                ->required()
                                 ->unique(ignoreRecord: true)
                                 ->maxLength(255)
                                 ->placeholder('z.B. Badge-Nummer oder NFC-UID')
@@ -236,6 +238,22 @@ class EmployeeResource extends Resource
                                             $set('scan_code', strtoupper(Str::random(12)));
                                         })
                                 ),
+
+                            TextInput::make('pin_hash')
+                                ->label('PIN (POS Login)')
+                                ->helperText(fn (string $operation) => $operation === 'create'
+                                    ? '4-stellige PIN fuer den Login an der POS-App.'
+                                    : 'Leer lassen um bestehende PIN zu behalten.')
+                                ->required(fn (string $operation) => $operation === 'create')
+                                ->minLength(4)
+                                ->maxLength(6)
+                                ->placeholder(fn (string $operation) => $operation === 'create' ? 'z.B. 1234' : 'Neue PIN eingeben...')
+                                ->password()
+                                ->revealable()
+                                ->autocomplete('new-password')
+                                ->formatStateUsing(fn () => null)
+                                ->dehydrateStateUsing(fn (?string $state) => filled($state) ? Hash::make($state) : null)
+                                ->dehydrated(fn (?string $state) => filled($state)),
 
                             Select::make('employeeProfile.gender')
                                 ->label(__('partner.employee.fields.gender'))
@@ -366,6 +384,8 @@ class EmployeeResource extends Resource
                                     Select::make('station_role')
                                         ->label('Rolle')
                                         ->options([
+                                            'partner' => 'Partner/Inhaber',
+                                            'manager' => 'Betriebsleiter',
                                             'station_manager' => 'Stationsleiter',
                                             'shift_leader' => 'Schichtleiter',
                                             'cashier' => 'Kassierer',
@@ -1394,6 +1414,18 @@ class EmployeeResource extends Resource
                     ->sortable()
                     ->formatStateUsing(fn ($record) => $record->name)
                     ->weight('bold'),
+
+                BadgeColumn::make('type')
+                    ->label('Typ')
+                    ->formatStateUsing(fn (string $state) => match ($state) {
+                        'partner' => 'Partner / Inhaber',
+                        default => 'Mitarbeiter',
+                    })
+                    ->colors([
+                        'warning' => 'partner',
+                        'gray' => 'employee',
+                    ])
+                    ->sortable(),
 
                 TextColumn::make('email')
                     ->label(__('partner.employee.fields.email'))

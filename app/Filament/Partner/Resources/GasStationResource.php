@@ -434,6 +434,11 @@ class GasStationResource extends Resource
                                         ->numeric()
                                         ->minValue(1)
                                         ->default(1),
+                                    Toggle::make('has_camera')
+                                        ->label('Videoueberwachung vorhanden')
+                                        ->helperText('Hat die Tankstelle eine Kamera/Videoueberwachung? Wird im Tankbetrug-Formular zur Vorbelegung genutzt.')
+                                        ->default(true)
+                                        ->live(),
                                     TagsInput::make('fuel_types')
                                         ->label(__('partner.gas_station.fields.fuel_types'))
                                         ->suggestions([

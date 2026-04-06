@@ -6,6 +6,7 @@ use App\Filament\Partner\Resources\EmployeeResource;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Spatie\Permission\PermissionRegistrar;
 
 /**
@@ -32,6 +33,11 @@ class CreateEmployee extends CreateRecord
         // Temporaeres Passwort generieren (Mitarbeiter muss es zuruecksetzen)
         if (empty($data['password'])) {
             $data['password'] = Hash::make(str()->random(16));
+        }
+
+        // Scan-Code automatisch generieren falls nicht manuell gesetzt
+        if (empty($data['scan_code'])) {
+            $data['scan_code'] = strtoupper(Str::random(12));
         }
 
         return $data;

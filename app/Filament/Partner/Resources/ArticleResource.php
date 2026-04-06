@@ -414,7 +414,7 @@ class ArticleResource extends Resource
                     }),
                 SelectFilter::make('article_group_id')
                     ->label('Artikelgruppe')
-                    ->relationship('articleGroup', 'article_group_04')
+                    ->relationship('articleGroup', 'article_group_04', fn (Builder $query) => $query->whereNotNull('article_group_04'))
                     ->searchable()
                     ->preload(),
             ])

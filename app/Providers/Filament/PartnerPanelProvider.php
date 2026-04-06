@@ -48,15 +48,13 @@ class PartnerPanelProvider extends PanelProvider
                 NavigationGroup::make('Einstellungen')
                     ->icon('heroicon-o-cog-6-tooth')
                     ->collapsed(),
-                NavigationGroup::make('Bistro / MHD')
-                    ->icon('heroicon-o-cake')
-                    ->collapsed(),
             ])
             ->font('Inter')
             ->sidebarCollapsibleOnDesktop()
             ->maxContentWidth('full')
             ->databaseNotifications()
             ->databaseNotificationsPolling('30s')
+            ->navigationItems([])
             ->discoverResources(in: app_path('Filament/Partner/Resources'), for: 'App\\Filament\\Partner\\Resources')
             ->discoverPages(in: app_path('Filament/Partner/Pages'), for: 'App\\Filament\\Partner\\Pages')
             ->pages([

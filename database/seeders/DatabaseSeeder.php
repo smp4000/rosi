@@ -23,6 +23,8 @@ class DatabaseSeeder extends Seeder
         $this->call(LookupValueSeeder::class);
         $this->call(RolesAndPermissionsSeeder::class);
         $this->call(DocumentTemplateSeeder::class);
+        $this->call(DepreciationReasonSeeder::class);
+        $this->call(GasStationSeeder::class);
 
         // Globale Team-ID fuer Super-Admin Rollen-Zuweisung
         app(PermissionRegistrar::class)->setPermissionsTeamId(RolesAndPermissionsSeeder::GLOBAL_TEAM_ID);

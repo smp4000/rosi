@@ -31,7 +31,7 @@ class DepreciationReasonResource extends Resource
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-clipboard-document-list';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Bistro / MHD';
+    protected static string|\UnitEnum|null $navigationGroup = 'Einstellungen';
 
     protected static ?string $modelLabel = 'Abschreibungsgrund';
 

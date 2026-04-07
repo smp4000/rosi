@@ -164,6 +164,29 @@ class AppVersionSeeder extends Seeder
                     'Dezimaltrennzeichen-Fix fuer deutsche Geraete',
                 ],
             ],
+            // --- v1.7.0 ---
+            [
+                'platform' => 'web',
+                'version' => '1.7.0',
+                'release_date' => '2026-04-07',
+                'changes' => [
+                    'Print-Gateway: Adressetiketten ueber DYMO WebApi drucken',
+                    'API-Endpunkte: POST /print/label, GET /print/printers',
+                    'Automatische DYMO-Drucker-Erkennung auf dem Server',
+                ],
+            ],
+            [
+                'platform' => 'android',
+                'version' => '1.7.0',
+                'release_date' => '2026-04-07',
+                'changes' => [
+                    'Adressetiketten drucken ueber Server Print-Gateway (DYMO)',
+                    'Bluetooth-Drucker (TSC): Direktdruck per TSPL-Befehle',
+                    'Drucker-Erkennung: NSD, Bluetooth, USB und Subnet-Scan',
+                    'Einstellungen: Tab-basiertes Layout (Allgemein, Verbindung, Module, MHD, Sicherheit)',
+                    'Bluetooth-Berechtigung fuer Android 12+',
+                ],
+            ],
         ];
 
         $count = 0;

@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DeviceController;
 use App\Http\Controllers\Api\V1\FuelTheftController;
 use App\Http\Controllers\Api\V1\MhdController;
+use App\Http\Controllers\Api\V1\PrintController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -74,6 +75,10 @@ Route::prefix('v1')->group(function () {
     Route::delete('/mhd/{id}', [MhdController::class, 'destroy'])
         ->name('api.v1.mhd.destroy');
 
+    // --- Drucker-Info (oeffentlich) ---
+    Route::get('/print/printers', [PrintController::class, 'printers'])
+        ->name('api.v1.print.printers');
+
     // --- Authentifizierung ---
 
     // Scan-Code fuer NFC-Tag-Beschriftung
@@ -121,6 +126,10 @@ Route::prefix('v1')->group(function () {
             ->name('api.v1.fuel-thefts.form-data');
         Route::post('/fuel-thefts', [FuelTheftController::class, 'store'])
             ->name('api.v1.fuel-thefts.store');
+
+        // --- Drucken (Print-Gateway) ---
+        Route::post('/print/label', [PrintController::class, 'printLabel'])
+            ->name('api.v1.print.label');
 
         // Hier kommen spaeter weitere Phase 1 Routen:
         // - POST /v1/write-offs           → Abschriften

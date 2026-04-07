@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 class PrintController extends ApiController
 {
     private const DYMO_API = 'https://localhost:41951/DYMO/DLS/Printing';
+    private const DEFAULT_PRINTER = 'DYMO LabelWriter Wireless';
 
     /**
      * POST /api/v1/print/label
@@ -26,7 +27,7 @@ class PrintController extends ApiController
             'data.sender' => 'nullable|string',
         ]);
 
-        $printer = $request->input('printer') ?? 'DYMO LabelWriter Wireless';
+        $printer = $request->input('printer') ?? self::DEFAULT_PRINTER;
         $copies = $request->input('copies', 1);
         $data = $request->input('data');
 
@@ -82,6 +83,104 @@ class PrintController extends ApiController
         } catch (\Exception $e) {
             return $this->error('DYMO-Service nicht erreichbar: ' . $e->getMessage(), 503);
         }
+    }
+
+    /**
+     * Druckt ein Tankbetrug-Etikett ueber DYMO.
+     * Wird automatisch aus FuelTheftController aufgerufen.
+     */
+    public static function printFuelTheftLabel(array $data): array
+    {
+        $instance = new self();
+
+        try {
+            $labelXml = $instance->buildFuelTheftLabelXml($data);
+            $result = $instance->printViaDymoApi($labelXml, self::DEFAULT_PRINTER, 1);
+
+            if ($result['success']) {
+                Log::info('Tankbetrug-Etikett gedruckt', ['data' => $data]);
+            } else {
+                Log::warning('Tankbetrug-Etikett Fehler', ['result' => $result]);
+            }
+
+            return $result;
+        } catch (\Exception $e) {
+            Log::error('Tankbetrug-Etikett fehlgeschlagen', ['error' => $e->getMessage()]);
+            return ['success' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Erzeugt das DYMO Label XML fuer ein Tankbetrug-Etikett (101x54mm).
+     *
+     * Layout:
+     *   TANKBETRUG                [Datum]
+     *   [Kennzeichen oder "Kein Kennzeichen"]
+     *   [Produkt] | Zapfpunkt [Nr]
+     *   [Menge] l | [Betrag] EUR
+     *   [Tankstelle]
+     */
+    private function buildFuelTheftLabelXml(array $data): string
+    {
+        $date = $data['date'] ?? now()->format('d.m.Y H:i');
+        $plate = $data['license_plate'] ?? 'Kein Kennzeichen';
+        $product = $data['product'] ?? '';
+        $pump = $data['pump_number'] ?? '';
+        $quantity = $data['quantity'] ?? '';
+        $amount = $data['amount'] ?? '';
+        $station = $data['station'] ?? '';
+
+        // 101x54mm = 3.98 x 2.13 inch, nutzbar ca. 3.7 x 2.0
+        $objects = '';
+
+        // Zeile 1: TANKBETRUG + Datum
+        $headerText = "TANKBETRUG  $date";
+        $objects .= $this->textObject('Header', htmlspecialchars($headerText, ENT_XML1), 10, true,
+            0.35, 0.20, 3.5, 0.25);
+
+        // Zeile 2: Kennzeichen (gross + fett)
+        $objects .= $this->textObject('Plate', htmlspecialchars($plate, ENT_XML1), 20, true,
+            0.35, 0.50, 3.5, 0.45);
+
+        // Zeile 3: Produkt | Zapfpunkt
+        $line3 = "$product | Zapfpunkt $pump";
+        $objects .= $this->textObject('Product', htmlspecialchars($line3, ENT_XML1), 11, false,
+            0.35, 1.00, 3.5, 0.25);
+
+        // Zeile 4: Menge + Betrag
+        $line4 = "{$quantity} l | {$amount} EUR";
+        $objects .= $this->textObject('Amount', htmlspecialchars($line4, ENT_XML1), 13, true,
+            0.35, 1.30, 3.5, 0.30);
+
+        // Zeile 5: Tankstelle
+        $objects .= $this->textObject('Station', htmlspecialchars($station, ENT_XML1), 9, false,
+            0.35, 1.65, 3.5, 0.25);
+
+        return <<<XML
+<?xml version="1.0" encoding="utf-8"?>
+<DesktopLabel Version="1">
+  <DYMOLabel Version="3">
+    <Description>ROSI Tankbetrug-Etikett</Description>
+    <Orientation>Landscape</Orientation>
+    <LabelName>Shipping</LabelName>
+    <InitialLength>0</InitialLength>
+    <BorderStyle>SolidLine</BorderStyle>
+    <DYMORect>
+      <DYMOPoint><X>0</X><Y>0</Y></DYMOPoint>
+      <Size><Width>3.98</Width><Height>2.13</Height></Size>
+    </DYMORect>
+    <BorderColor><SolidColorBrush><Color A="0" R="0" G="0" B="0" /></SolidColorBrush></BorderColor>
+    <BorderThickness>1</BorderThickness>
+    <Show_Border>False</Show_Border>
+    <DynamicLayoutManager>
+      <RotationBehavior>ClearObjects</RotationBehavior>
+      <LabelObjects>
+        {$objects}
+      </LabelObjects>
+    </DynamicLayoutManager>
+  </DYMOLabel>
+</DesktopLabel>
+XML;
     }
 
     /**

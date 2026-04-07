@@ -171,6 +171,7 @@ class AppVersionSeeder extends Seeder
                 'release_date' => '2026-04-07',
                 'changes' => [
                     'Print-Gateway: Adressetiketten ueber DYMO WebApi drucken',
+                    'Tankbetrug-Etikett: Automatischer DYMO-Druck bei neuer Meldung (101x54mm)',
                     'API-Endpunkte: POST /print/label, GET /print/printers',
                     'Automatische DYMO-Drucker-Erkennung auf dem Server',
                 ],

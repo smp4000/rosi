@@ -11,6 +11,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -155,6 +156,25 @@ class FuelTheftController extends ApiController
             'payment_status' => 'open',
         ]);
 
+        // Etikett automatisch drucken (DYMO)
+        try {
+            PrintController::printFuelTheftLabel([
+                'date' => Carbon::parse($validated['incident_at'])->format('d.m.Y H:i'),
+                'license_plate' => $licensePlateAvailable
+                    ? strtoupper(trim($validated['license_plate'] ?? ''))
+                    : 'Kein Kennzeichen',
+                'product' => $this->productLabel($validated['product']),
+                'pump_number' => $validated['pump_number'],
+                'quantity' => number_format((float) $validated['quantity'], 3, ',', '.'),
+                'amount' => number_format((float) $validated['amount'], 2, ',', '.'),
+                'station' => $station->name,
+            ]);
+        } catch (\Exception $e) {
+            Log::warning('Tankbetrug-Etikett konnte nicht gedruckt werden', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         // Bell-Notification an alle Partner/Inhaber des Mandanten senden
         $partners = User::where('tenant_id', $station->tenant_id)
             ->where('type', 'partner')
@@ -179,6 +199,22 @@ class FuelTheftController extends ApiController
             'id' => $fuelTheft->id,
             'status' => $fuelTheft->status,
         ], 'Tankbetrug erfolgreich gemeldet.', 201);
+    }
+
+    /**
+     * Kraftstoffart-Kuerzel in lesbaren Text umwandeln.
+     */
+    private function productLabel(string $product): string
+    {
+        return match ($product) {
+            'super_e5' => 'Super E5',
+            'super_e10' => 'Super E10',
+            'diesel' => 'Diesel',
+            'super_plus' => 'Super Plus',
+            'ultimate_diesel' => 'Ultimate Diesel',
+            'ultimate_102' => 'Ultimate 102',
+            default => $product,
+        };
     }
 
     /**

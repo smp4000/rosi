@@ -156,24 +156,8 @@ class FuelTheftController extends ApiController
             'payment_status' => 'open',
         ]);
 
-        // Etikett automatisch drucken (DYMO)
-        try {
-            PrintController::printFuelTheftLabel([
-                'date' => Carbon::parse($validated['incident_at'])->format('d.m.Y H:i'),
-                'license_plate' => $licensePlateAvailable
-                    ? strtoupper(trim($validated['license_plate'] ?? ''))
-                    : 'Kein Kennzeichen',
-                'product' => $this->productLabel($validated['product']),
-                'pump_number' => $validated['pump_number'],
-                'quantity' => number_format((float) $validated['quantity'], 3, ',', '.'),
-                'amount' => number_format((float) $validated['amount'], 2, ',', '.'),
-                'station' => $station->name,
-            ]);
-        } catch (\Exception $e) {
-            Log::warning('Tankbetrug-Etikett konnte nicht gedruckt werden', [
-                'error' => $e->getMessage(),
-            ]);
-        }
+        // Etikett wird jetzt direkt aus der App gedruckt (DYMO Socket 9100)
+        // Server-seitiger Druck entfernt, da auf All-Inkl localhost:41951 nicht erreichbar
 
         // Bell-Notification an alle Partner/Inhaber des Mandanten senden
         $partners = User::where('tenant_id', $station->tenant_id)

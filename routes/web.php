@@ -24,6 +24,9 @@ Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
+// Named Route fuer redirect()->route('dashboard') — leitet auf Filament Partner-Panel
+Route::get('/dashboard-redirect', fn () => redirect('/dashboard'))->name('dashboard');
+
 // Mitarbeiter-Onboarding (oeffentlich, Token-basiert)
 Route::get('/onboarding/erfolg', OnboardingSuccess::class)->name('onboarding.success');
 Route::get('/onboarding/{token}', OnboardingWizard::class)->name('onboarding');
@@ -43,7 +46,7 @@ Route::post('/webhook/telegram/{tenantSlug}', [TelegramWebhookController::class,
 */
 
 Route::middleware('guest')->group(function () {
-    Route::get('/login', Login::class)->name('login');
+    Route::get('/login', fn () => redirect('/dashboard'))->name('login');
     Route::get('/registrieren', Register::class)->name('register');
     Route::get('/passwort-vergessen', ForgotPassword::class)->name('password.request');
     Route::get('/passwort-zuruecksetzen/{token}', ResetPassword::class)->name('password.reset');

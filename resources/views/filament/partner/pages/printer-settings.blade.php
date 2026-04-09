@@ -1,23 +1,21 @@
 <x-filament-panels::page>
-    <div x-data="dymoManager()" x-init="init()" class="space-y-6">
+    <div x-data="dymoManager()" x-init="init()">
 
         {{-- Status-Banner --}}
-        <div class="fi-section rounded-xl bg-white shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10 p-6">
-            <div class="flex items-center gap-3 mb-4">
-                <x-heroicon-o-signal class="w-5 h-5 text-gray-400" />
-                <h3 class="text-base font-semibold">DYMO Connect Service</h3>
+        <div style="background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.1);border:1px solid #e5e7eb;padding:24px;margin-bottom:20px">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="#9ca3af" style="width:20px;height:20px"><path stroke-linecap="round" stroke-linejoin="round" d="M9.348 14.652a3.75 3.75 0 0 1 0-5.304m5.304 0a3.75 3.75 0 0 1 0 5.304m-7.425 2.121a6.75 6.75 0 0 1 0-9.546m9.546 0a6.75 6.75 0 0 1 0 9.546M5.106 18.894c-3.808-3.807-3.808-9.98 0-13.788m13.788 0c3.808 3.807 3.808 9.98 0 13.788M12 12h.008v.008H12V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
+                <h3 style="font-size:16px;font-weight:600;margin:0">DYMO Connect Service</h3>
             </div>
 
-            <div class="flex items-center gap-3">
-                <div class="flex h-3 w-3 rounded-full"
-                     :class="status === 'connected' ? 'bg-green-500' : (status === 'checking' ? 'bg-yellow-500 animate-pulse' : 'bg-red-500')">
-                </div>
-                <span class="text-sm" x-text="statusText"></span>
+            <div style="display:flex;align-items:center;gap:10px">
+                <div :style="'width:12px;height:12px;border-radius:50%;background:' + (status === 'connected' ? '#22c55e' : (status === 'checking' ? '#eab308' : '#ef4444'))"></div>
+                <span style="font-size:14px" x-text="statusText"></span>
             </div>
 
             <template x-if="status === 'error'">
-                <div class="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-4 dark:bg-amber-900/20 dark:border-amber-700">
-                    <p class="text-sm text-amber-800 dark:text-amber-200">
+                <div style="margin-top:16px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:16px">
+                    <p style="font-size:14px;color:#92400e;margin:0">
                         <strong>DYMO Connect</strong> muss auf diesem PC installiert und gestartet sein.<br>
                         Der Service laeuft lokal auf Port 41951.
                     </p>
@@ -25,54 +23,48 @@
             </template>
 
             <button @click="checkConnection()"
-                    class="mt-4 inline-flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">
-                <x-heroicon-o-arrow-path class="w-4 h-4" />
+                    style="margin-top:16px;display:inline-flex;align-items:center;gap:8px;background:#f3f4f6;border:1px solid #d1d5db;border-radius:8px;padding:8px 14px;font-size:14px;font-weight:500;color:#374151;cursor:pointer">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" /></svg>
                 Verbindung pruefen
             </button>
         </div>
 
         {{-- Drucker-Liste --}}
         <template x-if="status === 'connected'">
-            <div class="fi-section rounded-xl bg-white shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10 p-6">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center gap-3">
-                        <x-heroicon-o-printer class="w-5 h-5 text-gray-400" />
-                        <h3 class="text-base font-semibold">Verfuegbare Drucker</h3>
+            <div style="background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.1);border:1px solid #e5e7eb;padding:24px;margin-bottom:20px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                    <div style="display:flex;align-items:center;gap:12px">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="#9ca3af" style="width:20px;height:20px"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-3 0h.008v.008H15V10.5Z" /></svg>
+                        <h3 style="font-size:16px;font-weight:600;margin:0">Verfuegbare Drucker</h3>
                     </div>
                     <button @click="loadPrinters()"
-                            class="inline-flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700">
-                        <x-heroicon-o-arrow-path class="w-4 h-4" />
+                            style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:#2563eb;background:none;border:none;cursor:pointer">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" /></svg>
                         Aktualisieren
                     </button>
                 </div>
 
                 <template x-if="printers.length === 0">
-                    <p class="text-sm text-gray-500">Keine DYMO-Drucker gefunden.</p>
+                    <p style="font-size:14px;color:#6b7280">Keine DYMO-Drucker gefunden.</p>
                 </template>
 
-                <div class="space-y-3">
+                <div>
                     <template x-for="printer in printers" :key="printer.name">
-                        <div class="flex items-center justify-between rounded-lg border p-4"
-                             :class="printer.isConnected ? 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-900/20' : 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800'">
-                            <div class="flex items-center gap-3">
-                                <div class="flex h-2.5 w-2.5 rounded-full"
-                                     :class="printer.isConnected ? 'bg-green-500' : 'bg-gray-400'">
-                                </div>
+                        <div style="display:flex;align-items:center;justify-content:space-between;border-radius:8px;padding:16px;margin-bottom:10px"
+                             :style="printer.isConnected ? 'background:#f0fdf4;border:1px solid #bbf7d0' : 'background:#f9fafb;border:1px solid #e5e7eb'">
+                            <div style="display:flex;align-items:center;gap:12px">
+                                <div :style="'width:10px;height:10px;border-radius:50%;background:' + (printer.isConnected ? '#22c55e' : '#9ca3af')"></div>
                                 <div>
-                                    <p class="text-sm font-medium" x-text="printer.name"></p>
-                                    <p class="text-xs text-gray-500" x-text="printer.modelName || 'DYMO LabelWriter'"></p>
+                                    <p style="font-size:14px;font-weight:500;margin:0" x-text="printer.name"></p>
+                                    <p style="font-size:12px;color:#6b7280;margin:2px 0 0" x-text="printer.modelName || 'DYMO LabelWriter'"></p>
                                 </div>
                             </div>
                             <button @click="testPrint(printer.name)"
                                     :disabled="!printer.isConnected || printing"
-                                    class="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white transition"
-                                    :class="printer.isConnected && !printing ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-400 cursor-not-allowed'">
-                                <template x-if="printing && printingPrinter === printer.name">
-                                    <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-                                </template>
-                                <template x-if="!(printing && printingPrinter === printer.name)">
-                                    <x-heroicon-o-printer class="w-4 h-4" />
-                                </template>
+                                    :style="printer.isConnected && !printing
+                                        ? 'display:inline-flex;align-items:center;gap:8px;background:#16a34a;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:14px;font-weight:500;cursor:pointer'
+                                        : 'display:inline-flex;align-items:center;gap:8px;background:#9ca3af;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:14px;font-weight:500;cursor:not-allowed'">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:16px;height:16px"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-3 0h.008v.008H15V10.5Z" /></svg>
                                 <span x-text="printing && printingPrinter === printer.name ? 'Druckt...' : 'Testdruck'"></span>
                             </button>
                         </div>
@@ -83,27 +75,28 @@
 
         {{-- Testdruck-Ergebnis --}}
         <template x-if="printResult">
-            <div class="fi-section rounded-xl shadow-sm ring-1 p-6"
-                 :class="printResult.success ? 'bg-green-50 ring-green-200 dark:bg-green-900/20 dark:ring-green-800' : 'bg-red-50 ring-red-200 dark:bg-red-900/20 dark:ring-red-800'">
-                <div class="flex items-center gap-3">
+            <div :style="printResult.success
+                ? 'background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:20px;margin-bottom:20px'
+                : 'background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:20px;margin-bottom:20px'">
+                <div style="display:flex;align-items:flex-start;gap:12px">
                     <template x-if="printResult.success">
-                        <x-heroicon-o-check-circle class="w-5 h-5 text-green-600" />
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="#16a34a" style="width:20px;height:20px;flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
                     </template>
                     <template x-if="!printResult.success">
-                        <x-heroicon-o-x-circle class="w-5 h-5 text-red-600" />
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="#dc2626" style="width:20px;height:20px;flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
                     </template>
-                    <p class="text-sm font-medium" x-text="printResult.message"></p>
+                    <p style="font-size:14px;font-weight:500;margin:0" x-text="printResult.message"></p>
                 </div>
             </div>
         </template>
 
         {{-- Hinweise --}}
-        <div class="fi-section rounded-xl bg-white shadow-sm ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10 p-6">
-            <div class="flex items-center gap-3 mb-4">
-                <x-heroicon-o-information-circle class="w-5 h-5 text-gray-400" />
-                <h3 class="text-base font-semibold">Hinweise</h3>
+        <div style="background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.1);border:1px solid #e5e7eb;padding:24px">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="#9ca3af" style="width:20px;height:20px"><path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" /></svg>
+                <h3 style="font-size:16px;font-weight:600;margin:0">Hinweise</h3>
             </div>
-            <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-2 list-disc list-inside">
+            <ul style="font-size:14px;color:#4b5563;padding-left:20px;margin:0;line-height:2">
                 <li><strong>DYMO Connect Software</strong> muss auf diesem PC installiert und gestartet sein</li>
                 <li>Der Drucker muss per USB oder WLAN mit diesem PC verbunden sein</li>
                 <li>Der Browser kommuniziert direkt mit dem lokalen DYMO Service (Port 41951)</li>
@@ -260,6 +253,7 @@
             <FitMode>ShrinkToFit</FitMode>
             <HorizontalAlignment>Center</HorizontalAlignment>
             <VerticalAlignment>Middle</VerticalAlignment>
+            <IsVertical>False</IsVertical>
             <LineTextSpan>
               <TextSpan>
                 <Text>ROSI Testdruck</Text>
@@ -293,6 +287,7 @@
             <FitMode>ShrinkToFit</FitMode>
             <HorizontalAlignment>Center</HorizontalAlignment>
             <VerticalAlignment>Middle</VerticalAlignment>
+            <IsVertical>False</IsVertical>
             <LineTextSpan>
               <TextSpan>
                 <Text>${date} ${time}</Text>
@@ -312,8 +307,6 @@
             },
 
             async dymoFetch(path, options = {}) {
-                // DYMO Connect Service nutzt self-signed SSL auf localhost
-                // Ports 41951-41960 werden durchprobiert
                 const ports = [41951, 41952, 41953, 41954, 41955];
 
                 for (const port of ports) {

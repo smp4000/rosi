@@ -115,6 +115,7 @@
             printing: false,
             printingPrinter: null,
             printResult: null,
+            activePort: null,
 
             async init() {
                 await this.checkConnection();
@@ -175,16 +176,14 @@
                     const labelXml = this.buildTestLabelXml();
                     const printParams = '<LabelWriterPrintParams><Copies>1</Copies></LabelWriterPrintParams>';
 
-                    const body = new URLSearchParams({
-                        printerName: printerName,
-                        labelXml: labelXml,
-                        printParamsXml: printParams,
-                    });
+                    const body = new URLSearchParams();
+                    body.append('printerName', printerName);
+                    body.append('labelXml', labelXml);
+                    body.append('printParamsXml', printParams);
 
                     const result = await this.dymoFetch('/DYMO/DLS/Printing/PrintLabel2', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: body.toString(),
+                        body: body,
                     });
 
                     if (result === 'true') {
@@ -263,15 +262,26 @@
             },
 
             async dymoFetch(path, options = {}) {
-                const ports = [41951, 41952, 41953, 41954, 41955];
+                // Wenn ein Port bereits bekannt ist, direkt verwenden
+                if (this.activePort) {
+                    try {
+                        const url = `https://127.0.0.1:${this.activePort}${path}`;
+                        const response = await fetch(url, { ...options, mode: 'cors' });
+                        return await response.text();
+                    } catch (e) {
+                        // Port funktioniert nicht mehr, neu scannen
+                        this.activePort = null;
+                    }
+                }
 
+                // Port-Scan
+                const ports = [41951, 41952, 41953, 41954, 41955];
                 for (const port of ports) {
                     try {
                         const url = `https://127.0.0.1:${port}${path}`;
-                        const response = await fetch(url, {
-                            ...options,
-                            mode: 'cors',
-                        });
+                        const response = await fetch(url, { ...options, mode: 'cors' });
+                        this.activePort = port;
+                        console.log('DYMO Service gefunden auf Port', port);
                         return await response.text();
                     } catch (e) {
                         if (port === ports[ports.length - 1]) throw e;

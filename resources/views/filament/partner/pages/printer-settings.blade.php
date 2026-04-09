@@ -176,14 +176,15 @@
                     const labelXml = this.buildTestLabelXml();
                     const printParams = '<LabelWriterPrintParams><Copies>1</Copies></LabelWriterPrintParams>';
 
-                    const body = new URLSearchParams();
-                    body.append('printerName', printerName);
-                    body.append('labelXml', labelXml);
-                    body.append('printParamsXml', printParams);
+                    const formData = new FormData();
+                    formData.append('printerName', printerName);
+                    formData.append('labelXml', labelXml);
+                    formData.append('printParamsXml', printParams);
+                    formData.append('labelSetXml', '');
 
                     const result = await this.dymoFetch('/DYMO/DLS/Printing/PrintLabel2', {
                         method: 'POST',
-                        body: body,
+                        body: formData,
                     });
 
                     if (result === 'true') {

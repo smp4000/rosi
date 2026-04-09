@@ -75,9 +75,13 @@ Route::prefix('v1')->group(function () {
     Route::delete('/mhd/{id}', [MhdController::class, 'destroy'])
         ->name('api.v1.mhd.destroy');
 
-    // --- Drucker-Info (oeffentlich) ---
+    // --- Drucker (oeffentlich, da DYMO nur lokal erreichbar) ---
     Route::get('/print/printers', [PrintController::class, 'printers'])
         ->name('api.v1.print.printers');
+    Route::get('/print/status', [PrintController::class, 'status'])
+        ->name('api.v1.print.status');
+    Route::post('/print/test', [PrintController::class, 'testPrint'])
+        ->name('api.v1.print.test');
 
     // --- Authentifizierung ---
 

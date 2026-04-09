@@ -8,8 +8,9 @@ use Illuminate\Support\Str;
 
 class PrintController extends ApiController
 {
-    private const DYMO_API = 'https://localhost:41951/DYMO/DLS/Printing';
+    private const DYMO_PORTS = [41951, 41952, 41953, 41954, 41955];
     private const DEFAULT_PRINTER = 'DYMO LabelWriter Wireless';
+    private static ?int $activePort = null;
 
     /**
      * POST /api/v1/print/label
@@ -51,6 +52,52 @@ class PrintController extends ApiController
                 'data' => $data,
             ]);
             return $this->error('Druckfehler: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * POST /api/v1/print/test
+     * Testdruck — kann ohne Auth genutzt werden.
+     */
+    public function testPrint(Request $request)
+    {
+        $request->validate([
+            'printer' => 'nullable|string',
+        ]);
+
+        $printer = $request->input('printer') ?? self::DEFAULT_PRINTER;
+
+        try {
+            $now = now()->format('d.m.Y H:i');
+            $labelXml = $this->buildTestLabelXml($now);
+            $result = $this->printViaDymoApi($labelXml, $printer, 1);
+
+            if ($result['success']) {
+                Log::info('Testdruck erfolgreich', ['printer' => $printer]);
+                return $this->success($result, 'Testdruck gedruckt');
+            }
+
+            return $this->error($result['message'], 500);
+        } catch (\Exception $e) {
+            Log::error('Testdruck fehlgeschlagen', ['error' => $e->getMessage()]);
+            return $this->error('Druckfehler: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * GET /api/v1/print/status
+     * Prueft ob DYMO Service erreichbar ist.
+     */
+    public function status()
+    {
+        try {
+            $port = $this->findActivePort();
+            return $this->success([
+                'connected' => true,
+                'port' => $port,
+            ], 'DYMO Service erreichbar');
+        } catch (\Exception $e) {
+            return $this->error('DYMO Service nicht erreichbar', 503);
         }
     }
 
@@ -317,7 +364,44 @@ XML;
     }
 
     /**
-     * Druckt ein Label ueber die DYMO WebApi (https://localhost:41951).
+     * Erzeugt ein einfaches Test-Label XML (101x54mm).
+     */
+    private function buildTestLabelXml(string $dateTime): string
+    {
+        $text = htmlspecialchars("ROSI Testdruck  $dateTime", ENT_XML1);
+
+        $objects = $this->textObject('Text', $text, 12, true,
+            0.35, 0.20, 3.0, 0.7);
+
+        return <<<XML
+<?xml version="1.0" encoding="utf-8"?>
+<DesktopLabel Version="1">
+  <DYMOLabel Version="3">
+    <Description>ROSI Testdruck</Description>
+    <Orientation>Landscape</Orientation>
+    <LabelName>Shipping</LabelName>
+    <InitialLength>0</InitialLength>
+    <BorderStyle>SolidLine</BorderStyle>
+    <DYMORect>
+      <DYMOPoint><X>0</X><Y>0</Y></DYMOPoint>
+      <Size><Width>3.98</Width><Height>2.13</Height></Size>
+    </DYMORect>
+    <BorderColor><SolidColorBrush><Color A="0" R="0" G="0" B="0" /></SolidColorBrush></BorderColor>
+    <BorderThickness>1</BorderThickness>
+    <Show_Border>False</Show_Border>
+    <DynamicLayoutManager>
+      <RotationBehavior>ClearObjects</RotationBehavior>
+      <LabelObjects>
+        {$objects}
+      </LabelObjects>
+    </DynamicLayoutManager>
+  </DYMOLabel>
+</DesktopLabel>
+XML;
+    }
+
+    /**
+     * Druckt ein Label ueber die DYMO WebApi.
      */
     private function printViaDymoApi(string $labelXml, string $printerName, int $copies): array
     {
@@ -327,6 +411,7 @@ XML;
             'printerName' => $printerName,
             'labelXml' => $labelXml,
             'printParamsXml' => $printParams,
+            'labelSetXml' => '',
         ]);
 
         if ($response === 'true') {
@@ -346,23 +431,45 @@ XML;
     }
 
     /**
+     * Findet den aktiven DYMO Port (41951-41955).
+     */
+    private function findActivePort(): int
+    {
+        // Cached Port pruefen
+        if (self::$activePort !== null) {
+            $url = "https://localhost:" . self::$activePort . "/DYMO/DLS/Printing/StatusConnected";
+            $result = $this->curlGet($url, 3);
+            if ($result === 'true') {
+                return self::$activePort;
+            }
+            self::$activePort = null;
+        }
+
+        // Port-Scan
+        foreach (self::DYMO_PORTS as $port) {
+            $url = "https://localhost:{$port}/DYMO/DLS/Printing/StatusConnected";
+            $result = $this->curlGet($url, 3);
+            if ($result === 'true') {
+                self::$activePort = $port;
+                Log::info("DYMO Service gefunden auf Port {$port}");
+                return $port;
+            }
+        }
+
+        throw new \Exception('DYMO Service nicht erreichbar (Ports 41951-41955)');
+    }
+
+    /**
      * HTTP GET an DYMO WebApi.
      */
     private function dymoGet(string $path): string
     {
-        $ch = curl_init(self::DYMO_API . $path);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
-            CURLOPT_TIMEOUT => 10,
-        ]);
-        $result = curl_exec($ch);
-        $error = curl_error($ch);
-        curl_close($ch);
+        $port = $this->findActivePort();
+        $url = "https://localhost:{$port}/DYMO/DLS/Printing{$path}";
+        $result = $this->curlGet($url, 10);
 
         if ($result === false) {
-            throw new \Exception("DYMO API nicht erreichbar: $error");
+            throw new \Exception("DYMO API nicht erreichbar");
         }
 
         return $result;
@@ -373,7 +480,10 @@ XML;
      */
     private function dymoPost(string $path, array $data): string
     {
-        $ch = curl_init(self::DYMO_API . $path);
+        $port = $this->findActivePort();
+        $url = "https://localhost:{$port}/DYMO/DLS/Printing{$path}";
+
+        $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_SSL_VERIFYPEER => false,
@@ -391,6 +501,23 @@ XML;
             throw new \Exception("DYMO API nicht erreichbar: $error");
         }
 
+        return $result;
+    }
+
+    /**
+     * Einfacher cURL GET.
+     */
+    private function curlGet(string $url, int $timeout = 10): string|false
+    {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_TIMEOUT => $timeout,
+        ]);
+        $result = curl_exec($ch);
+        curl_close($ch);
         return $result;
     }
 

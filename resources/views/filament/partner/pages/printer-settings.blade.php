@@ -181,7 +181,7 @@
                         printParamsXml: printParams,
                     });
 
-                    const result = await this.dymoFetch('/DYMO/DLS/Printing/PrintLabel', {
+                    const result = await this.dymoFetch('/DYMO/DLS/Printing/PrintLabel2', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                         body: body.toString(),
@@ -213,97 +213,53 @@
                 const now = new Date();
                 const date = now.toLocaleDateString('de-DE');
                 const time = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                const txt = 'ROSI Testdruck  ' + date + ' ' + time;
 
-                return `<?xml version="1.0" encoding="utf-8"?>
-<DesktopLabel Version="1">
-  <DYMOLabel Version="3">
-    <Description>ROSI Testdruck</Description>
-    <Orientation>Landscape</Orientation>
-    <LabelName>Address</LabelName>
-    <InitialLength>0</InitialLength>
-    <BorderStyle>SolidLine</BorderStyle>
-    <DYMORect>
-      <DYMOPoint><X>0</X><Y>0</Y></DYMOPoint>
-      <Size><Width>3.5</Width><Height>1.1</Height></Size>
-    </DYMORect>
-    <BorderColor><SolidColorBrush><Color A="0" R="0" G="0" B="0" /></SolidColorBrush></BorderColor>
-    <BorderThickness>1</BorderThickness>
-    <Show_Border>False</Show_Border>
-    <DynamicLayoutManager>
-      <RotationBehavior>ClearObjects</RotationBehavior>
-      <LabelObjects>
-        <TextObject>
-          <Name>Title</Name>
-          <Brushes>
-            <BackgroundBrush><SolidColorBrush><Color A="0" R="1" G="1" B="1" /></SolidColorBrush></BackgroundBrush>
-            <BorderBrush><SolidColorBrush><Color A="0" R="0" G="0" B="0" /></SolidColorBrush></BorderBrush>
-            <StrokeBrush><SolidColorBrush><Color A="0" R="0" G="0" B="0" /></SolidColorBrush></StrokeBrush>
-            <FillBrush><SolidColorBrush><Color A="0" R="0" G="0" B="0" /></SolidColorBrush></FillBrush>
-          </Brushes>
-          <Rotation>Rotation0</Rotation>
-          <OutlineThickness>1</OutlineThickness>
-          <IsOutlined>False</IsOutlined>
-          <BorderStyle>SolidLine</BorderStyle>
-          <Margin><DYMOThickness Left="0" Top="0" Right="0" Bottom="0" /></Margin>
-          <HorizontalAlignment>Center</HorizontalAlignment>
-          <VerticalAlignment>Middle</VerticalAlignment>
-          <FitMode>ShrinkToFit</FitMode>
-          <IsVertical>False</IsVertical>
-          <FormattedText>
-            <FitMode>ShrinkToFit</FitMode>
-            <HorizontalAlignment>Center</HorizontalAlignment>
-            <VerticalAlignment>Middle</VerticalAlignment>
-            <IsVertical>False</IsVertical>
-            <LineTextSpan>
-              <TextSpan>
-                <Text>ROSI Testdruck</Text>
-                <FontInfo><FontName>Arial</FontName><FontSize>14</FontSize><IsBold>True</IsBold><IsItalic>False</IsItalic><IsUnderline>False</IsUnderline><FontBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0" /></SolidColorBrush></FontBrush></FontInfo>
-              </TextSpan>
-            </LineTextSpan>
-          </FormattedText>
-          <ObjectLayout>
-            <DYMOPoint><X>0.35</X><Y>0.05</Y></DYMOPoint>
-            <Size><Width>3.0</Width><Height>0.4</Height></Size>
-          </ObjectLayout>
-        </TextObject>
-        <TextObject>
-          <Name>DateTime</Name>
-          <Brushes>
-            <BackgroundBrush><SolidColorBrush><Color A="0" R="1" G="1" B="1" /></SolidColorBrush></BackgroundBrush>
-            <BorderBrush><SolidColorBrush><Color A="0" R="0" G="0" B="0" /></SolidColorBrush></BorderBrush>
-            <StrokeBrush><SolidColorBrush><Color A="0" R="0" G="0" B="0" /></SolidColorBrush></StrokeBrush>
-            <FillBrush><SolidColorBrush><Color A="0" R="0" G="0" B="0" /></SolidColorBrush></FillBrush>
-          </Brushes>
-          <Rotation>Rotation0</Rotation>
-          <OutlineThickness>1</OutlineThickness>
-          <IsOutlined>False</IsOutlined>
-          <BorderStyle>SolidLine</BorderStyle>
-          <Margin><DYMOThickness Left="0" Top="0" Right="0" Bottom="0" /></Margin>
-          <HorizontalAlignment>Center</HorizontalAlignment>
-          <VerticalAlignment>Middle</VerticalAlignment>
-          <FitMode>ShrinkToFit</FitMode>
-          <IsVertical>False</IsVertical>
-          <FormattedText>
-            <FitMode>ShrinkToFit</FitMode>
-            <HorizontalAlignment>Center</HorizontalAlignment>
-            <VerticalAlignment>Middle</VerticalAlignment>
-            <IsVertical>False</IsVertical>
-            <LineTextSpan>
-              <TextSpan>
-                <Text>${date} ${time}</Text>
-                <FontInfo><FontName>Arial</FontName><FontSize>11</FontSize><IsBold>False</IsBold><IsItalic>False</IsItalic><IsUnderline>False</IsUnderline><FontBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0" /></SolidColorBrush></FontBrush></FontInfo>
-              </TextSpan>
-            </LineTextSpan>
-          </FormattedText>
-          <ObjectLayout>
-            <DYMOPoint><X>0.35</X><Y>0.50</Y></DYMOPoint>
-            <Size><Width>3.0</Width><Height>0.35</Height></Size>
-          </ObjectLayout>
-        </TextObject>
-      </LabelObjects>
-    </DynamicLayoutManager>
-  </DYMOLabel>
-</DesktopLabel>`;
+                // Minimal-XML in einer Zeile — DYMO Connect reagiert empfindlich auf Whitespace
+                return '<?xml version="1.0" encoding="utf-8"?>'
+                    + '<DesktopLabel Version="1"><DYMOLabel Version="3">'
+                    + '<Description>ROSI Testdruck</Description>'
+                    + '<Orientation>Landscape</Orientation>'
+                    + '<LabelName>Shipping</LabelName>'
+                    + '<InitialLength>0</InitialLength>'
+                    + '<BorderStyle>SolidLine</BorderStyle>'
+                    + '<DYMORect><DYMOPoint><X>0</X><Y>0</Y></DYMOPoint><Size><Width>3.98</Width><Height>2.13</Height></Size></DYMORect>'
+                    + '<BorderColor><SolidColorBrush><Color A="0" R="0" G="0" B="0" /></SolidColorBrush></BorderColor>'
+                    + '<BorderThickness>1</BorderThickness>'
+                    + '<Show_Border>False</Show_Border>'
+                    + '<DynamicLayoutManager><RotationBehavior>ClearObjects</RotationBehavior><LabelObjects>'
+                    + '<TextObject>'
+                    + '<Name>Text</Name>'
+                    + '<Brushes>'
+                    + '<BackgroundBrush><SolidColorBrush><Color A="0" R="1" G="1" B="1" /></SolidColorBrush></BackgroundBrush>'
+                    + '<BorderBrush><SolidColorBrush><Color A="0" R="0" G="0" B="0" /></SolidColorBrush></BorderBrush>'
+                    + '<StrokeBrush><SolidColorBrush><Color A="0" R="0" G="0" B="0" /></SolidColorBrush></StrokeBrush>'
+                    + '<FillBrush><SolidColorBrush><Color A="0" R="0" G="0" B="0" /></SolidColorBrush></FillBrush>'
+                    + '</Brushes>'
+                    + '<Rotation>Rotation0</Rotation>'
+                    + '<OutlineThickness>1</OutlineThickness>'
+                    + '<IsOutlined>False</IsOutlined>'
+                    + '<BorderStyle>SolidLine</BorderStyle>'
+                    + '<Margin><DYMOThickness Left="0" Top="0" Right="0" Bottom="0" /></Margin>'
+                    + '<HorizontalAlignment>Left</HorizontalAlignment>'
+                    + '<VerticalAlignment>Middle</VerticalAlignment>'
+                    + '<FitMode>ShrinkToFit</FitMode>'
+                    + '<IsVertical>False</IsVertical>'
+                    + '<FormattedText>'
+                    + '<FitMode>ShrinkToFit</FitMode>'
+                    + '<HorizontalAlignment>Left</HorizontalAlignment>'
+                    + '<VerticalAlignment>Middle</VerticalAlignment>'
+                    + '<IsVertical>False</IsVertical>'
+                    + '<LineTextSpan><TextSpan>'
+                    + '<Text>' + txt + '</Text>'
+                    + '<FontInfo><FontName>Arial</FontName><FontSize>12</FontSize><IsBold>True</IsBold><IsItalic>False</IsItalic><IsUnderline>False</IsUnderline>'
+                    + '<FontBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0" /></SolidColorBrush></FontBrush></FontInfo>'
+                    + '</TextSpan></LineTextSpan>'
+                    + '</FormattedText>'
+                    + '<ObjectLayout><DYMOPoint><X>0.35</X><Y>0.20</Y></DYMOPoint><Size><Width>3.0</Width><Height>0.7</Height></Size></ObjectLayout>'
+                    + '</TextObject>'
+                    + '</LabelObjects></DynamicLayoutManager>'
+                    + '</DYMOLabel></DesktopLabel>';
             },
 
             async dymoFetch(path, options = {}) {

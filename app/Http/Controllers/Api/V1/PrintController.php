@@ -323,7 +323,7 @@ XML;
     {
         $printParams = "<LabelWriterPrintParams><Copies>{$copies}</Copies></LabelWriterPrintParams>";
 
-        $response = $this->dymoPost('/PrintLabel', [
+        $response = $this->dymoPost('/PrintLabel2', [
             'printerName' => $printerName,
             'labelXml' => $labelXml,
             'printParamsXml' => $printParams,

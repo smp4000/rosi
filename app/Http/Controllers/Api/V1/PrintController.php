@@ -102,6 +102,37 @@ class PrintController extends ApiController
     }
 
     /**
+     * POST /api/v1/print/raw
+     * Druckt rohes Label-XML direkt ueber DYMO.
+     */
+    public function printRaw(Request $request)
+    {
+        $request->validate([
+            'labelXml' => 'required|string',
+            'printer' => 'nullable|string',
+            'copies' => 'nullable|integer|min:1|max:10',
+        ]);
+
+        $printer = $request->input('printer') ?? self::DEFAULT_PRINTER;
+        $copies = $request->input('copies', 1);
+        $labelXml = $request->input('labelXml');
+
+        try {
+            $result = $this->printViaDymoApi($labelXml, $printer, $copies);
+
+            if ($result['success']) {
+                Log::info('Raw-Label gedruckt', ['printer' => $printer]);
+                return $this->success($result, 'Etikett gedruckt');
+            }
+
+            return $this->error($result['message'], 500);
+        } catch (\Exception $e) {
+            Log::error('Raw-Label-Druck fehlgeschlagen', ['error' => $e->getMessage()]);
+            return $this->error('Druckfehler: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
      * GET /api/v1/print/printers
      */
     public function printers()

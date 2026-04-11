@@ -110,6 +110,20 @@ class LabelTemplateResource extends Resource
                 ->required()
                 ->maxLength(255),
 
+            Select::make('model_type')
+                ->label('Modell')
+                ->options(LabelTemplate::getModelOptions())
+                ->default('custom')
+                ->reactive()
+                ->afterStateUpdated(function ($state, callable $set) {
+                    if ($state && $state !== 'custom') {
+                        $placeholders = LabelTemplate::getPlaceholdersForModel($state);
+                        $set('placeholders', $placeholders);
+                        $set('slug', $state);
+                    }
+                })
+                ->helperText('Waehle ein Modell um die Platzhalter automatisch zu setzen'),
+
             TextInput::make('slug')
                 ->label('Kennung')
                 ->required()
@@ -140,11 +154,18 @@ class LabelTemplateResource extends Resource
 
             Placeholder::make('placeholders_info')
                 ->label('Verfuegbare Platzhalter')
-                ->content(function ($record) {
-                    if (!$record || empty($record->placeholders)) return 'Keine Platzhalter definiert.';
-                    $items = is_string($record->placeholders) ? json_decode($record->placeholders, true) : $record->placeholders;
-                    if (!is_array($items)) return 'Keine Platzhalter definiert.';
-                    return collect($items)->map(fn ($p) => '{{' . $p['key'] . '}} — ' . $p['label'] . ' (z.B. ' . ($p['example'] ?? '') . ')')->join("\n");
+                ->content(function ($record, callable $get) {
+                    // Bei neuem Template: aus Model-Auswahl
+                    $modelType = $get('model_type');
+                    if ($modelType && $modelType !== 'custom') {
+                        $items = LabelTemplate::getPlaceholdersForModel($modelType);
+                    } elseif ($record && !empty($record->placeholders)) {
+                        $items = is_string($record->placeholders) ? json_decode($record->placeholders, true) : $record->placeholders;
+                    } else {
+                        return 'Waehle ein Modell oben, oder definiere eigene Platzhalter im XML.';
+                    }
+                    if (!is_array($items) || empty($items)) return 'Keine Platzhalter definiert.';
+                    return collect($items)->map(fn ($p) => '{{' . $p['key'] . '}}  —  ' . $p['label'] . '  (z.B. ' . ($p['example'] ?? '') . ')')->join("\n");
                 })
                 ->columnSpanFull(),
 
@@ -152,7 +173,7 @@ class LabelTemplateResource extends Resource
                 ->label('XML-Vorlage')
                 ->required()
                 ->rows(15)
-                ->helperText('DYMO Label-XML mit Platzhaltern wie {{datum}}, {{kennzeichen}} etc.')
+                ->helperText('DYMO Label-XML. Verwende die Platzhalter oben, z.B. {{kennzeichen}} oder {{datum}}.')
                 ->columnSpanFull(),
 
             Toggle::make('is_active')

@@ -86,6 +86,62 @@ class LabelTemplate extends Model
     }
 
     /**
+     * Verfuegbare Modelle mit ihren Platzhaltern.
+     */
+    public const MODELS = [
+        'tankbetrug' => [
+            'label' => 'Tankbetrug',
+            'placeholders' => [
+                ['key' => 'id', 'label' => 'Tankbetrug-ID', 'example' => '019d-7a3b-...'],
+                ['key' => 'datum', 'label' => 'Datum + Uhrzeit', 'example' => '11.04.2026 16:25'],
+                ['key' => 'kennzeichen', 'label' => 'KFZ-Kennzeichen', 'example' => 'FD-AB 123'],
+                ['key' => 'produkt', 'label' => 'Kraftstoff-Sorte', 'example' => 'Super E5'],
+                ['key' => 'zapfpunkt', 'label' => 'Zapfpunkt-Nummer', 'example' => '7'],
+                ['key' => 'menge', 'label' => 'Liter-Menge', 'example' => '45,20'],
+                ['key' => 'betrag', 'label' => 'EUR-Betrag', 'example' => '82,36'],
+                ['key' => 'station', 'label' => 'Tankstellen-Name', 'example' => 'Aral Tankstelle Welle Fulda'],
+                ['key' => 'mitarbeiter', 'label' => 'Mitarbeiter-Name', 'example' => 'Christian Welle'],
+            ],
+        ],
+        'testdruck' => [
+            'label' => 'Testdruck',
+            'placeholders' => [
+                ['key' => 'datum', 'label' => 'Datum + Uhrzeit', 'example' => '11.04.2026 16:25'],
+            ],
+        ],
+        'adresse' => [
+            'label' => 'Adress-Etikett',
+            'placeholders' => [
+                ['key' => 'name', 'label' => 'Empfaenger-Name', 'example' => 'Max Mustermann'],
+                ['key' => 'strasse', 'label' => 'Strasse + Hausnr.', 'example' => 'Musterstr. 1'],
+                ['key' => 'ort', 'label' => 'PLZ + Ort', 'example' => '36100 Petersberg'],
+                ['key' => 'absender', 'label' => 'Absender', 'example' => 'Aral Tankstelle Welle'],
+            ],
+        ],
+    ];
+
+    /**
+     * Gibt die Platzhalter fuer ein Modell zurueck.
+     */
+    public static function getPlaceholdersForModel(string $model): array
+    {
+        return self::MODELS[$model]['placeholders'] ?? [];
+    }
+
+    /**
+     * Gibt die Modell-Optionen fuer ein Select-Feld zurueck.
+     */
+    public static function getModelOptions(): array
+    {
+        $options = [];
+        foreach (self::MODELS as $key => $config) {
+            $options[$key] = $config['label'];
+        }
+        $options['custom'] = 'Benutzerdefiniert';
+        return $options;
+    }
+
+    /**
      * Findet das passende Template: Tenant-spezifisch hat Vorrang vor global.
      */
     public static function findForTenant(string $slug, ?string $tenantId): ?self

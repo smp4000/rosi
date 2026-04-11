@@ -177,10 +177,9 @@
                     const printParams = '<LabelWriterPrintParams><Copies>1</Copies></LabelWriterPrintParams>';
 
                     // Roh senden wie curl — DYMO kann kein URL-Encoding/Multipart
-                    const body = 'printerName=' + encodeURIComponent(printerName)
+                    const body = 'printerName=' + printerName
                         + '&labelXml=' + labelXml
-                        + '&printParamsXml=' + printParams
-                        + '&labelSetXml=';
+                        + '&printParamsXml=' + printParams;
 
                     const result = await this.dymoFetch('/DYMO/DLS/Printing/PrintLabel2', {
                         method: 'POST',

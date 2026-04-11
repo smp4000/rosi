@@ -84,7 +84,13 @@ class LabelTemplateResource extends Resource
                 EditAction::make()
                     ->form(self::getFormSchema())
                     ->mutateFormDataUsing(function (array $data): array {
-                        // Slug nicht aenderbar bei globalen Templates
+                        // model_type ist kein DB-Feld — entfernen
+                        $modelType = $data['model_type'] ?? null;
+                        unset($data['model_type']);
+                        // Platzhalter aus Modell setzen
+                        if ($modelType && $modelType !== 'custom') {
+                            $data['placeholders'] = LabelTemplate::getPlaceholdersForModel($modelType);
+                        }
                         return $data;
                     }),
 
@@ -97,6 +103,13 @@ class LabelTemplateResource extends Resource
                     ->form(self::getFormSchema())
                     ->mutateFormDataUsing(function (array $data): array {
                         $data['tenant_id'] = session('tenant_id');
+                        // model_type ist kein DB-Feld — entfernen
+                        $modelType = $data['model_type'] ?? null;
+                        unset($data['model_type']);
+                        // Platzhalter aus Modell setzen
+                        if ($modelType && $modelType !== 'custom') {
+                            $data['placeholders'] = LabelTemplate::getPlaceholdersForModel($modelType);
+                        }
                         return $data;
                     }),
             ]);

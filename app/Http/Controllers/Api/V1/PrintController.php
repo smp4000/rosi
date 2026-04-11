@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Models\Device;
 use App\Models\LabelTemplate;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -104,6 +106,7 @@ class PrintController extends ApiController
             'data' => 'required|array',
             'printer' => 'nullable|string',
             'copies' => 'nullable|integer|min:1|max:10',
+            'device_token' => 'nullable|string',
         ]);
 
         $slug = $request->input('template');
@@ -111,8 +114,14 @@ class PrintController extends ApiController
         $printer = $request->input('printer') ?? self::DEFAULT_PRINTER;
         $copies = $request->input('copies', 1);
 
+        // Tenant-ID ermitteln: aus Session oder device_token
+        $tenantId = session('tenant_id');
+        if (!$tenantId && $request->filled('device_token')) {
+            $tenantId = $this->resolveTenantFromToken($request->input('device_token'));
+        }
+
         try {
-            $template = LabelTemplate::findForTenant($slug, session('tenant_id'));
+            $template = LabelTemplate::findForTenant($slug, $tenantId);
 
             if (!$template) {
                 return $this->error("Vorlage '$slug' nicht gefunden", 404);
@@ -592,6 +601,20 @@ XML;
     /**
      * Einfacher cURL GET.
      */
+    /**
+     * Ermittelt die Station-ID (tenant_id) anhand eines device_token.
+     */
+    private function resolveTenantFromToken(string $token): ?string
+    {
+        $devices = Device::whereNotNull('device_token_hash')->get();
+        foreach ($devices as $device) {
+            if (Hash::check($token, $device->device_token_hash)) {
+                return $device->station_id;
+            }
+        }
+        return null;
+    }
+
     private function curlGet(string $url, int $timeout = 10): string|false
     {
         $ch = curl_init($url);

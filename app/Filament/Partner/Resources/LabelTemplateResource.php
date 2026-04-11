@@ -4,6 +4,7 @@ namespace App\Filament\Partner\Resources;
 
 use App\Filament\Partner\Resources\LabelTemplateResource\Pages;
 use App\Models\LabelTemplate;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -61,10 +62,11 @@ class LabelTemplateResource extends Resource
                     ->label('Platzhalter')
                     ->formatStateUsing(function ($state) {
                         if (empty($state)) return '–';
-                        return collect($state)->pluck('key')->map(fn ($k) => '{{' . $k . '}}')->join(', ');
+                        $items = is_string($state) ? json_decode($state, true) : $state;
+                        if (!is_array($items)) return '–';
+                        return collect($items)->map(fn ($p) => '{{' . ($p['key'] ?? '?') . '}}')->join(', ');
                     })
-                    ->wrap()
-                    ->limit(60),
+                    ->wrap(),
 
                 IconColumn::make('is_active')
                     ->label('Aktiv')
@@ -135,6 +137,16 @@ class LabelTemplateResource extends Resource
                 ->numeric()
                 ->default(2.13)
                 ->step(0.01),
+
+            Placeholder::make('placeholders_info')
+                ->label('Verfuegbare Platzhalter')
+                ->content(function ($record) {
+                    if (!$record || empty($record->placeholders)) return 'Keine Platzhalter definiert.';
+                    $items = is_string($record->placeholders) ? json_decode($record->placeholders, true) : $record->placeholders;
+                    if (!is_array($items)) return 'Keine Platzhalter definiert.';
+                    return collect($items)->map(fn ($p) => '{{' . $p['key'] . '}} — ' . $p['label'] . ' (z.B. ' . ($p['example'] ?? '') . ')')->join("\n");
+                })
+                ->columnSpanFull(),
 
             Textarea::make('xml_template')
                 ->label('XML-Vorlage')

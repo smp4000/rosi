@@ -28,6 +28,7 @@ class DatabaseSeeder extends Seeder
         $this->call(DepreciationReasonSeeder::class);
         $this->call(AppVersionSeeder::class);
         $this->call(ArticleGroupSeeder::class);
+        $this->call(LabelTemplateSeeder::class);
 
         // Globale Team-ID fuer Super-Admin Rollen-Zuweisung
         app(PermissionRegistrar::class)->setPermissionsTeamId(RolesAndPermissionsSeeder::GLOBAL_TEAM_ID);

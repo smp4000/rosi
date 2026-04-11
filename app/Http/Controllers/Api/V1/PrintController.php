@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Models\LabelTemplate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -57,7 +58,7 @@ class PrintController extends ApiController
 
     /**
      * POST /api/v1/print/test
-     * Testdruck — kann ohne Auth genutzt werden.
+     * Testdruck — nutzt das "testdruck" Template aus der DB.
      */
     public function testPrint(Request $request)
     {
@@ -68,8 +69,16 @@ class PrintController extends ApiController
         $printer = $request->input('printer') ?? self::DEFAULT_PRINTER;
 
         try {
-            $now = now()->format('d.m.Y H:i');
-            $labelXml = $this->buildTestLabelXml($now);
+            $template = LabelTemplate::findForTenant('testdruck', session('tenant_id'));
+
+            if (!$template) {
+                return $this->error('Testdruck-Vorlage nicht gefunden', 404);
+            }
+
+            $labelXml = $template->render([
+                'datum' => now()->format('d.m.Y H:i'),
+            ]);
+
             $result = $this->printViaDymoApi($labelXml, $printer, 1);
 
             if ($result['success']) {
@@ -80,6 +89,52 @@ class PrintController extends ApiController
             return $this->error($result['message'], 500);
         } catch (\Exception $e) {
             Log::error('Testdruck fehlgeschlagen', ['error' => $e->getMessage()]);
+            return $this->error('Druckfehler: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * POST /api/v1/print/template
+     * Druckt ein Label anhand eines Templates mit Platzhalter-Daten.
+     */
+    public function printTemplate(Request $request)
+    {
+        $request->validate([
+            'template' => 'required|string|max:50',
+            'data' => 'required|array',
+            'printer' => 'nullable|string',
+            'copies' => 'nullable|integer|min:1|max:10',
+        ]);
+
+        $slug = $request->input('template');
+        $data = $request->input('data');
+        $printer = $request->input('printer') ?? self::DEFAULT_PRINTER;
+        $copies = $request->input('copies', 1);
+
+        try {
+            $template = LabelTemplate::findForTenant($slug, session('tenant_id'));
+
+            if (!$template) {
+                return $this->error("Vorlage '$slug' nicht gefunden", 404);
+            }
+
+            $labelXml = $template->render($data);
+            $result = $this->printViaDymoApi($labelXml, $printer, $copies);
+
+            if ($result['success']) {
+                Log::info('Template-Druck erfolgreich', [
+                    'template' => $slug,
+                    'printer' => $printer,
+                ]);
+                return $this->success($result, 'Etikett gedruckt');
+            }
+
+            return $this->error($result['message'], 500);
+        } catch (\Exception $e) {
+            Log::error('Template-Druck fehlgeschlagen', [
+                'template' => $slug,
+                'error' => $e->getMessage(),
+            ]);
             return $this->error('Druckfehler: ' . $e->getMessage(), 500);
         }
     }

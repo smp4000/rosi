@@ -411,7 +411,6 @@ XML;
             'printerName' => $printerName,
             'labelXml' => $labelXml,
             'printParamsXml' => $printParams,
-            'labelSetXml' => '',
         ]);
 
         if ($response === 'true') {

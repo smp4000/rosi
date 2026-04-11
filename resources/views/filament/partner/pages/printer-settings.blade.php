@@ -266,7 +266,7 @@
                 // Wenn ein Port bereits bekannt ist, direkt verwenden
                 if (this.activePort) {
                     try {
-                        const url = `https://127.0.0.1:${this.activePort}${path}`;
+                        const url = 'https://127.0.0.1:' + this.activePort + path;
                         const response = await fetch(url, { ...options, mode: 'cors' });
                         return await response.text();
                     } catch (e) {
@@ -279,7 +279,7 @@
                 const ports = [41951, 41952, 41953, 41954, 41955];
                 for (const port of ports) {
                     try {
-                        const url = `https://127.0.0.1:${port}${path}`;
+                        const url = 'https://127.0.0.1:' + port + path;
                         const response = await fetch(url, { ...options, mode: 'cors' });
                         this.activePort = port;
                         console.log('DYMO Service gefunden auf Port', port);

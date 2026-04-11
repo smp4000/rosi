@@ -176,15 +176,16 @@
                     const labelXml = this.buildTestLabelXml();
                     const printParams = '<LabelWriterPrintParams><Copies>1</Copies></LabelWriterPrintParams>';
 
-                    const formData = new FormData();
-                    formData.append('printerName', printerName);
-                    formData.append('labelXml', labelXml);
-                    formData.append('printParamsXml', printParams);
-                    formData.append('labelSetXml', '');
+                    // Roh senden wie curl — DYMO kann kein URL-Encoding/Multipart
+                    const body = 'printerName=' + encodeURIComponent(printerName)
+                        + '&labelXml=' + labelXml
+                        + '&printParamsXml=' + printParams
+                        + '&labelSetXml=';
 
                     const result = await this.dymoFetch('/DYMO/DLS/Printing/PrintLabel2', {
                         method: 'POST',
-                        body: formData,
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: body,
                     });
 
                     if (result === 'true') {

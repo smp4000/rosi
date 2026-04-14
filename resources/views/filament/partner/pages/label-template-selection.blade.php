@@ -20,7 +20,7 @@
                         $demoData['datum'] = now()->format('d.m.Y H:i');
                         $demoXml = str_replace(
                             array_map(fn($k) => '{{'.$k.'}}', array_keys($demoData)),
-                            array_map(fn($v) => htmlspecialchars($v, ENT_XML1), array_values($demoData)),
+                            array_values($demoData),
                             $template->xml_template
                         );
                     @endphp

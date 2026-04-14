@@ -164,6 +164,34 @@ class AppVersionSeeder extends Seeder
                     'Dezimaltrennzeichen-Fix fuer deutsche Geraete',
                 ],
             ],
+            // --- v1.9.0 ---
+            [
+                'platform' => 'web',
+                'version' => '1.9.0',
+                'release_date' => '2026-04-14',
+                'changes' => [
+                    'DYMO Label-Templates in Datenbank mit Platzhaltern',
+                    'Druckvorlagen-Auswahl: Stationen koennen zwischen Templates waehlen',
+                    'Demo-Druck direkt im Browser (JavaScript → DYMO)',
+                    'Admin-Panel: Template-Verwaltung mit Kategorie und Modell-Auswahl',
+                    'DYMO Drucker-Seite: Port-Scanning, Testdruck, Verbindungspruefung',
+                    'PrintLabel2 API-Fix fuer DYMO Connect',
+                    'Template-Zuordnung via device_token (Tenant-Erkennung)',
+                ],
+            ],
+            [
+                'platform' => 'android',
+                'version' => '1.9.0',
+                'release_date' => '2026-04-14',
+                'changes' => [
+                    'Tankbetrug-Druck ueber Template-API (Server ersetzt Platzhalter)',
+                    'DYMO-Druck ueber XAMPP-Server statt Direktverbindung',
+                    'device_token wird bei Druck mitgesendet (Template-Zuordnung)',
+                    'Datum/Uhrzeit: Keine Zukunft erlaubt bei Tankbetrug-Meldung',
+                    'Tastatur-Fix: Auto-Scroll zum fokussierten Feld (imePadding)',
+                    'Tankbetrug-ID + Mitarbeiter als Platzhalter beim Druck',
+                ],
+            ],
             // --- v1.7.0 ---
             [
                 'platform' => 'web',

@@ -37,7 +37,7 @@
                                 <p style="font-size:12px;color:#9ca3af;margin:0 0 4px">Platzhalter:</p>
                                 <div style="display:flex;flex-wrap:wrap;gap:4px">
                                     @foreach($ph as $p)
-                                        <span style="background:#e0e7ff;color:#3730a3;font-size:11px;padding:2px 8px;border-radius:12px">@{{{{ $p['key'] }}}}</span>
+                                        <span style="background:#e0e7ff;color:#3730a3;font-size:11px;padding:2px 8px;border-radius:12px">{{ '{{'.$p['key'].'}}' }}</span>
                                     @endforeach
                                 </div>
                             </div>
@@ -45,6 +45,13 @@
 
                         {{-- Buttons --}}
                         <div style="display:flex;gap:8px">
+                            <button
+                                wire:click="demoPrint('{{ $template->slug }}')"
+                                wire:loading.attr="disabled"
+                                style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:8px;padding:8px 16px;font-size:14px;font-weight:500;cursor:pointer">
+                                <span wire:loading.remove wire:target="demoPrint('{{ $template->slug }}')">Demo drucken</span>
+                                <span wire:loading wire:target="demoPrint('{{ $template->slug }}')">Druckt...</span>
+                            </button>
                             @if(!$isSelected)
                                 <button
                                     wire:click="selectTemplate('{{ $category }}', '{{ $template->slug }}')"
@@ -53,7 +60,7 @@
                                 </button>
                             @else
                                 <button disabled
-                                    style="flex:1;background:#d1d5db;color:#6b7280;border:none;border-radius:8px;padding:8px 16px;font-size:14px;font-weight:500;cursor:not-allowed">
+                                    style="flex:1;background:#22c55e;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:14px;font-weight:500;cursor:not-allowed">
                                     Ausgewaehlt
                                 </button>
                             @endif

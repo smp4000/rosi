@@ -47,10 +47,8 @@
                         <div style="display:flex;gap:8px">
                             <button
                                 wire:click="demoPrint('{{ $template->slug }}')"
-                                wire:loading.attr="disabled"
                                 style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:8px;padding:8px 16px;font-size:14px;font-weight:500;cursor:pointer">
-                                <span wire:loading.remove wire:target="demoPrint('{{ $template->slug }}')">Demo drucken</span>
-                                <span wire:loading wire:target="demoPrint('{{ $template->slug }}')">Druckt...</span>
+                                Demo drucken
                             </button>
                             @if(!$isSelected)
                                 <button

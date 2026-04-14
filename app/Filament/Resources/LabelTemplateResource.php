@@ -62,13 +62,15 @@ class LabelTemplateResource extends Resource
 
                 TextColumn::make('placeholders')
                     ->label('Platzhalter')
-                    ->formatStateUsing(function ($state) {
-                        if (empty($state)) return '–';
-                        $items = is_string($state) ? json_decode($state, true) : $state;
+                    ->formatStateUsing(function ($state, $record) {
+                        $items = $record->placeholders;
+                        if (empty($items)) return '–';
+                        if (is_string($items)) $items = json_decode($items, true);
                         if (!is_array($items)) return '–';
-                        return collect($items)->map(fn ($p) => '{{' . ($p['key'] ?? '?') . '}}')->join(', ');
+                        return collect($items)->pluck('key')->join(', ');
                     })
-                    ->wrap(),
+                    ->wrap()
+                    ->limit(50),
 
                 IconColumn::make('is_active')
                     ->label('Aktiv')

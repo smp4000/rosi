@@ -52,10 +52,14 @@
 
                         <div style="display:flex;gap:8px">
                             <button
-                                onclick="demoPrintDymo(this, {{ json_encode($demoXml) }})"
+                                onclick="demoPrintDymo(this, '{{ $template->slug }}')"
                                 style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:8px;padding:8px 16px;font-size:14px;font-weight:500;cursor:pointer">
                                 Demo drucken
                             </button>
+                            <script>
+                                if (!window._demoTemplates) window._demoTemplates = {};
+                                window._demoTemplates['{{ $template->slug }}'] = @json($demoXml);
+                            </script>
                             @if(!$isSelected)
                                 <button
                                     wire:click="selectTemplate('{{ $category }}', '{{ $template->slug }}')"
@@ -83,7 +87,9 @@
 
     @push('scripts')
     <script>
-    async function demoPrintDymo(btn, labelXml) {
+    async function demoPrintDymo(btn, slug) {
+        var labelXml = window._demoTemplates[slug];
+        if (!labelXml) { alert('Template nicht gefunden'); return; }
         var origText = btn.textContent;
         btn.textContent = 'Druckt...';
         btn.disabled = true;

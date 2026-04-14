@@ -9,44 +9,50 @@
                 @foreach($templates as $template)
                     @php
                         $isSelected = ($selections[$category] ?? null) === $template->slug;
+                        $ph = is_string($template->placeholders) ? json_decode($template->placeholders, true) : $template->placeholders;
+                        // Beispieldaten fuer Demo-Druck generieren
+                        $demoData = [];
+                        if (is_array($ph)) {
+                            foreach ($ph as $p) {
+                                $demoData[$p['key']] = $p['example'] ?? $p['key'];
+                            }
+                        }
+                        $demoData['datum'] = now()->format('d.m.Y H:i');
+                        $demoXml = str_replace(
+                            array_map(fn($k) => '{{'.$k.'}}', array_keys($demoData)),
+                            array_map(fn($v) => htmlspecialchars($v, ENT_XML1), array_values($demoData)),
+                            $template->xml_template
+                        );
                     @endphp
                     <div style="border-radius:10px;padding:20px;border:2px solid {{ $isSelected ? '#22c55e' : '#e5e7eb' }};background:{{ $isSelected ? '#f0fdf4' : '#fafafa' }};position:relative">
-                        {{-- Ausgewaehlt-Badge --}}
                         @if($isSelected)
                             <div style="position:absolute;top:10px;right:10px;background:#22c55e;color:#fff;border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600">
                                 Aktiv
                             </div>
                         @endif
 
-                        {{-- Name --}}
                         <h4 style="font-size:16px;font-weight:600;margin:0 0 8px">{{ $template->name }}</h4>
 
-                        {{-- Kennung --}}
                         <p style="font-size:12px;color:#6b7280;margin:0 0 12px">
                             Kennung: <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px">{{ $template->slug }}</code>
                             &middot; {{ $template->orientation }}
                             &middot; {{ $template->width }}" x {{ $template->height }}"
                         </p>
 
-                        {{-- Platzhalter --}}
-                        @if($template->placeholders)
-                            @php
-                                $ph = is_string($template->placeholders) ? json_decode($template->placeholders, true) : $template->placeholders;
-                            @endphp
+                        @if(is_array($ph) && count($ph) > 0)
                             <div style="margin-bottom:16px">
                                 <p style="font-size:12px;color:#9ca3af;margin:0 0 4px">Platzhalter:</p>
                                 <div style="display:flex;flex-wrap:wrap;gap:4px">
                                     @foreach($ph as $p)
-                                        <span style="background:#e0e7ff;color:#3730a3;font-size:11px;padding:2px 8px;border-radius:12px">{{ '{{'.$p['key'].'}}' }}</span>
+                                        <span style="background:#e0e7ff;color:#3730a3;font-size:11px;padding:2px 8px;border-radius:12px">{{ $p['key'] }}</span>
                                     @endforeach
                                 </div>
                             </div>
                         @endif
 
-                        {{-- Buttons --}}
                         <div style="display:flex;gap:8px">
                             <button
-                                wire:click="demoPrint('{{ $template->slug }}')"
+                                onclick="demoPrintDymo(this, {{ json_encode($demoXml) }})"
                                 style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:8px;padding:8px 16px;font-size:14px;font-weight:500;cursor:pointer">
                                 Demo drucken
                             </button>
@@ -74,4 +80,57 @@
             <p>Keine Druckvorlagen verfuegbar. Bitte den Administrator kontaktieren.</p>
         </div>
     @endif
+
+    @push('scripts')
+    <script>
+    async function demoPrintDymo(btn, labelXml) {
+        var origText = btn.textContent;
+        btn.textContent = 'Druckt...';
+        btn.disabled = true;
+
+        try {
+            var port = await findDymoPort();
+            var printParams = '<' + 'LabelWriterPrintParams><' + 'Copies>1<' + '/Copies><' + '/LabelWriterPrintParams>';
+            var body = 'printerName=DYMO LabelWriter Wireless'
+                + '&labelXml=' + labelXml
+                + '&printParamsXml=' + printParams;
+
+            var response = await fetch('https://127.0.0.1:' + port + '/DYMO/DLS/Printing/PrintLabel2', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body,
+                mode: 'cors',
+            });
+            var result = await response.text();
+
+            if (result === 'true') {
+                btn.textContent = 'Gedruckt!';
+                btn.style.background = '#dcfce7';
+                btn.style.color = '#16a34a';
+                setTimeout(function() { btn.textContent = origText; btn.style.background = ''; btn.style.color = ''; btn.disabled = false; }, 3000);
+            } else {
+                alert('Druckfehler: ' + result);
+                btn.textContent = origText;
+                btn.disabled = false;
+            }
+        } catch (e) {
+            alert('DYMO Service nicht erreichbar. Ist DYMO Connect auf diesem PC gestartet?');
+            btn.textContent = origText;
+            btn.disabled = false;
+        }
+    }
+
+    async function findDymoPort() {
+        var ports = [41951, 41952, 41953, 41954, 41955];
+        for (var i = 0; i < ports.length; i++) {
+            try {
+                var r = await fetch('https://127.0.0.1:' + ports[i] + '/DYMO/DLS/Printing/StatusConnected', { mode: 'cors' });
+                var t = await r.text();
+                if (t === 'true') return ports[i];
+            } catch (e) { continue; }
+        }
+        throw new Error('DYMO nicht gefunden');
+    }
+    </script>
+    @endpush
 </x-filament-panels::page>

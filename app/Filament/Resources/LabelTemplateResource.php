@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Filament\Partner\Resources;
+namespace App\Filament\Resources;
 
-use App\Filament\Partner\Resources\LabelTemplateResource\Pages;
+use App\Filament\Resources\LabelTemplateResource\Pages;
 use App\Models\LabelTemplate;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -16,33 +16,35 @@ use Filament\Actions\DeleteAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 
+/**
+ * Admin-Resource: Druckvorlagen verwalten.
+ * Nur fuer Super-Admins — Stationen koennen nur auswaehlen, nicht bearbeiten.
+ */
 class LabelTemplateResource extends Resource
 {
     protected static ?string $model = LabelTemplate::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-tag';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Einstellungen';
+    protected static string|\UnitEnum|null $navigationGroup = 'Stammdaten';
 
     protected static ?string $modelLabel = 'Druckvorlage';
 
     protected static ?string $pluralModelLabel = 'Druckvorlagen';
 
-    protected static ?int $navigationSort = 93;
-
-    public static function getEloquentQuery(): Builder
-    {
-        return parent::getEloquentQuery()
-            ->withoutGlobalScopes()
-            ->forTenant(session('tenant_id'));
-    }
+    protected static ?int $navigationSort = 50;
 
     public static function table(Table $table): Table
     {
         return $table
             ->columns([
+                TextColumn::make('category')
+                    ->label('Kategorie')
+                    ->badge()
+                    ->color('primary')
+                    ->sortable(),
+
                 TextColumn::make('name')
                     ->label('Vorlage')
                     ->searchable()
@@ -72,41 +74,29 @@ class LabelTemplateResource extends Resource
                     ->label('Aktiv')
                     ->boolean()
                     ->sortable(),
-
-                IconColumn::make('tenant_id')
-                    ->label('Typ')
-                    ->icon(fn ($state) => $state ? 'heroicon-o-user' : 'heroicon-o-globe-alt')
-                    ->color(fn ($state) => $state ? 'primary' : 'gray')
-                    ->tooltip(fn ($state) => $state ? 'Eigene Vorlage' : 'Standard-Vorlage'),
             ])
-            ->defaultSort('name')
+            ->defaultSort('category')
             ->actions([
                 EditAction::make()
                     ->form(self::getFormSchema())
                     ->mutateFormDataUsing(function (array $data): array {
-                        // model_type ist kein DB-Feld — entfernen
                         $modelType = $data['model_type'] ?? null;
                         unset($data['model_type']);
-                        // Platzhalter aus Modell setzen
                         if ($modelType && $modelType !== 'custom') {
                             $data['placeholders'] = LabelTemplate::getPlaceholdersForModel($modelType);
                         }
                         return $data;
                     }),
 
-                DeleteAction::make()
-                    ->visible(fn (LabelTemplate $record) => $record->tenant_id !== null),
+                DeleteAction::make(),
             ])
             ->headerActions([
                 CreateAction::make()
                     ->label('Neue Vorlage')
                     ->form(self::getFormSchema())
                     ->mutateFormDataUsing(function (array $data): array {
-                        $data['tenant_id'] = session('tenant_id');
-                        // model_type ist kein DB-Feld — entfernen
                         $modelType = $data['model_type'] ?? null;
                         unset($data['model_type']);
-                        // Platzhalter aus Modell setzen
                         if ($modelType && $modelType !== 'custom') {
                             $data['placeholders'] = LabelTemplate::getPlaceholdersForModel($modelType);
                         }
@@ -130,19 +120,26 @@ class LabelTemplateResource extends Resource
                 ->reactive()
                 ->afterStateUpdated(function ($state, callable $set) {
                     if ($state && $state !== 'custom') {
-                        $placeholders = LabelTemplate::getPlaceholdersForModel($state);
-                        $set('placeholders', $placeholders);
-                        $set('slug', $state);
+                        $set('placeholders', LabelTemplate::getPlaceholdersForModel($state));
+                        $set('category', $state);
+                        $set('slug', $state . '-neu');
                     }
                 })
-                ->helperText('Waehle ein Modell um die Platzhalter automatisch zu setzen'),
+                ->helperText('Waehle ein Modell um Platzhalter und Kategorie automatisch zu setzen'),
 
             TextInput::make('slug')
-                ->label('Kennung')
+                ->label('Kennung (eindeutig)')
                 ->required()
                 ->maxLength(50)
                 ->regex('/^[a-z0-9\-]+$/')
-                ->helperText('Kleinbuchstaben, Zahlen und Bindestriche. z.B. "tankbetrug"'),
+                ->helperText('z.B. "tankbetrug-standard", "tankbetrug-qr"'),
+
+            TextInput::make('category')
+                ->label('Kategorie')
+                ->required()
+                ->maxLength(50)
+                ->regex('/^[a-z0-9\-]+$/')
+                ->helperText('Gruppierung: z.B. "tankbetrug", "testdruck", "adresse"'),
 
             Select::make('orientation')
                 ->label('Ausrichtung')
@@ -168,7 +165,6 @@ class LabelTemplateResource extends Resource
             Placeholder::make('placeholders_info')
                 ->label('Verfuegbare Platzhalter')
                 ->content(function ($record, callable $get) {
-                    // Bei neuem Template: aus Model-Auswahl
                     $modelType = $get('model_type');
                     if ($modelType && $modelType !== 'custom') {
                         $items = LabelTemplate::getPlaceholdersForModel($modelType);

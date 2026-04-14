@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Filament\Partner\Resources\LabelTemplateResource\Pages;
+namespace App\Filament\Resources\LabelTemplateResource\Pages;
 
-use App\Filament\Partner\Resources\LabelTemplateResource;
+use App\Filament\Resources\LabelTemplateResource;
 use Filament\Resources\Pages\ListRecords;
 
 class ListLabelTemplates extends ListRecords

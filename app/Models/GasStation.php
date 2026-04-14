@@ -287,4 +287,25 @@ class GasStation extends Model
 
         return round($totalMinutes / 60, 1);
     }
+
+    // --- Label-Template Auswahl ---
+
+    /**
+     * Gibt den gewaehlten Template-Slug fuer eine Kategorie zurueck.
+     */
+    public function getLabelTemplateSlug(string $category): ?string
+    {
+        $settings = $this->settings ?? [];
+        return $settings['label_templates'][$category] ?? null;
+    }
+
+    /**
+     * Speichert die Template-Auswahl fuer eine Kategorie.
+     */
+    public function setLabelTemplateSlug(string $category, string $slug): void
+    {
+        $settings = $this->settings ?? [];
+        $settings['label_templates'][$category] = $slug;
+        $this->update(['settings' => $settings]);
+    }
 }

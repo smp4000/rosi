@@ -14,26 +14,42 @@ class LabelTemplateSeeder extends Seeder
 {
     public function run(): void
     {
+        $tankbetrugPlaceholders = json_encode([
+            ['key' => 'id', 'label' => 'Tankbetrug-ID', 'example' => '019d-7a3b-...'],
+            ['key' => 'datum', 'label' => 'Datum + Uhrzeit', 'example' => '11.04.2026 16:25'],
+            ['key' => 'kennzeichen', 'label' => 'KFZ-Kennzeichen', 'example' => 'FD-AB 123'],
+            ['key' => 'produkt', 'label' => 'Kraftstoff-Sorte', 'example' => 'Super E5'],
+            ['key' => 'zapfpunkt', 'label' => 'Zapfpunkt-Nummer', 'example' => '7'],
+            ['key' => 'menge', 'label' => 'Liter-Menge', 'example' => '45,20'],
+            ['key' => 'betrag', 'label' => 'EUR-Betrag', 'example' => '82,36'],
+            ['key' => 'station', 'label' => 'Tankstellen-Name', 'example' => 'Aral Tankstelle Welle Fulda'],
+            ['key' => 'mitarbeiter', 'label' => 'Mitarbeiter-Name', 'example' => 'Christian Welle'],
+        ]);
+
         $templates = [
             [
-                'slug' => 'tankbetrug',
-                'name' => 'Tankbetrug-Etikett',
+                'slug' => 'tankbetrug-standard',
+                'category' => 'tankbetrug',
+                'name' => 'Tankbetrug Standard',
                 'width' => 3.98,
                 'height' => 2.13,
                 'orientation' => 'Portrait',
-                'placeholders' => json_encode([
-                    ['key' => 'datum', 'label' => 'Datum + Uhrzeit', 'example' => '11.04.2026 16:25'],
-                    ['key' => 'kennzeichen', 'label' => 'KFZ-Kennzeichen', 'example' => 'FD-AB 123'],
-                    ['key' => 'produkt', 'label' => 'Kraftstoff-Sorte', 'example' => 'Super E5'],
-                    ['key' => 'zapfpunkt', 'label' => 'Zapfpunkt-Nummer', 'example' => '7'],
-                    ['key' => 'menge', 'label' => 'Liter-Menge', 'example' => '45,20'],
-                    ['key' => 'betrag', 'label' => 'EUR-Betrag', 'example' => '82,36'],
-                    ['key' => 'station', 'label' => 'Tankstellen-Name', 'example' => 'Aral Tankstelle Welle Fulda'],
-                ]),
+                'placeholders' => $tankbetrugPlaceholders,
                 'xml_template' => self::tankbetrugXml(),
             ],
             [
+                'slug' => 'tankbetrug-kompakt',
+                'category' => 'tankbetrug',
+                'name' => 'Tankbetrug Kompakt',
+                'width' => 3.98,
+                'height' => 2.13,
+                'orientation' => 'Portrait',
+                'placeholders' => $tankbetrugPlaceholders,
+                'xml_template' => self::tankbetrugKompaktXml(),
+            ],
+            [
                 'slug' => 'testdruck',
+                'category' => 'testdruck',
                 'name' => 'Testdruck-Etikett',
                 'width' => 3.98,
                 'height' => 2.13,
@@ -45,6 +61,7 @@ class LabelTemplateSeeder extends Seeder
             ],
             [
                 'slug' => 'adresse',
+                'category' => 'adresse',
                 'name' => 'Adress-Etikett',
                 'width' => 3.5,
                 'height' => 1.1,
@@ -69,6 +86,7 @@ class LabelTemplateSeeder extends Seeder
                         ->where('tenant_id', null)
                         ->where('slug', $data['slug'])
                         ->value('id') ?? Str::uuid()->toString(),
+                    'category' => $data['category'] ?? $data['slug'],
                     'name' => $data['name'],
                     'xml_template' => $data['xml_template'],
                     'placeholders' => $data['placeholders'],
@@ -163,6 +181,16 @@ XML;
             . self::textObject('Station', '{{station}}', 9, false, 0.10, 1.50, 3.7, 0.25);
 
         return self::wrapLabel($objects, 'ROSI Tankbetrug', 'Portrait', 'Shipping', 3.98, 2.13);
+    }
+
+    private static function tankbetrugKompaktXml(): string
+    {
+        $objects = self::textObject('Header', 'TANKBETRUG  {{datum}}', 9, true, 0.10, 0.05, 3.7, 0.20)
+            . self::textObject('Plate', '{{kennzeichen}}', 18, true, 0.10, 0.28, 3.7, 0.35)
+            . self::textObject('Details', '{{produkt}} | Zapfpunkt {{zapfpunkt}} | {{menge}} l | {{betrag}} EUR', 10, false, 0.10, 0.68, 3.7, 0.25)
+            . self::textObject('Footer', '{{station}} | {{mitarbeiter}}', 8, false, 0.10, 0.98, 3.7, 0.20);
+
+        return self::wrapLabel($objects, 'ROSI Tankbetrug Kompakt', 'Portrait', 'Shipping', 3.98, 2.13);
     }
 
     private static function testdruckXml(): string

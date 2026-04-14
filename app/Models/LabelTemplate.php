@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\GasStation;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -20,6 +21,7 @@ class LabelTemplate extends Model
     protected $fillable = [
         'tenant_id',
         'slug',
+        'category',
         'name',
         'xml_template',
         'placeholders',
@@ -56,6 +58,11 @@ class LabelTemplate extends Model
     public function scopeBySlug($query, string $slug)
     {
         return $query->where('slug', $slug);
+    }
+
+    public function scopeByCategory($query, string $category)
+    {
+        return $query->where('category', $category);
     }
 
     /** Templates die ein Tenant sehen darf: eigene + globale */
@@ -142,19 +149,38 @@ class LabelTemplate extends Model
     }
 
     /**
-     * Findet das passende Template: Tenant-spezifisch hat Vorrang vor global.
+     * Findet das passende Template fuer eine Kategorie.
+     *
+     * Reihenfolge:
+     * 1. Station hat ein Template gewaehlt (in settings.label_templates)
+     * 2. Erstes aktives Template der Kategorie (Tenant-spezifisch > global)
+     *
+     * $slugOrCategory kann ein slug ("tankbetrug-qr") oder eine category ("tankbetrug") sein.
      */
-    public static function findForTenant(string $slug, ?string $tenantId): ?self
+    public static function findForTenant(string $slugOrCategory, ?string $tenantId): ?self
     {
-        // Zuerst Tenant-spezifisches Template suchen
+        // 1. Pruefen ob Station ein Template gewaehlt hat
         if ($tenantId) {
-            $template = static::active()->bySlug($slug)->where('tenant_id', $tenantId)->first();
-            if ($template) {
-                return $template;
+            $station = GasStation::find($tenantId);
+            if ($station) {
+                $selectedSlug = $station->getLabelTemplateSlug($slugOrCategory);
+                if ($selectedSlug) {
+                    $template = static::active()->bySlug($selectedSlug)->first();
+                    if ($template) return $template;
+                }
             }
         }
 
-        // Fallback: globales Template
-        return static::active()->bySlug($slug)->whereNull('tenant_id')->first();
+        // 2. Exakter Slug-Match (abwaertskompatibel)
+        $template = static::active()->bySlug($slugOrCategory)
+            ->where(fn ($q) => $q->whereNull('tenant_id')->when($tenantId, fn ($q2) => $q2->orWhere('tenant_id', $tenantId)))
+            ->first();
+        if ($template) return $template;
+
+        // 3. Erstes Template der Kategorie
+        return static::active()->byCategory($slugOrCategory)
+            ->where(fn ($q) => $q->whereNull('tenant_id')->when($tenantId, fn ($q2) => $q2->orWhere('tenant_id', $tenantId)))
+            ->orderByRaw('tenant_id IS NULL ASC') // Tenant-spezifisch zuerst
+            ->first();
     }
 }

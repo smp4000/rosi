@@ -31,7 +31,7 @@ class LabelTemplateSelection extends Page
     private function loadSelections(): void
     {
         $tenantId = Session::get('tenant_id');
-        $station = GasStation::find($tenantId);
+        $station = GasStation::find($tenantId) ?? GasStation::where('tenant_id', $tenantId)->first();
         $this->selections = $station?->settings['label_templates'] ?? [];
     }
 
@@ -63,7 +63,7 @@ class LabelTemplateSelection extends Page
     public function selectTemplate(string $category, string $slug): void
     {
         $tenantId = Session::get('tenant_id');
-        $station = GasStation::find($tenantId);
+        $station = GasStation::find($tenantId) ?? GasStation::where('tenant_id', $tenantId)->first();
 
         if ($station) {
             $station->setLabelTemplateSlug($category, $slug);

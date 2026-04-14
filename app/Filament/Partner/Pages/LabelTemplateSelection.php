@@ -58,8 +58,11 @@ class LabelTemplateSelection extends Page
         $tenantId = Session::get('tenant_id');
         $station = GasStation::find($tenantId);
 
+        Log::info('selectTemplate', ['tenantId' => $tenantId, 'station' => $station?->name, 'category' => $category, 'slug' => $slug]);
+
         if ($station) {
             $station->setLabelTemplateSlug($category, $slug);
+            Log::info('Template gespeichert', ['settings' => $station->fresh()->settings]);
             Notification::make()
                 ->title('Vorlage ausgewaehlt')
                 ->body("\"$slug\" ist jetzt aktiv fuer $category.")

@@ -9,10 +9,16 @@ use Filament\Pages\Page;
  *
  * Die gesamte Drucker-Kommunikation laeuft im Browser des Nutzers,
  * da der DYMO Connect Service auf dem lokalen PC laeuft (localhost:41951).
- * Kein Server-Roundtrip noetig.
+ * Nur auf dem lokalen Testserver sichtbar (nicht auf Production/All-Inkl).
  */
 class PrinterSettings extends Page
 {
+    public static function canAccess(): bool
+    {
+        // Nur auf localhost/Testserver anzeigen, nicht auf Production
+        return app()->environment('local') || request()->getHost() === '192.168.178.166';
+    }
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-printer';
 
     protected static ?string $navigationLabel = 'Drucker';

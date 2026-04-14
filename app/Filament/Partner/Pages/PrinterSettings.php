@@ -13,12 +13,6 @@ use Filament\Pages\Page;
  */
 class PrinterSettings extends Page
 {
-    public static function canAccess(): bool
-    {
-        // Nur auf localhost/Testserver anzeigen, nicht auf Production
-        return app()->environment('local') || request()->getHost() === '192.168.178.166';
-    }
-
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-printer';
 
     protected static ?string $navigationLabel = 'Drucker';

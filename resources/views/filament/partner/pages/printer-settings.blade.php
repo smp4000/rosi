@@ -216,7 +216,7 @@
                 const txt = 'ROSI Testdruck  ' + date + ' ' + time;
 
                 // Minimal-XML in einer Zeile — DYMO Connect reagiert empfindlich auf Whitespace
-                return '<' + '?xml version="1.0" encoding="utf-8"?' + '>'
+                return String.fromCharCode(60) + '?xml version="1.0" encoding="utf-8"?' + String.fromCharCode(62)
                     + '<DesktopLabel Version="1"><DYMOLabel Version="3">'
                     + '<Description>ROSI Testdruck</Description>'
                     + '<Orientation>Landscape</Orientation>'

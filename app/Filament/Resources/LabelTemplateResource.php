@@ -143,6 +143,23 @@ class LabelTemplateResource extends Resource
                 ->regex('/^[a-z0-9\-]+$/')
                 ->helperText('Gruppierung: z.B. "tankbetrug", "testdruck", "adresse"'),
 
+            Select::make('dymo_paper')
+                ->label('DYMO Etikett (Groesse)')
+                ->options(LabelTemplate::getDymoPaperOptions())
+                ->searchable()
+                ->default('custom')
+                ->reactive()
+                ->dehydrated(false)
+                ->afterStateUpdated(function ($state, callable $set) {
+                    if ($state && $state !== 'custom' && isset(LabelTemplate::DYMO_PAPERS[$state])) {
+                        $paper = LabelTemplate::DYMO_PAPERS[$state];
+                        $set('width', $paper['width']);
+                        $set('height', $paper['height']);
+                        $set('orientation', $paper['orientation']);
+                    }
+                })
+                ->helperText('Alle DYMO-Standardetiketten. Bei Auswahl werden Breite, Hoehe und Ausrichtung gesetzt.'),
+
             Select::make('orientation')
                 ->label('Ausrichtung')
                 ->options([

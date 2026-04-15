@@ -36,7 +36,7 @@
                         <p style="font-size:12px;color:#6b7280;margin:0 0 12px">
                             Kennung: <code style="background:#f3f4f6;padding:2px 6px;border-radius:4px">{{ $template->slug }}</code>
                             &middot; {{ $template->orientation }}
-                            &middot; {{ $template->width }}" x {{ $template->height }}"
+                            &middot; {{ $template->width }} x {{ $template->height }} cm
                         </p>
 
                         @if(is_array($ph) && count($ph) > 0)

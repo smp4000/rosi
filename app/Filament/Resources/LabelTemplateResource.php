@@ -192,16 +192,18 @@ class LabelTemplateResource extends Resource
                 }),
 
             TextInput::make('width')
-                ->label('Breite (Zoll)')
+                ->label('Breite (cm)')
                 ->numeric()
-                ->default(3.98)
-                ->step(0.01),
+                ->default(10.11)
+                ->step(0.01)
+                ->suffix('cm'),
 
             TextInput::make('height')
-                ->label('Hoehe (Zoll)')
+                ->label('Hoehe (cm)')
                 ->numeric()
-                ->default(2.13)
-                ->step(0.01),
+                ->default(5.41)
+                ->step(0.01)
+                ->suffix('cm'),
 
             Placeholder::make('placeholders_info')
                 ->label('Verfuegbare Platzhalter')

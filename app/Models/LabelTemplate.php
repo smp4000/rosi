@@ -160,7 +160,7 @@ class LabelTemplate extends Model
         '30387'   => ['label' => '30387 — Internet-Porto',                 'paper_name' => 'Internet Postage',      'width' => 7.50, 'height' => 2.31, 'orientation' => 'Landscape'],
         '30857'   => ['label' => '30857 — Namensschild (57 x 101 mm)',     'paper_name' => 'Name Badge Label',      'width' => 4.00, 'height' => 2.25, 'orientation' => 'Landscape'],
         '30911'   => ['label' => '30911 — Namensschild ablaufend',         'paper_name' => 'Time Expiring Name Badge','width' => 4.18,'height' => 2.43, 'orientation' => 'Landscape'],
-        '30915'   => ['label' => '30915 — Internet-Porto (40 x 48 mm)',    'paper_name' => 'Internet Postage Label','width' => 1.87, 'height' => 1.56, 'orientation' => 'Portrait'],
+        '30915'   => ['label' => '30915 — Internet-Porto (40 x 48 mm)',    'paper_name' => 'Internet Postage Label','width' => 1.56, 'height' => 1.87, 'orientation' => 'Portrait'],
         '30299'   => ['label' => '30299 — Schmuck-Etikett (10 x 64 mm)',   'paper_name' => 'Barbell Label',         'width' => 2.50, 'height' => 0.37, 'orientation' => 'Landscape'],
         '1744907' => ['label' => '1744907 — Versand XL (102 x 152 mm)',    'paper_name' => 'Extra Large Shipping',  'width' => 4.00, 'height' => 6.00, 'orientation' => 'Portrait'],
         '14681'   => ['label' => '14681 — Runde Etiketten (Ø 57 mm)',      'paper_name' => '2-1/4 in Round',        'width' => 2.25, 'height' => 2.25, 'orientation' => 'Portrait'],

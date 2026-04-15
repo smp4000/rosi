@@ -153,8 +153,17 @@ class LabelTemplateResource extends Resource
                 ->afterStateUpdated(function ($state, callable $set) {
                     if ($state && $state !== 'custom' && isset(LabelTemplate::DYMO_PAPERS[$state])) {
                         $paper = LabelTemplate::DYMO_PAPERS[$state];
-                        $set('width', $paper['width']);
-                        $set('height', $paper['height']);
+                        // Physische Dimensionen: kurze + lange Seite
+                        $short = min($paper['width'], $paper['height']);
+                        $long  = max($paper['width'], $paper['height']);
+                        // Landscape: Breite = lang, Hoehe = kurz. Portrait: umgekehrt.
+                        if ($paper['orientation'] === 'Landscape') {
+                            $set('width', $long);
+                            $set('height', $short);
+                        } else {
+                            $set('width', $short);
+                            $set('height', $long);
+                        }
                         $set('orientation', $paper['orientation']);
                     }
                 })
@@ -167,7 +176,20 @@ class LabelTemplateResource extends Resource
                     'Landscape' => 'Querformat (Landscape)',
                 ])
                 ->default('Portrait')
-                ->required(),
+                ->required()
+                ->reactive()
+                ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                    // Breite und Hoehe swappen wenn Ausrichtung wechselt
+                    $w = (float) $get('width');
+                    $h = (float) $get('height');
+                    if ($state === 'Landscape' && $h > $w) {
+                        $set('width', $h);
+                        $set('height', $w);
+                    } elseif ($state === 'Portrait' && $w > $h) {
+                        $set('width', $h);
+                        $set('height', $w);
+                    }
+                }),
 
             TextInput::make('width')
                 ->label('Breite (Zoll)')

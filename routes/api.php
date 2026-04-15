@@ -86,6 +86,8 @@ Route::prefix('v1')->group(function () {
         ->name('api.v1.print.raw');
     Route::post('/print/template', [PrintController::class, 'printTemplate'])
         ->name('api.v1.print.template');
+    Route::post('/print/render', [PrintController::class, 'renderTemplate'])
+        ->name('api.v1.print.render');
 
     // --- Authentifizierung ---
 

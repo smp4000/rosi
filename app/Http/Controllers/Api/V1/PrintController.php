@@ -149,6 +149,54 @@ class PrintController extends ApiController
     }
 
     /**
+     * POST /api/v1/print/render
+     * Liefert das gerenderte Label-XML zurueck (kein Druck).
+     * Wird vom Android-Client aufgerufen: Template-Auswahl kommt vom All-Inkl-Server,
+     * der Druck erfolgt anschliessend lokal direkt am DYMO Connect Service.
+     */
+    public function renderTemplate(Request $request)
+    {
+        $request->validate([
+            'template'     => 'required|string|max:50',
+            'data'         => 'required|array',
+            'device_token' => 'nullable|string',
+        ]);
+
+        $slug = $request->input('template');
+        $data = $request->input('data');
+
+        $tenantId = session('tenant_id');
+        if (!$tenantId && $request->filled('device_token')) {
+            $tenantId = $this->resolveTenantFromToken($request->input('device_token'));
+        }
+
+        try {
+            $template = LabelTemplate::findForTenant($slug, $tenantId);
+
+            if (!$template) {
+                return $this->error("Vorlage '$slug' nicht gefunden", 404);
+            }
+
+            $labelXml = $template->render($data);
+
+            return $this->success([
+                'template_slug' => $template->slug,
+                'template_name' => $template->name,
+                'orientation'   => $template->orientation,
+                'width'         => $template->width,
+                'height'        => $template->height,
+                'label_xml'     => $labelXml,
+            ], 'Etikett gerendert');
+        } catch (\Exception $e) {
+            Log::error('Template-Render fehlgeschlagen', [
+                'template' => $slug,
+                'error'    => $e->getMessage(),
+            ]);
+            return $this->error('Render-Fehler: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
      * GET /api/v1/print/status
      * Prueft ob DYMO Service erreichbar ist.
      */

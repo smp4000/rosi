@@ -96,10 +96,11 @@
 
         try {
             var port = await findDymoPort();
+            var printerName = await getDymoPrinterName(port);
             var printParams = '<' + 'LabelWriterPrintParams><' + 'Copies>1<' + '/Copies><' + '/LabelWriterPrintParams>';
-            var body = 'printerName=DYMO LabelWriter Wireless'
-                + '&labelXml=' + labelXml
-                + '&printParamsXml=' + printParams;
+            var body = 'printerName=' + encodeURIComponent(printerName)
+                + '&labelXml=' + encodeURIComponent(labelXml)
+                + '&printParamsXml=' + encodeURIComponent(printParams);
 
             var response = await fetch('https://127.0.0.1:' + port + '/DYMO/DLS/Printing/PrintLabel2', {
                 method: 'POST',
@@ -124,6 +125,17 @@
             btn.textContent = origText;
             btn.disabled = false;
         }
+    }
+
+    async function getDymoPrinterName(port) {
+        try {
+            var r = await fetch('https://127.0.0.1:' + port + '/DYMO/DLS/Printing/GetPrinters', { mode: 'cors' });
+            var xml = await r.text();
+            // Ersten <Name>...</Name> aus LabelWriterPrinter ziehen
+            var m = xml.match(/<Name>([^<]+)<\/Name>/);
+            if (m && m[1]) return m[1];
+        } catch (e) {}
+        return 'DYMO LabelWriter Wireless';
     }
 
     async function findDymoPort() {

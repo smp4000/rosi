@@ -26,7 +26,7 @@
             <div
                 x-show="open"
                 x-transition
-                style="position: relative; background: white; border-radius: 0.75rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); width: 100%; max-width: 36rem; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden;"
+                style="position: relative; background: white; border-radius: 0.75rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); width: 100%; max-width: 36rem; max-height: 80vh; overflow: hidden;"
                 class="dark:bg-gray-800"
             >
                 {{-- Header --}}
@@ -40,8 +40,8 @@
                     </button>
                 </div>
 
-                {{-- Content --}}
-                <div style="overflow-y: auto; padding: 1.5rem; flex: 1; min-height: 0;">
+                {{-- Scrollbarer Content --}}
+                <div style="overflow-y: auto; padding: 1.5rem; max-height: calc(80vh - 4.5rem);">
                     @php $versions = $this->getVersions(); @endphp
 
                     @forelse ($versions as $index => $version)
@@ -63,15 +63,9 @@
                     @empty
                         <p style="text-align: center; color: rgb(156 163 175); font-size: 0.875rem;">Noch keine Versionen vorhanden.</p>
                     @endforelse
-                </div>
 
-                {{-- Footer mit Scroll-Hinweis + Gradient --}}
-                <div style="position: relative; flex-shrink: 0;">
-                    {{-- Gradient-Schatten ueber dem Content --}}
-                    <div style="position: absolute; bottom: 100%; left: 0; right: 0; height: 3rem; background: linear-gradient(to top, white, transparent); pointer-events: none;"></div>
-
-                    {{-- Footer --}}
-                    <div style="display: flex; align-items: center; justify-content: center; gap: 0.375rem; padding: 0.75rem 1rem; border-top: 1px solid rgb(229 231 235); background: rgb(243 244 246); font-size: 0.8125rem; color: rgb(107 114 128);">
+                    {{-- Sticky Scroll-Hinweis am unteren Rand --}}
+                    <div style="position: sticky; bottom: -1.5rem; margin: 0 -1.5rem; padding: 0.75rem 1rem; background: linear-gradient(to top, rgb(243 244 246) 60%, transparent); text-align: center; font-size: 0.8125rem; color: rgb(107 114 128);">
                         ↓ Scrollen fuer aeltere Versionen
                     </div>
                 </div>

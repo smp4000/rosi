@@ -278,3 +278,23 @@ Route::middleware('auth')->group(function () {
         return view('subscription.choose');
     })->name('subscription.choose');
 });
+
+// --- Temporaere Debug-Route: Letzte Fehler aus dem Log ---
+// ENTFERNEN nach Debugging!
+Route::get('/debug/last-errors', function () {
+    if (! auth()->check() || ! auth()->user()->isSuperAdmin()) {
+        abort(403);
+    }
+
+    $logFile = storage_path('logs/laravel.log');
+    if (! file_exists($logFile)) {
+        return response()->json(['message' => 'Keine Logdatei vorhanden.']);
+    }
+
+    // Letzte 5000 Zeichen des Logs lesen
+    $content = file_get_contents($logFile);
+    $tail = substr($content, -5000);
+
+    return response('<pre>' . e($tail) . '</pre>')
+        ->header('Content-Type', 'text/html');
+})->middleware('auth');

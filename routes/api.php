@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\DeviceController;
 use App\Http\Controllers\Api\V1\FuelTheftController;
 use App\Http\Controllers\Api\V1\MhdController;
 use App\Http\Controllers\Api\V1\PrintController;
+use App\Http\Controllers\Api\V1\ShiftSettlementController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -111,6 +112,10 @@ Route::prefix('v1')->group(function () {
     Route::get('/auth/employee-scan-code/{id}', [AuthController::class, 'employeeScanCode'])
         ->name('api.v1.auth.employee-scan-code');
 
+    // --- Schichtabrechnung (oeffentlich, nur device_token) ---
+    Route::get('/shift-settlements/check-questions', [ShiftSettlementController::class, 'checkQuestions'])
+        ->name('api.v1.shift-settlements.check-questions');
+
     // ------------------------------------------------------------------
     // Geschuetzte Routen (Sanctum Session-Token + Abo-Pruefung)
     // ------------------------------------------------------------------
@@ -145,10 +150,17 @@ Route::prefix('v1')->group(function () {
         Route::post('/print/label', [PrintController::class, 'printLabel'])
             ->name('api.v1.print.label');
 
-        // Hier kommen spaeter weitere Phase 1 Routen:
-        // - POST /v1/write-offs           → Abschriften
-        // - POST /v1/incidents            → Stoerungen
-        // - GET  /v1/shifts               → Schichtplan
+        // --- Schichtabrechnung ---
+        Route::post('/shift-settlements/start', [ShiftSettlementController::class, 'start'])
+            ->name('api.v1.shift-settlements.start');
+        Route::get('/shift-settlements/active', [ShiftSettlementController::class, 'active'])
+            ->name('api.v1.shift-settlements.active');
+        Route::post('/shift-settlements/{id}/safe-deposits', [ShiftSettlementController::class, 'addSafeDeposit'])
+            ->name('api.v1.shift-settlements.safe-deposits');
+        Route::post('/shift-settlements/{id}/returns', [ShiftSettlementController::class, 'addReturn'])
+            ->name('api.v1.shift-settlements.returns');
+        Route::post('/shift-settlements/{id}/complete', [ShiftSettlementController::class, 'complete'])
+            ->name('api.v1.shift-settlements.complete');
 
     });
 

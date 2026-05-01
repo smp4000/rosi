@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Models\Device;
 use App\Models\GasStation;
+use App\Models\ShiftReturnReason;
 use App\Models\ShiftSettlement;
 use App\Models\ShiftSettlementCheckQuestion;
 use App\Models\ShiftSettlementCoinRoll;
@@ -53,6 +54,44 @@ class ShiftSettlementController extends ApiController
 
         return $this->success([
             'questions' => $questions,
+        ]);
+    }
+
+    // ── Ruecknahme-Gruende ─────────────────────────────────
+
+    /**
+     * GET /api/v1/shift-settlements/return-reasons?device_token=xxx
+     *
+     * Aktive Warenruecknahme-Gruende fuer den Tenant des Geraets abrufen.
+     * Global (tenant_id=null) + tenant-spezifische Gruende.
+     * "Sonstiges" wird immer als letzter Eintrag angehaengt (hardcoded).
+     */
+    public function returnReasons(Request $request): JsonResponse
+    {
+        $device = $this->findDevice($request->query('device_token', ''));
+        if (! $device) {
+            return $this->error('Geraet nicht erkannt.', 401);
+        }
+
+        $reasons = ShiftReturnReason::active()
+            ->forTenant($device->tenant_id)
+            ->orderBy('sort_order')
+            ->get()
+            ->map(fn ($r) => [
+                'id' => $r->id,
+                'label' => $r->label,
+            ])
+            ->values()
+            ->toArray();
+
+        // "Sonstiges" immer als letzten Eintrag anhaengen
+        $reasons[] = [
+            'id' => 'sonstiges',
+            'label' => 'Sonstiges',
+        ];
+
+        return $this->success([
+            'reasons' => $reasons,
         ]);
     }
 

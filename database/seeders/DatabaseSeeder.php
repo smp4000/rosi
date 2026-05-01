@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
         $this->call(DocumentTemplateSeeder::class);
         $this->call(DepreciationReasonSeeder::class);
         $this->call(AppVersionSeeder::class);
+        $this->call(ShiftReturnReasonsSeeder::class);
         $this->call(ArticleGroupSeeder::class);
         $this->call(LabelTemplateSeeder::class);
 

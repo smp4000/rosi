@@ -314,6 +314,14 @@ class ShiftSettlementController extends ApiController
             return $this->error('Schicht nicht gefunden oder nicht aktiv.', 404);
         }
 
+        // Multipart: coin_rolls/counters kommen als JSON-String von der App
+        if (is_string($request->input('coin_rolls'))) {
+            $request->merge(['coin_rolls' => json_decode($request->input('coin_rolls'), true) ?? []]);
+        }
+        if (is_string($request->input('counters'))) {
+            $request->merge(['counters' => json_decode($request->input('counters'), true) ?? []]);
+        }
+
         $validated = $request->validate([
             // Endbestaende Muenzrollen
             'coin_rolls' => 'nullable|array',

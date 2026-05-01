@@ -43,7 +43,17 @@ class AuthController extends ApiController
             return $this->error('Geraet wurde deaktiviert. Bitte Admin kontaktieren.', 403);
         }
 
-        // 2. Mitarbeiter finden
+        // 2. Abo-Status pruefen
+        $tenant = $device->station?->tenant;
+        if ($tenant && ! $tenant->hasAccess()) {
+            return $this->error(
+                'Kein Zugang. Die Testphase ist abgelaufen oder kein aktives Abonnement vorhanden.',
+                403,
+                ['error_code' => 'subscription_required']
+            );
+        }
+
+        // 3. Mitarbeiter finden
         $user = User::where('id', $request->user_id)
             ->where('tenant_id', $device->tenant_id)
             ->first();
@@ -52,7 +62,7 @@ class AuthController extends ApiController
             return $this->error('Mitarbeiter nicht gefunden.', 404);
         }
 
-        // 3. PIN pruefen
+        // 4. PIN pruefen
         if (! $user->pin_hash || ! Hash::check($request->pin, $user->pin_hash)) {
             return $this->error('Falsche PIN.', 401);
         }
@@ -210,7 +220,17 @@ class AuthController extends ApiController
             return $this->error('Geraet wurde deaktiviert. Bitte Admin kontaktieren.', 403);
         }
 
-        // 2. Mitarbeiter anhand scan_code finden
+        // 2. Abo-Status pruefen
+        $tenant = $device->station?->tenant;
+        if ($tenant && ! $tenant->hasAccess()) {
+            return $this->error(
+                'Kein Zugang. Die Testphase ist abgelaufen oder kein aktives Abonnement vorhanden.',
+                403,
+                ['error_code' => 'subscription_required']
+            );
+        }
+
+        // 3. Mitarbeiter anhand scan_code finden
         $user = User::where('scan_code', $request->code)
             ->where('tenant_id', $device->tenant_id)
             ->where('is_active', true)

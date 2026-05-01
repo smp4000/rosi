@@ -60,6 +60,23 @@ class LabelTemplateSeeder extends Seeder
                 'xml_template' => self::testdruckXml(),
             ],
             [
+                'slug' => 'tresor',
+                'category' => 'tresor',
+                'name' => 'Tresor-Einlage',
+                'width' => 10.11,
+                'height' => 5.41,
+                'orientation' => 'Portrait',
+                'placeholders' => json_encode([
+                    ['key' => 'station', 'label' => 'Tankstellen-Name', 'example' => 'Aral Tankstelle Welle'],
+                    ['key' => 'mitarbeiter', 'label' => 'Mitarbeiter-Name', 'example' => 'Christian Welle'],
+                    ['key' => 'datum', 'label' => 'Datum + Uhrzeit', 'example' => '01.05.2026 22:28'],
+                    ['key' => 'betrag', 'label' => 'Betrag', 'example' => '900,00 EUR'],
+                    ['key' => 'muenzen', 'label' => 'Mit Muenzen', 'example' => 'Nein'],
+                    ['key' => 'barcode', 'label' => 'Barcode', 'example' => 'SAFE-UHRBTWOA'],
+                ]),
+                'xml_template' => self::tresorXml(),
+            ],
+            [
                 'slug' => 'adresse',
                 'category' => 'adresse',
                 'name' => 'Adress-Etikett',
@@ -198,6 +215,17 @@ XML;
         $objects = self::textObject('Text', 'ROSI Testdruck  {{datum}}', 12, true, 0.10, 0.20, 3.7, 0.7);
 
         return self::wrapLabel($objects, 'ROSI Testdruck', 'Portrait', 'Shipping', 3.98, 2.13);
+    }
+
+    private static function tresorXml(): string
+    {
+        $objects = self::textObject('Header', 'TRESOR-EINLAGE', 10, true, 0.10, 0.05, 3.7, 0.25)
+            . self::textObject('Amount', '{{betrag}}', 20, true, 0.10, 0.35, 3.7, 0.45)
+            . self::textObject('Details', '{{datum}} | {{muenzen}} Muenzen', 10, false, 0.10, 0.85, 3.7, 0.25)
+            . self::textObject('Employee', '{{mitarbeiter}} | {{station}}', 9, false, 0.10, 1.15, 3.7, 0.25)
+            . self::textObject('Barcode', '{{barcode}}', 11, true, 0.10, 1.50, 3.7, 0.25);
+
+        return self::wrapLabel($objects, 'ROSI Tresor-Einlage', 'Portrait', 'Shipping', 3.98, 2.13);
     }
 
     private static function adresseXml(): string

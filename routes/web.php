@@ -301,6 +301,64 @@ Route::get('/debug/fix-tenant/{token}', function (string $token) {
     ]);
 });
 
+// --- Temporaer: Permissions + Rollen auf Produktion einrichten ---
+// ENTFERNEN nach Debugging!
+Route::get('/debug/seed-permissions/{token}', function (string $token) {
+    if ($token !== 'rosi2026debug') {
+        abort(404);
+    }
+
+    try {
+        // 1. Rollen & Permissions Seeder ausfuehren
+        \Illuminate\Support\Facades\Artisan::call('db:seed', [
+            '--class' => 'Database\\Seeders\\RolesAndPermissionsSeeder',
+            '--force' => true,
+        ]);
+        $seederOutput = \Illuminate\Support\Facades\Artisan::output();
+
+        // 2. Admin-User die Level-3 Rolle zuweisen
+        $admin = \App\Models\User::where('type', 'super_admin')->first();
+        $result = ['seeder' => trim($seederOutput)];
+
+        if ($admin) {
+            // Team-Scope auf global setzen
+            app(\Spatie\Permission\PermissionRegistrar::class)
+                ->setPermissionsTeamId(\Database\Seeders\RolesAndPermissionsSeeder::GLOBAL_TEAM_ID);
+
+            $admin->assignRole('super_admin_level_3');
+            $result['admin'] = $admin->email . ' → super_admin_level_3 zugewiesen';
+            $result['permissions'] = $admin->getAllPermissions()->pluck('name')->toArray();
+        } else {
+            $result['admin'] = 'KEIN super_admin User gefunden!';
+        }
+
+        // 3. Partner-Rollen fuer den Tenant erstellen
+        $tenant = \App\Models\Tenant::first();
+        if ($tenant) {
+            \Database\Seeders\RolesAndPermissionsSeeder::createTenantRoles($tenant->id);
+            $result['tenant_roles'] = 'Partner-Rollen fuer ' . $tenant->name . ' erstellt';
+
+            // Partner-User die Partner-Rolle zuweisen
+            app(\Spatie\Permission\PermissionRegistrar::class)
+                ->setPermissionsTeamId($tenant->id);
+            $partners = \App\Models\User::where('tenant_id', $tenant->id)
+                ->where('type', 'partner')->get();
+            foreach ($partners as $p) {
+                $p->assignRole('partner');
+                $result['partner_roles'][] = $p->email . ' → partner';
+            }
+        }
+
+        return response()->json(['success' => true] + $result, 200, [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+            'file' => $e->getFile() . ':' . $e->getLine(),
+        ], 500, [], JSON_PRETTY_PRINT);
+    }
+});
+
 // --- Temporaer: User-Liste anzeigen ---
 // ENTFERNEN nach Debugging!
 Route::get('/debug/users/{token}', function (string $token) {

@@ -124,12 +124,13 @@ class ShiftSettlement extends \Illuminate\Database\Eloquent\Model
      */
     public function complete(): void
     {
-        // Tresor-Einlagen summieren
+        // Tresor-Einlagen summieren (nur zur Dokumentation)
         $safeTotal = $this->safeDeposits()->sum('amount');
 
-        // Kassendifferenz berechnen: Soll - (Rest-Bargeld + Tresor)
-        $ist = (float) $this->cash_remaining + (float) $safeTotal;
-        $difference = (float) $this->cash_report_soll - $ist;
+        // Kassendifferenz: IST - SOLL
+        // Tresor-Einlagen sind bereits im Kassensystem als Ausgabe verbucht,
+        // der SOLL-Wert beruecksichtigt sie schon → nicht nochmal abziehen.
+        $difference = (float) $this->cash_remaining - (float) $this->cash_report_soll;
 
         $this->update([
             'status' => 'completed',

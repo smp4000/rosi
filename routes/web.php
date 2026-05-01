@@ -301,51 +301,78 @@ Route::get('/debug/fix-tenant/{token}', function (string $token) {
     ]);
 });
 
-// --- Temporaer: Permissions + Rollen auf Produktion einrichten ---
+// --- Temporaer: Permissions debuggen und fixen ---
 // ENTFERNEN nach Debugging!
-Route::get('/debug/seed-permissions/{token}', function (string $token) {
+Route::get('/debug/fix-permissions/{token}', function (string $token) {
     if ($token !== 'rosi2026debug') {
         abort(404);
     }
 
     try {
-        // 1. Rollen & Permissions Seeder ausfuehren
-        \Illuminate\Support\Facades\Artisan::call('db:seed', [
-            '--class' => 'Database\\Seeders\\RolesAndPermissionsSeeder',
-            '--force' => true,
-        ]);
-        $seederOutput = \Illuminate\Support\Facades\Artisan::output();
+        $result = [];
 
-        // 2. Admin-User die Level-3 Rolle zuweisen
+        // 1. ALLE Caches leeren
+        \Illuminate\Support\Facades\Artisan::call('cache:clear');
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        $result['cache'] = 'Alle Caches geleert';
+
+        // 2. Team-Scope auf GLOBAL setzen
+        $globalTeam = \Database\Seeders\RolesAndPermissionsSeeder::GLOBAL_TEAM_ID;
+        app(\Spatie\Permission\PermissionRegistrar::class)->setPermissionsTeamId($globalTeam);
+        $result['team_id'] = $globalTeam;
+
+        // 3. Pruefen was in der DB steht
+        $roles = \DB::table('roles')->get(['id', 'name', 'guard_name']);
+        $result['db_roles'] = $roles->toArray();
+
+        $modelRoles = \DB::table('model_has_roles')->get();
+        $result['db_model_has_roles'] = $modelRoles->toArray();
+
+        $permissions = \DB::table('permissions')->pluck('name')->toArray();
+        $result['db_permissions_count'] = count($permissions);
+
+        // 4. Admin-User finden
         $admin = \App\Models\User::where('type', 'super_admin')->first();
-        $result = ['seeder' => trim($seederOutput)];
-
         if ($admin) {
-            // Team-Scope auf global setzen
-            app(\Spatie\Permission\PermissionRegistrar::class)
-                ->setPermissionsTeamId(\Database\Seeders\RolesAndPermissionsSeeder::GLOBAL_TEAM_ID);
+            $result['admin_email'] = $admin->email;
+            $result['admin_id'] = $admin->id;
 
-            $admin->assignRole('super_admin_level_3');
-            $result['admin'] = $admin->email . ' → super_admin_level_3 zugewiesen';
-            $result['permissions'] = $admin->getAllPermissions()->pluck('name')->toArray();
-        } else {
-            $result['admin'] = 'KEIN super_admin User gefunden!';
-        }
+            // Direkt in model_has_roles schauen
+            $adminRoles = \DB::table('model_has_roles')
+                ->where('model_id', $admin->id)
+                ->get();
+            $result['admin_db_roles'] = $adminRoles->toArray();
 
-        // 3. Partner-Rollen fuer den Tenant erstellen
-        $tenant = \App\Models\Tenant::first();
-        if ($tenant) {
-            \Database\Seeders\RolesAndPermissionsSeeder::createTenantRoles($tenant->id);
-            $result['tenant_roles'] = 'Partner-Rollen fuer ' . $tenant->name . ' erstellt';
+            // Spatie Roles/Permissions mit aktuellem Team
+            $result['admin_spatie_roles'] = $admin->getRoleNames()->toArray();
+            $result['admin_can_edit'] = $admin->can('admin.tenants.edit');
+            $result['admin_all_permissions'] = $admin->getAllPermissions()->pluck('name')->toArray();
 
-            // Partner-User die Partner-Rolle zuweisen
-            app(\Spatie\Permission\PermissionRegistrar::class)
-                ->setPermissionsTeamId($tenant->id);
-            $partners = \App\Models\User::where('tenant_id', $tenant->id)
-                ->where('type', 'partner')->get();
-            foreach ($partners as $p) {
-                $p->assignRole('partner');
-                $result['partner_roles'][] = $p->email . ' → partner';
+            // Falls keine Rolle: nochmal zuweisen mit explizitem Team
+            if ($admin->getRoleNames()->isEmpty()) {
+                $level3 = \Spatie\Permission\Models\Role::where('name', 'super_admin_level_3')
+                    ->where('guard_name', 'web')
+                    ->first();
+
+                if ($level3) {
+                    // Direkt in DB einfuegen
+                    \DB::table('model_has_roles')->updateOrInsert(
+                        [
+                            'role_id' => $level3->id,
+                            'model_type' => get_class($admin),
+                            'model_id' => $admin->id,
+                        ],
+                        ['team_id' => $globalTeam]
+                    );
+                    $result['fix'] = 'Rolle direkt in DB zugewiesen (role_id=' . $level3->id . ', team=' . $globalTeam . ')';
+
+                    // Cache nochmal leeren
+                    app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+                    $admin = $admin->fresh();
+                    $result['after_fix_can_edit'] = $admin->can('admin.tenants.edit');
+                } else {
+                    $result['fix'] = 'Rolle super_admin_level_3 nicht gefunden!';
+                }
             }
         }
 
@@ -354,7 +381,7 @@ Route::get('/debug/seed-permissions/{token}', function (string $token) {
         return response()->json([
             'success' => false,
             'error' => $e->getMessage(),
-            'file' => $e->getFile() . ':' . $e->getLine(),
+            'trace' => $e->getFile() . ':' . $e->getLine(),
         ], 500, [], JSON_PRETTY_PRINT);
     }
 });

@@ -24,7 +24,7 @@ class LatestAuditLogs extends TableWidget
 
     public static function canView(): bool
     {
-        return auth()->user()->can('admin.audit-logs.view');
+        return auth()->user()->isSuperAdmin() || auth()->user()->can('admin.audit-logs.view');
     }
 
     public function table(Table $table): Table

@@ -42,30 +42,31 @@ class TenantResource extends Resource
     protected static ?string $recordTitleAttribute = 'name';
 
     // --- Autorisierung ---
+    // Super-Admins haben immer Zugang (Fallback wenn Spatie-Cache Probleme macht)
 
     public static function canAccess(): bool
     {
-        return auth()->user()->can('admin.tenants.list');
+        return auth()->user()->isSuperAdmin() || auth()->user()->can('admin.tenants.list');
     }
 
     public static function canCreate(): bool
     {
-        return auth()->user()->can('admin.tenants.create');
+        return auth()->user()->isSuperAdmin() || auth()->user()->can('admin.tenants.create');
     }
 
     public static function canEdit(Model $record): bool
     {
-        return auth()->user()->can('admin.tenants.edit');
+        return auth()->user()->isSuperAdmin() || auth()->user()->can('admin.tenants.edit');
     }
 
     public static function canDelete(Model $record): bool
     {
-        return auth()->user()->can('admin.tenants.delete');
+        return auth()->user()->isSuperAdmin() || auth()->user()->can('admin.tenants.delete');
     }
 
     public static function canView(Model $record): bool
     {
-        return auth()->user()->can('admin.tenants.view');
+        return auth()->user()->isSuperAdmin() || auth()->user()->can('admin.tenants.view');
     }
 
     // --- Formular (Tabs) ---

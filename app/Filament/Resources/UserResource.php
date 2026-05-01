@@ -45,30 +45,31 @@ class UserResource extends Resource
     protected static ?string $recordTitleAttribute = 'email';
 
     // --- Autorisierung ---
+    // Super-Admins haben immer Zugang (Fallback wenn Spatie-Cache Probleme macht)
 
     public static function canAccess(): bool
     {
-        return auth()->user()->can('admin.users.list');
+        return auth()->user()->isSuperAdmin() || auth()->user()->can('admin.users.list');
     }
 
     public static function canCreate(): bool
     {
-        return auth()->user()->can('admin.users.create');
+        return auth()->user()->isSuperAdmin() || auth()->user()->can('admin.users.create');
     }
 
     public static function canEdit(Model $record): bool
     {
-        return auth()->user()->can('admin.users.edit');
+        return auth()->user()->isSuperAdmin() || auth()->user()->can('admin.users.edit');
     }
 
     public static function canDelete(Model $record): bool
     {
-        return auth()->user()->can('admin.users.edit');
+        return auth()->user()->isSuperAdmin() || auth()->user()->can('admin.users.edit');
     }
 
     public static function canView(Model $record): bool
     {
-        return auth()->user()->can('admin.users.view');
+        return auth()->user()->isSuperAdmin() || auth()->user()->can('admin.users.view');
     }
 
     // --- Query mit Soft Deletes und Tenant eager-loading ---

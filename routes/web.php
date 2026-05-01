@@ -301,6 +301,20 @@ Route::get('/debug/fix-tenant/{token}', function (string $token) {
     ]);
 });
 
+// --- Temporaer: Alle Caches leeren ---
+// ENTFERNEN nach Debugging!
+Route::get('/debug/clear-cache/{token}', function (string $token) {
+    if ($token !== 'rosi2026debug') {
+        abort(404);
+    }
+    \Illuminate\Support\Facades\Artisan::call('view:clear');
+    \Illuminate\Support\Facades\Artisan::call('cache:clear');
+    \Illuminate\Support\Facades\Artisan::call('config:clear');
+    return response()->json([
+        'message' => 'Alle Caches geleert (views, cache, config).',
+    ]);
+});
+
 // --- Temporaer: Permissions debuggen und fixen ---
 // ENTFERNEN nach Debugging!
 Route::get('/debug/fix-permissions/{token}', function (string $token) {

@@ -1,9 +1,31 @@
 <x-filament-widgets::widget>
-    <div x-data="{ open: false }">
+    <div x-data="{
+        open: false,
+        canScroll: false,
+        checkScroll() {
+            const el = this.$refs.scrollContent;
+            if (el) {
+                this.canScroll = el.scrollHeight > el.clientHeight && (el.scrollTop + el.clientHeight) < (el.scrollHeight - 20);
+            }
+        },
+        openModal() {
+            this.open = true;
+            this.$nextTick(() => {
+                setTimeout(() => this.checkScroll(), 100);
+            });
+        },
+        scrollDown() {
+            const el = this.$refs.scrollContent;
+            if (el) {
+                el.scrollBy({ top: 200, behavior: 'smooth' });
+                setTimeout(() => this.checkScroll(), 300);
+            }
+        }
+    }">
         {{-- Link --}}
         <div style="text-align: center; padding: 0.5rem 0;">
             <button
-                @click="open = true"
+                @click="openModal()"
                 type="button"
                 style="display: inline-flex; align-items: center; gap: 0.375rem; font-size: 0.8125rem; color: rgb(100 116 139); background: none; border: none; cursor: pointer; text-decoration: underline; text-underline-offset: 2px;"
             >
@@ -26,16 +48,6 @@
             <div
                 x-show="open"
                 x-transition
-                x-data="{
-                    canScroll: false,
-                    checkScroll() {
-                        const el = this.$refs.scrollContent;
-                        if (el) {
-                            this.canScroll = el.scrollHeight > el.clientHeight && (el.scrollTop + el.clientHeight) < (el.scrollHeight - 20);
-                        }
-                    }
-                }"
-                x-init="$nextTick(() => checkScroll())"
                 style="position: relative; background: white; border-radius: 0.75rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); width: 100%; max-width: 36rem; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden;"
                 class="dark:bg-gray-800"
             >
@@ -83,7 +95,7 @@
                 <div
                     x-show="canScroll"
                     x-transition.opacity
-                    @click="$refs.scrollContent.scrollBy({ top: 200, behavior: 'smooth' }); $nextTick(() => checkScroll())"
+                    @click="scrollDown()"
                     style="position: absolute; bottom: 0.75rem; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 0.375rem; padding: 0.375rem 1rem; background: rgb(99 102 241); color: white; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); z-index: 10;"
                 >
                     {{ svg('heroicon-o-chevron-down', '', ['style' => 'width: 0.875rem; height: 0.875rem;']) }}

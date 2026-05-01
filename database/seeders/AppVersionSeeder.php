@@ -216,6 +216,31 @@ class AppVersionSeeder extends Seeder
                     'Bluetooth-Berechtigung fuer Android 12+',
                 ],
             ],
+            // --- v1.9.1 ---
+            [
+                'platform' => 'web',
+                'version' => '1.9.1',
+                'release_date' => '2026-05-01',
+                'changes' => [
+                    'Abo-Pruefung: API blockiert Zugang bei abgelaufenem Abonnement/Testphase',
+                    'Abo-Check in Login- und Scan-Login-Endpunkten',
+                    'API-Middleware CheckApiAccess fuer geschuetzte Routen',
+                    'Filament: Super-Admin-Fallback fuer Berechtigungsprobleme behoben',
+                    'Vite-Build fuer All-Inkl Shared Hosting (kein npm auf Server)',
+                ],
+            ],
+            [
+                'platform' => 'android',
+                'version' => '1.9.1',
+                'release_date' => '2026-05-01',
+                'changes' => [
+                    'Abo-Fehlermeldung: Schoene Anzeige bei abgelaufenem Abonnement',
+                    'Retrofit errorBody-Parsing fuer HTTP 4xx/5xx Fehler behoben',
+                    'Login zeigt Server-Fehlermeldungen korrekt an (statt generisch)',
+                    'DYMO-Druck: Port 41950 als erster Scan-Port (netsh portproxy)',
+                    'Label-Rendering ueber All-Inkl statt Render.com',
+                ],
+            ],
         ];
 
         $count = 0;

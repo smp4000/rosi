@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\CheckApiAccess;
 use App\Http\Middleware\CheckSubscription;
 use App\Http\Middleware\CheckTrialExpired;
 use App\Http\Middleware\EnsureConsent;
@@ -22,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'trial' => CheckTrialExpired::class,
             'subscription' => CheckSubscription::class,
             'consent' => EnsureConsent::class,
+            'api.access' => CheckApiAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

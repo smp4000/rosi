@@ -57,43 +57,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/devices/verify', [DeviceController::class, 'verify'])
         ->name('api.v1.devices.verify');
 
-    // --- Artikelsuche (EAN, Artikelnummer, Text) ---
-    Route::get('/articles/search', [ArticleController::class, 'search'])
-        ->name('api.v1.articles.search');
-
-    // --- MHD-Kontrolle ---
-    Route::get('/mhd', [MhdController::class, 'index'])
-        ->name('api.v1.mhd.index');
-    Route::get('/mhd/summary', [MhdController::class, 'summary'])
-        ->name('api.v1.mhd.summary');
-    Route::post('/mhd', [MhdController::class, 'store'])
-        ->name('api.v1.mhd.store');
-    Route::put('/mhd/{id}/extend', [MhdController::class, 'extend'])
-        ->name('api.v1.mhd.extend');
-    Route::post('/mhd/{id}/dispose', [MhdController::class, 'dispose'])
-        ->name('api.v1.mhd.dispose');
-    Route::delete('/mhd/{id}', [MhdController::class, 'destroy'])
-        ->name('api.v1.mhd.destroy');
-
-    // --- Drucker (oeffentlich, da DYMO nur lokal erreichbar) ---
-    Route::get('/print/printers', [PrintController::class, 'printers'])
-        ->name('api.v1.print.printers');
-    Route::get('/print/status', [PrintController::class, 'status'])
-        ->name('api.v1.print.status');
-    Route::post('/print/test', [PrintController::class, 'testPrint'])
-        ->name('api.v1.print.test');
-    Route::post('/print/raw', [PrintController::class, 'printRaw'])
-        ->name('api.v1.print.raw');
-    Route::post('/print/template', [PrintController::class, 'printTemplate'])
-        ->name('api.v1.print.template');
-    Route::post('/print/render', [PrintController::class, 'renderTemplate'])
-        ->name('api.v1.print.render');
-
-    // --- Authentifizierung ---
-
-    // Scan-Code fuer NFC-Tag-Beschriftung
-    Route::get('/auth/employee-scan-code/{id}', [AuthController::class, 'employeeScanCode'])
-        ->name('api.v1.auth.employee-scan-code');
+    // --- Authentifizierung (OHNE Abo-Pruefung, muss immer funktionieren) ---
 
     // Mitarbeiter-Login (PIN + Device-Token)
     Route::post('/auth/login', [AuthController::class, 'login'])
@@ -108,43 +72,87 @@ Route::prefix('v1')->group(function () {
         ->name('api.v1.auth.station-employees');
 
     // ------------------------------------------------------------------
-    // Geschuetzte Routen (Sanctum Session-Token noetig)
+    // Abo-geschuetzte Routen (Trial aktiv oder Abo aktiv)
     // ------------------------------------------------------------------
 
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware('api.access')->group(function () {
 
-        // Wer bin ich?
-        Route::get('/me', function (Request $request) {
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'user' => $request->user()->only(['id', 'name', 'email', 'type']),
-                ],
-            ]);
-        })->name('api.v1.me');
+        // --- Artikelsuche (EAN, Artikelnummer, Text) ---
+        Route::get('/articles/search', [ArticleController::class, 'search'])
+            ->name('api.v1.articles.search');
 
-        // Abmelden
-        Route::post('/auth/logout', [AuthController::class, 'logout'])
-            ->name('api.v1.auth.logout');
+        // --- MHD-Kontrolle ---
+        Route::get('/mhd', [MhdController::class, 'index'])
+            ->name('api.v1.mhd.index');
+        Route::get('/mhd/summary', [MhdController::class, 'summary'])
+            ->name('api.v1.mhd.summary');
+        Route::post('/mhd', [MhdController::class, 'store'])
+            ->name('api.v1.mhd.store');
+        Route::put('/mhd/{id}/extend', [MhdController::class, 'extend'])
+            ->name('api.v1.mhd.extend');
+        Route::post('/mhd/{id}/dispose', [MhdController::class, 'dispose'])
+            ->name('api.v1.mhd.dispose');
+        Route::delete('/mhd/{id}', [MhdController::class, 'destroy'])
+            ->name('api.v1.mhd.destroy');
 
-        // PIN aendern
-        Route::put('/auth/pin', [AuthController::class, 'changePin'])
-            ->name('api.v1.auth.pin');
+        // --- Drucker (oeffentlich, da DYMO nur lokal erreichbar) ---
+        Route::get('/print/printers', [PrintController::class, 'printers'])
+            ->name('api.v1.print.printers');
+        Route::get('/print/status', [PrintController::class, 'status'])
+            ->name('api.v1.print.status');
+        Route::post('/print/test', [PrintController::class, 'testPrint'])
+            ->name('api.v1.print.test');
+        Route::post('/print/raw', [PrintController::class, 'printRaw'])
+            ->name('api.v1.print.raw');
+        Route::post('/print/template', [PrintController::class, 'printTemplate'])
+            ->name('api.v1.print.template');
+        Route::post('/print/render', [PrintController::class, 'renderTemplate'])
+            ->name('api.v1.print.render');
 
-        // --- Tankbetrug ---
-        Route::get('/fuel-thefts/form-data', [FuelTheftController::class, 'formData'])
-            ->name('api.v1.fuel-thefts.form-data');
-        Route::post('/fuel-thefts', [FuelTheftController::class, 'store'])
-            ->name('api.v1.fuel-thefts.store');
+        // Scan-Code fuer NFC-Tag-Beschriftung
+        Route::get('/auth/employee-scan-code/{id}', [AuthController::class, 'employeeScanCode'])
+            ->name('api.v1.auth.employee-scan-code');
 
-        // --- Drucken (Print-Gateway) ---
-        Route::post('/print/label', [PrintController::class, 'printLabel'])
-            ->name('api.v1.print.label');
+        // ------------------------------------------------------------------
+        // Geschuetzte Routen (Sanctum Session-Token + Abo noetig)
+        // ------------------------------------------------------------------
 
-        // Hier kommen spaeter weitere Phase 1 Routen:
-        // - POST /v1/write-offs           → Abschriften
-        // - POST /v1/incidents            → Stoerungen
-        // - GET  /v1/shifts               → Schichtplan
+        Route::middleware('auth:sanctum')->group(function () {
+
+            // Wer bin ich?
+            Route::get('/me', function (Request $request) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [
+                        'user' => $request->user()->only(['id', 'name', 'email', 'type']),
+                    ],
+                ]);
+            })->name('api.v1.me');
+
+            // Abmelden
+            Route::post('/auth/logout', [AuthController::class, 'logout'])
+                ->name('api.v1.auth.logout');
+
+            // PIN aendern
+            Route::put('/auth/pin', [AuthController::class, 'changePin'])
+                ->name('api.v1.auth.pin');
+
+            // --- Tankbetrug ---
+            Route::get('/fuel-thefts/form-data', [FuelTheftController::class, 'formData'])
+                ->name('api.v1.fuel-thefts.form-data');
+            Route::post('/fuel-thefts', [FuelTheftController::class, 'store'])
+                ->name('api.v1.fuel-thefts.store');
+
+            // --- Drucken (Print-Gateway) ---
+            Route::post('/print/label', [PrintController::class, 'printLabel'])
+                ->name('api.v1.print.label');
+
+            // Hier kommen spaeter weitere Phase 1 Routen:
+            // - POST /v1/write-offs           → Abschriften
+            // - POST /v1/incidents            → Stoerungen
+            // - GET  /v1/shifts               → Schichtplan
+
+        });
 
     });
 

@@ -26,6 +26,16 @@
             <div
                 x-show="open"
                 x-transition
+                x-data="{
+                    canScroll: false,
+                    checkScroll() {
+                        const el = this.$refs.scrollContent;
+                        if (el) {
+                            this.canScroll = el.scrollHeight > el.clientHeight && (el.scrollTop + el.clientHeight) < (el.scrollHeight - 20);
+                        }
+                    }
+                }"
+                x-init="$nextTick(() => checkScroll())"
                 style="position: relative; background: white; border-radius: 0.75rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); width: 100%; max-width: 36rem; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden;"
                 class="dark:bg-gray-800"
             >
@@ -41,7 +51,11 @@
                 </div>
 
                 {{-- Content --}}
-                <div style="overflow-y: auto; padding: 1.5rem;">
+                <div
+                    x-ref="scrollContent"
+                    @scroll="checkScroll()"
+                    style="overflow-y: auto; padding: 1.5rem;"
+                >
                     @php $versions = $this->getVersions(); @endphp
 
                     @forelse ($versions as $index => $version)
@@ -63,6 +77,17 @@
                     @empty
                         <p style="text-align: center; color: rgb(156 163 175); font-size: 0.875rem;">Noch keine Versionen vorhanden.</p>
                     @endforelse
+                </div>
+
+                {{-- Scroll-Hinweis --}}
+                <div
+                    x-show="canScroll"
+                    x-transition.opacity
+                    @click="$refs.scrollContent.scrollBy({ top: 200, behavior: 'smooth' }); $nextTick(() => checkScroll())"
+                    style="position: absolute; bottom: 0.75rem; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 0.375rem; padding: 0.375rem 1rem; background: rgb(99 102 241); color: white; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); z-index: 10;"
+                >
+                    {{ svg('heroicon-o-chevron-down', '', ['style' => 'width: 0.875rem; height: 0.875rem;']) }}
+                    Weitere Versionen
                 </div>
             </div>
         </div>

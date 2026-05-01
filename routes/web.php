@@ -321,59 +321,30 @@ Route::get('/debug/fix-permissions/{token}', function (string $token) {
         app(\Spatie\Permission\PermissionRegistrar::class)->setPermissionsTeamId($globalTeam);
         $result['team_id'] = $globalTeam;
 
-        // 3. Pruefen was in der DB steht
-        $roles = \DB::table('roles')->get(['id', 'name', 'guard_name']);
+        // 3. Tabellenstruktur pruefen
+        $mhrColumns = \DB::select("SHOW COLUMNS FROM model_has_roles");
+        $result['model_has_roles_columns'] = array_map(fn($c) => $c->Field, $mhrColumns);
+
+        $mhpColumns = \DB::select("SHOW COLUMNS FROM model_has_permissions");
+        $result['model_has_permissions_columns'] = array_map(fn($c) => $c->Field, $mhpColumns);
+
+        // 4. Was steht in der DB?
+        $roles = \DB::table('roles')->get();
         $result['db_roles'] = $roles->toArray();
 
         $modelRoles = \DB::table('model_has_roles')->get();
         $result['db_model_has_roles'] = $modelRoles->toArray();
 
-        $permissions = \DB::table('permissions')->pluck('name')->toArray();
-        $result['db_permissions_count'] = count($permissions);
+        $result['db_permissions_count'] = \DB::table('permissions')->count();
 
-        // 4. Admin-User finden
+        // 5. Admin-User
         $admin = \App\Models\User::where('type', 'super_admin')->first();
         if ($admin) {
             $result['admin_email'] = $admin->email;
             $result['admin_id'] = $admin->id;
-
-            // Direkt in model_has_roles schauen
-            $adminRoles = \DB::table('model_has_roles')
-                ->where('model_id', $admin->id)
-                ->get();
-            $result['admin_db_roles'] = $adminRoles->toArray();
-
-            // Spatie Roles/Permissions mit aktuellem Team
             $result['admin_spatie_roles'] = $admin->getRoleNames()->toArray();
             $result['admin_can_edit'] = $admin->can('admin.tenants.edit');
             $result['admin_all_permissions'] = $admin->getAllPermissions()->pluck('name')->toArray();
-
-            // Falls keine Rolle: nochmal zuweisen mit explizitem Team
-            if ($admin->getRoleNames()->isEmpty()) {
-                $level3 = \Spatie\Permission\Models\Role::where('name', 'super_admin_level_3')
-                    ->where('guard_name', 'web')
-                    ->first();
-
-                if ($level3) {
-                    // Direkt in DB einfuegen
-                    \DB::table('model_has_roles')->updateOrInsert(
-                        [
-                            'role_id' => $level3->id,
-                            'model_type' => get_class($admin),
-                            'model_id' => $admin->id,
-                        ],
-                        ['team_id' => $globalTeam]
-                    );
-                    $result['fix'] = 'Rolle direkt in DB zugewiesen (role_id=' . $level3->id . ', team=' . $globalTeam . ')';
-
-                    // Cache nochmal leeren
-                    app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
-                    $admin = $admin->fresh();
-                    $result['after_fix_can_edit'] = $admin->can('admin.tenants.edit');
-                } else {
-                    $result['fix'] = 'Rolle super_admin_level_3 nicht gefunden!';
-                }
-            }
         }
 
         return response()->json(['success' => true] + $result, 200, [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);

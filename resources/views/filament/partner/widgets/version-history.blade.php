@@ -41,7 +41,7 @@
                 </div>
 
                 {{-- Content --}}
-                <div style="overflow-y: auto; padding: 1.5rem; flex: 1;">
+                <div style="overflow-y: auto; padding: 1.5rem; flex: 1; min-height: 0;">
                     @php $versions = $this->getVersions(); @endphp
 
                     @forelse ($versions as $index => $version)
@@ -71,9 +71,8 @@
                     <div style="position: absolute; bottom: 100%; left: 0; right: 0; height: 3rem; background: linear-gradient(to top, white, transparent); pointer-events: none;"></div>
 
                     {{-- Footer --}}
-                    <div style="display: flex; align-items: center; justify-content: center; gap: 0.375rem; padding: 0.625rem 1rem; border-top: 1px solid rgb(243 244 246); background: rgb(249 250 251); font-size: 0.75rem; color: rgb(107 114 128);">
-                        {{ svg('heroicon-o-chevron-double-down', '', ['style' => 'width: 0.875rem; height: 0.875rem;']) }}
-                        Scrollen fuer aeltere Versionen
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 0.375rem; padding: 0.75rem 1rem; border-top: 1px solid rgb(229 231 235); background: rgb(243 244 246); font-size: 0.8125rem; color: rgb(107 114 128);">
+                        ↓ Scrollen fuer aeltere Versionen
                     </div>
                 </div>
             </div>

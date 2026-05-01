@@ -279,29 +279,84 @@ Route::middleware('auth')->group(function () {
     })->name('subscription.choose');
 });
 
-// --- Temporaere Debug-Route: Letzte Fehler aus dem Log ---
+// --- Temporaere Debug-Route: System-Diagnose ---
 // ENTFERNEN nach Debugging!
 Route::get('/debug/last-errors/{token}', function (string $token) {
     if ($token !== 'rosi2026debug') {
         abort(404);
     }
 
+    $out = [];
+    $out[] = '=== ROSI System-Diagnose ===';
+    $out[] = 'Zeit: ' . now()->toDateTimeString();
+    $out[] = 'PHP: ' . PHP_VERSION;
+    $out[] = 'Laravel: ' . app()->version();
+    $out[] = 'APP_ENV: ' . config('app.env');
+    $out[] = 'APP_DEBUG: ' . (config('app.debug') ? 'true' : 'false');
+    $out[] = '';
+
+    // Tenant-Status
+    $out[] = '=== TENANTS ===';
+    $tenants = \App\Models\Tenant::all();
+    foreach ($tenants as $t) {
+        $out[] = $t->name . ' | status=' . $t->subscription_status
+            . ' | plan=' . ($t->subscription_plan ?? 'NULL')
+            . ' | trial_ends=' . ($t->trial_ends_at ?? 'NULL')
+            . ' | active=' . ($t->is_active ? 'ja' : 'nein')
+            . ' | hasAccess=' . ($t->hasAccess() ? 'JA' : 'NEIN');
+    }
+    $out[] = '';
+
+    // Filament Assets pruefen
+    $out[] = '=== FILAMENT ASSETS ===';
+    $filamentFiles = [
+        'public/js/filament/filament/app.js',
+        'public/css/filament/filament/app.css',
+        'public/js/filament/schemas/schemas.js',
+        'public/js/filament/actions/actions.js',
+        'public/js/filament/tables/tables.js',
+        'public/js/filament/forms/components/select.js',
+        'public/js/filament/forms/components/date-time-picker.js',
+    ];
+    foreach ($filamentFiles as $f) {
+        $path = base_path($f);
+        if (file_exists($path)) {
+            $out[] = '✓ ' . $f . ' (' . filesize($path) . ' Bytes)';
+        } else {
+            $out[] = '✗ FEHLT: ' . $f;
+        }
+    }
+    $out[] = '';
+
+    // Vite Build pruefen
+    $out[] = '=== VITE BUILD ===';
+    $viteFiles = ['public/build/manifest.json', 'public/build/assets'];
+    foreach ($viteFiles as $f) {
+        $path = base_path($f);
+        $out[] = (file_exists($path) ? '✓' : '✗ FEHLT') . ' ' . $f;
+    }
+    $out[] = '';
+
+    // Route-Cache
+    $out[] = '=== CACHES ===';
+    $out[] = 'Route-Cache: ' . (file_exists(base_path('bootstrap/cache/routes-v7.php')) ? 'AKTIV' : 'nicht aktiv');
+    $out[] = 'Config-Cache: ' . (file_exists(base_path('bootstrap/cache/config.php')) ? 'AKTIV' : 'nicht aktiv');
+    $out[] = '';
+
+    // Logdatei
+    $out[] = '=== LOG ===';
     $logFile = storage_path('logs/laravel.log');
     if (! file_exists($logFile)) {
-        return response('<pre>Logdatei existiert nicht: ' . e($logFile) . '</pre>')
-            ->header('Content-Type', 'text/html');
+        $out[] = 'Logdatei existiert nicht';
+    } elseif (filesize($logFile) === 0) {
+        $out[] = 'Logdatei ist leer';
+    } else {
+        $content = file_get_contents($logFile);
+        $out[] = 'Logdatei: ' . filesize($logFile) . ' Bytes';
+        $out[] = '';
+        $out[] = substr($content, -5000);
     }
 
-    $size = filesize($logFile);
-    if ($size === 0) {
-        return response('<pre>Logdatei ist leer (0 Bytes).</pre>')
-            ->header('Content-Type', 'text/html');
-    }
-
-    // Letzte 8000 Zeichen des Logs lesen
-    $content = file_get_contents($logFile);
-    $tail = substr($content, -8000);
-
-    return response('<pre>Logdatei: ' . e($logFile) . ' (' . $size . ' Bytes)' . "\n\n" . e($tail) . '</pre>')
+    return response('<pre>' . e(implode("\n", $out)) . '</pre>')
         ->header('Content-Type', 'text/html');
 });

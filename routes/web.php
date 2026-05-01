@@ -281,20 +281,27 @@ Route::middleware('auth')->group(function () {
 
 // --- Temporaere Debug-Route: Letzte Fehler aus dem Log ---
 // ENTFERNEN nach Debugging!
-Route::get('/debug/last-errors', function () {
-    if (! auth()->check() || ! auth()->user()->isSuperAdmin()) {
-        abort(403);
+Route::get('/debug/last-errors/{token}', function (string $token) {
+    if ($token !== 'rosi2026debug') {
+        abort(404);
     }
 
     $logFile = storage_path('logs/laravel.log');
     if (! file_exists($logFile)) {
-        return response()->json(['message' => 'Keine Logdatei vorhanden.']);
+        return response('<pre>Logdatei existiert nicht: ' . e($logFile) . '</pre>')
+            ->header('Content-Type', 'text/html');
     }
 
-    // Letzte 5000 Zeichen des Logs lesen
-    $content = file_get_contents($logFile);
-    $tail = substr($content, -5000);
+    $size = filesize($logFile);
+    if ($size === 0) {
+        return response('<pre>Logdatei ist leer (0 Bytes).</pre>')
+            ->header('Content-Type', 'text/html');
+    }
 
-    return response('<pre>' . e($tail) . '</pre>')
+    // Letzte 8000 Zeichen des Logs lesen
+    $content = file_get_contents($logFile);
+    $tail = substr($content, -8000);
+
+    return response('<pre>Logdatei: ' . e($logFile) . ' (' . $size . ' Bytes)' . "\n\n" . e($tail) . '</pre>')
         ->header('Content-Type', 'text/html');
-})->middleware('auth');
+});

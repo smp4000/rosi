@@ -242,6 +242,38 @@ class AppVersionSeeder extends Seeder
                     'Label-Rendering ueber All-Inkl statt Render.com',
                 ],
             ],
+            // --- v2.0.0 ---
+            [
+                'platform' => 'web',
+                'version' => '2.0.0',
+                'release_date' => '2026-05-02',
+                'changes' => [
+                    'Schichtabrechnung: Komplettes Backend mit Wizard-Ablauf',
+                    'Tresor-Einlagen: API mit automatischem DYMO-Etikettdruck',
+                    'Tresor-Label: DieCutLabel 8.0 Format mit Platzhaltern',
+                    'Warenruecknahmen: API mit Foto-Upload (Multipart)',
+                    'Ruecknahme-Gruende: Verwaltung im Partner-Panel (CRUD)',
+                    'API: Ruecknahme-Gruende Endpoint mit Sonstiges-Option',
+                    'Schichtabrechnung: Prueffragen, Muenzrollen, Zaehlerstaende',
+                    'Kassenbericht: IST/SOLL-Vergleich mit Differenzberechnung',
+                ],
+            ],
+            [
+                'platform' => 'android',
+                'version' => '2.0.0',
+                'release_date' => '2026-05-02',
+                'changes' => [
+                    'Schichtabrechnung: 8-Schritt-Wizard (Prueffragen bis Unterschrift)',
+                    'Tresor-Einlagen: Erfassung mit automatischem DYMO-Etikettdruck',
+                    'Warenruecknahmen: Grund als Dropdown (vom Server konfigurierbar)',
+                    'Warenruecknahmen: Bonnummer numerisch + Pflicht, Bon-Foto Pflicht',
+                    'Warenruecknahmen: Sonstiges-Option mit Freitext-Eingabe',
+                    'Datum/Uhrzeit-Picker fuer Warenruecknahmen',
+                    'HomeScreen: Aktive Schicht gelb markiert und oben links angeordnet',
+                    'HomeScreen: Schicht-Pruefung pro eingeloggtem Mitarbeiter',
+                    'Muenzrollen: Bei neuer Schicht auf 0 zurueckgesetzt',
+                ],
+            ],
         ];
 
         $count = 0;

@@ -279,6 +279,28 @@ Route::middleware('auth')->group(function () {
     })->name('subscription.choose');
 });
 
+// --- Temporaere Fix-Route: Tenant auf Active setzen ---
+// ENTFERNEN nach Fix!
+Route::get('/debug/fix-tenant/{token}', function (string $token) {
+    if ($token !== 'rosi2026debug') {
+        abort(404);
+    }
+
+    $count = \App\Models\Tenant::query()
+        ->where('subscription_status', '!=', 'active')
+        ->update([
+            'subscription_status' => 'active',
+            'subscription_plan' => 'premium',
+        ]);
+
+    $tenants = \App\Models\Tenant::all(['id', 'name', 'subscription_status', 'subscription_plan', 'is_active']);
+
+    return response()->json([
+        'message' => $count . ' Tenant(s) auf active gesetzt.',
+        'tenants' => $tenants,
+    ]);
+});
+
 // --- Temporaere Debug-Route: System-Diagnose ---
 // ENTFERNEN nach Debugging!
 Route::get('/debug/last-errors/{token}', function (string $token) {

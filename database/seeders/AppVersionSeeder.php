@@ -227,6 +227,7 @@ class AppVersionSeeder extends Seeder
                     'API-Middleware CheckApiAccess fuer geschuetzte Routen',
                     'Filament: Super-Admin-Fallback fuer Berechtigungsprobleme behoben',
                     'Vite-Build fuer All-Inkl Shared Hosting (kein npm auf Server)',
+                    'Versionshistorie: Scroll-Hinweis fuer aeltere Versionen',
                 ],
             ],
             [

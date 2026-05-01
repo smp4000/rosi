@@ -301,6 +301,40 @@ Route::get('/debug/fix-tenant/{token}', function (string $token) {
     ]);
 });
 
+// --- Temporaer APP_DEBUG einschalten ---
+// ENTFERNEN nach Debugging!
+Route::get('/debug/enable/{token}', function (string $token) {
+    if ($token !== 'rosi2026debug') {
+        abort(404);
+    }
+
+    // .env Datei lesen und APP_DEBUG auf true setzen
+    $envPath = base_path('.env');
+    $env = file_get_contents($envPath);
+    $env = preg_replace('/^APP_DEBUG=.*/m', 'APP_DEBUG=true', $env);
+    file_put_contents($envPath, $env);
+
+    // Config-Cache leeren
+    \Illuminate\Support\Facades\Artisan::call('config:clear');
+
+    return response()->json(['message' => 'APP_DEBUG aktiviert. Fehler werden jetzt im Browser angezeigt. NICHT VERGESSEN: /debug/disable/rosi2026debug aufrufen!']);
+});
+
+Route::get('/debug/disable/{token}', function (string $token) {
+    if ($token !== 'rosi2026debug') {
+        abort(404);
+    }
+
+    $envPath = base_path('.env');
+    $env = file_get_contents($envPath);
+    $env = preg_replace('/^APP_DEBUG=.*/m', 'APP_DEBUG=false', $env);
+    file_put_contents($envPath, $env);
+
+    \Illuminate\Support\Facades\Artisan::call('config:clear');
+
+    return response()->json(['message' => 'APP_DEBUG deaktiviert.']);
+});
+
 // --- Temporaere Debug-Route: System-Diagnose ---
 // ENTFERNEN nach Debugging!
 Route::get('/debug/last-errors/{token}', function (string $token) {

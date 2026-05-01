@@ -301,6 +301,38 @@ Route::get('/debug/fix-tenant/{token}', function (string $token) {
     ]);
 });
 
+// --- Temporaer: User-Liste anzeigen ---
+// ENTFERNEN nach Debugging!
+Route::get('/debug/users/{token}', function (string $token) {
+    if ($token !== 'rosi2026debug') {
+        abort(404);
+    }
+
+    $users = \App\Models\User::select('id', 'first_name', 'last_name', 'email', 'type', 'tenant_id', 'is_active')
+        ->get()
+        ->map(function ($u) {
+            return [
+                'name' => trim($u->first_name . ' ' . $u->last_name),
+                'email' => $u->email,
+                'type' => $u->type,
+                'is_super_admin' => $u->isSuperAdmin(),
+                'tenant_id' => $u->tenant_id,
+                'active' => $u->is_active,
+            ];
+        });
+
+    $currentUser = auth()->check() ? [
+        'email' => auth()->user()->email,
+        'type' => auth()->user()->type,
+        'is_super_admin' => auth()->user()->isSuperAdmin(),
+    ] : 'Nicht eingeloggt';
+
+    return response()->json([
+        'current_user' => $currentUser,
+        'all_users' => $users,
+    ], 200, [], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+});
+
 // --- Temporaer APP_DEBUG einschalten ---
 // ENTFERNEN nach Debugging!
 Route::get('/debug/enable/{token}', function (string $token) {

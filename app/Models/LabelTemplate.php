@@ -116,6 +116,18 @@ class LabelTemplate extends Model
                 ['key' => 'datum', 'label' => 'Datum + Uhrzeit', 'example' => '11.04.2026 16:25'],
             ],
         ],
+        'tresor' => [
+            'label' => 'Tresor-Einlage',
+            'placeholders' => [
+                ['key' => 'station', 'label' => 'Tankstellen-Name', 'example' => 'Aral Tankstelle Welle'],
+                ['key' => 'mitarbeiter', 'label' => 'Mitarbeiter-Name', 'example' => 'Christian Welle'],
+                ['key' => 'datum', 'label' => 'Datum', 'example' => '01.05.2026'],
+                ['key' => 'zeit', 'label' => 'Uhrzeit', 'example' => '22:28'],
+                ['key' => 'betrag', 'label' => 'Betrag', 'example' => '900,00 EUR'],
+                ['key' => 'muenzen', 'label' => 'Mit Muenzen', 'example' => 'Nein'],
+                ['key' => 'barcode', 'label' => 'QR-Code / Barcode', 'example' => 'SAFE-UHRBTWOA'],
+            ],
+        ],
         'adresse' => [
             'label' => 'Adress-Etikett',
             'placeholders' => [

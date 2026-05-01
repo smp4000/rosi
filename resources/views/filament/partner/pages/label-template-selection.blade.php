@@ -17,7 +17,13 @@
                                 $demoData[$p['key']] = $p['example'] ?? $p['key'];
                             }
                         }
-                        $demoData['datum'] = now()->format('d.m.Y H:i');
+                        $demoData['datum'] = now()->format('d.m.Y');
+                        if (isset($demoData['zeit'])) {
+                            $demoData['zeit'] = now()->format('H:i');
+                        } else {
+                            // Aeltere Templates mit kombiniertem datum+uhrzeit
+                            $demoData['datum'] = now()->format('d.m.Y H:i');
+                        }
                         $demoXml = str_replace(
                             array_map(fn($k) => '{{'.$k.'}}', array_keys($demoData)),
                             array_values($demoData),

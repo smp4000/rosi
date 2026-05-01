@@ -165,6 +165,13 @@ class PrintController extends ApiController
         $slug = $request->input('template');
         $data = $request->input('data');
 
+        Log::info('Template-Render angefragt', [
+            'slug' => $slug,
+            'data_keys' => is_array($data) ? array_keys($data) : 'KEIN ARRAY: ' . gettype($data),
+            'data' => $data,
+            'all_input_keys' => array_keys($request->all()),
+        ]);
+
         $tenantId = session('tenant_id');
         if (!$tenantId && $request->filled('device_token')) {
             $tenantId = $this->resolveTenantFromToken($request->input('device_token'));

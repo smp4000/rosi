@@ -241,6 +241,50 @@ class ShiftSettlementController extends ApiController
         ]);
     }
 
+    // ── Letzte Werte der Station ─────────────────────────
+
+    /**
+     * GET /api/v1/shift-settlements/last-values?device_token=xxx
+     *
+     * Liefert die Endwerte der letzten abgeschlossenen Schicht
+     * der gleichen Tankstelle (egal welcher Mitarbeiter).
+     * Wird in der App genutzt um Anfangsbestaende vorzuschlagen.
+     */
+    public function lastValues(Request $request): JsonResponse
+    {
+        $device = $this->findDevice($request->query('device_token', ''));
+        if (! $device) {
+            return $this->error('Geraet nicht erkannt.', 401);
+        }
+
+        $last = ShiftSettlement::where('gas_station_id', $device->station_id)
+            ->where('status', 'completed')
+            ->with(['coinRolls', 'counters'])
+            ->orderByDesc('ended_at')
+            ->first();
+
+        if (! $last) {
+            return $this->success([
+                'coin_rolls' => [],
+                'counters' => [],
+            ], 'Keine vorherige Schicht gefunden.');
+        }
+
+        return $this->success([
+            'coin_rolls' => $last->coinRolls->map(fn ($r) => [
+                'denomination' => $r->denomination,
+                'roll_value' => (float) $r->roll_value,
+                'count_end' => $r->count_end,
+                'value_end' => (float) $r->value_end,
+            ]),
+            'counters' => $last->counters->map(fn ($c) => [
+                'counter_type' => $c->counter_type,
+                'counter_label' => $c->counter_label,
+                'value_end' => (float) $c->value_end,
+            ]),
+        ]);
+    }
+
     // ── Tresor-Einlage ───────────────────────────────────
 
     /**

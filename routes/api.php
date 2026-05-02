@@ -117,6 +117,8 @@ Route::prefix('v1')->group(function () {
         ->name('api.v1.shift-settlements.check-questions');
     Route::get('/shift-settlements/return-reasons', [ShiftSettlementController::class, 'returnReasons'])
         ->name('api.v1.shift-settlements.return-reasons');
+    Route::get('/shift-settlements/last-values', [ShiftSettlementController::class, 'lastValues'])
+        ->name('api.v1.shift-settlements.last-values');
 
     // ------------------------------------------------------------------
     // Geschuetzte Routen (Sanctum Session-Token + Abo-Pruefung)

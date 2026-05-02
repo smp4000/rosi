@@ -16,6 +16,8 @@ class ShiftReturnReasonsSeeder extends Seeder
     {
         $reasons = [
             ['label' => 'Saeulenverwechslung', 'sort_order' => 1],
+            ['label' => 'Falscher Artikel Kunde wollte was anderes', 'sort_order' => 2],
+            ['label' => 'Fehlende Materialien', 'sort_order' => 3],
         ];
 
         $now = now();

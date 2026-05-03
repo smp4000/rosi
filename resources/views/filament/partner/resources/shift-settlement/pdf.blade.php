@@ -81,18 +81,31 @@
 
 {{-- Kassenbericht --}}
 <h2>Kassenbericht</h2>
+@php $cashPhotoInline = $embedImage($record->cash_report_photo); @endphp
 <table>
     <tr>
-        <td>Soll (Kassensystem)</td>
-        <td class="right">{{ number_format((float) $record->cash_report_soll, 2, ',', '.') }} €</td>
-    </tr>
-    <tr>
-        <td>Ist (Bargeld in Kasse)</td>
-        <td class="right">{{ number_format((float) $record->cash_remaining, 2, ',', '.') }} €</td>
-    </tr>
-    <tr class="summary-row">
-        <td>Differenz</td>
-        <td class="right {{ $diffClass }}">{{ ($diff >= 0 ? '+' : '') . number_format($diff, 2, ',', '.') }} €</td>
+        <td style="width: 50%; vertical-align: top; border: none;">
+            <table>
+                <tr>
+                    <td>Soll (Kassensystem)</td>
+                    <td class="right">{{ number_format((float) $record->cash_report_soll, 2, ',', '.') }} €</td>
+                </tr>
+                <tr>
+                    <td>Ist (Bargeld in Kasse)</td>
+                    <td class="right">{{ number_format((float) $record->cash_remaining, 2, ',', '.') }} €</td>
+                </tr>
+                <tr class="summary-row">
+                    <td>Differenz</td>
+                    <td class="right {{ $diffClass }}">{{ ($diff >= 0 ? '+' : '') . number_format($diff, 2, ',', '.') }} €</td>
+                </tr>
+            </table>
+        </td>
+        @if ($cashPhotoInline)
+            <td style="width: 50%; vertical-align: top; border: none; padding-left: 8px;">
+                <div class="small" style="margin-bottom: 2px;">Foto vom Kassenbericht-Zettel:</div>
+                <img src="{{ $cashPhotoInline }}" style="max-width: 100%; max-height: 50mm; border: 1px solid #d1d5db;">
+            </td>
+        @endif
     </tr>
 </table>
 

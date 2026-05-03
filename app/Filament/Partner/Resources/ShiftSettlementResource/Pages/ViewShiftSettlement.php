@@ -3,33 +3,31 @@
 namespace App\Filament\Partner\Resources\ShiftSettlementResource\Pages;
 
 use App\Filament\Partner\Resources\ShiftSettlementResource;
-use Filament\Resources\Pages\Page;
-use Illuminate\Database\Eloquent\Model;
+use Filament\Resources\Pages\ViewRecord;
 
 /**
  * Detailansicht einer Schichtabrechnung mit allen Anhaengen.
+ * Nutzt eine custom Blade-View statt einer Schema/Infolist.
  */
-class ViewShiftSettlement extends Page
+class ViewShiftSettlement extends ViewRecord
 {
     protected static string $resource = ShiftSettlementResource::class;
 
     protected string $view = 'filament.partner.resources.shift-settlement.view';
 
-    public Model $record;
-
-    public function mount(string $record): void
+    public function mount(int|string $record): void
     {
-        $this->record = ShiftSettlementResource::getEloquentQuery()
-            ->with([
-                'gasStation',
-                'user',
-                'coinRolls',
-                'counters',
-                'safeDeposits',
-                'returns',
-                'checkAnswers.question',
-            ])
-            ->findOrFail($record);
+        parent::mount($record);
+
+        $this->record->load([
+            'gasStation',
+            'user',
+            'coinRolls',
+            'counters',
+            'safeDeposits',
+            'returns',
+            'checkAnswers.question',
+        ]);
     }
 
     public function getTitle(): string

@@ -283,27 +283,44 @@
 
 @if ($hasAttachments)
     <div style="page-break-before: always;"></div>
-    <h1 style="font-size: 14pt; color: #1e40af; margin-bottom: 8px;">Anlagen</h1>
-    <p class="small" style="margin-bottom: 12px;">Alle Anhaenge zur Schichtabrechnung in voller Groesse.</p>
+    <h1 style="font-size: 12pt; color: #1e40af; margin-bottom: 4px;">Anlagen</h1>
+    <p class="small" style="margin-bottom: 6px;">Alle Anhaenge zur Schichtabrechnung.</p>
 
     @if ($cashPhoto)
-        <h2>Kassenbericht-Zettel</h2>
-        <img src="{{ $cashPhoto }}" style="max-width: 100%; max-height: 240mm; border: 1px solid #d1d5db;">
+        <div style="margin-bottom: 8px;">
+            <h2 style="margin-top: 4px;">Kassenbericht-Zettel</h2>
+            <img src="{{ $cashPhoto }}" style="max-width: 90mm; max-height: 90mm; border: 1px solid #d1d5db;">
+        </div>
     @endif
 
-    @foreach ($returnPhotos as $entry)
-        @php $r = $entry['return']; @endphp
-        <h2 style="page-break-before: {{ $loop->first && !$cashPhoto ? 'auto' : 'always' }};">
-            Bon Ruecknahme: {{ $r->receipt_number ?: '—' }}
-            ({{ number_format((float) $r->amount, 2, ',', '.') }} €)
-        </h2>
-        <p class="small">Grund: {{ $r->reason ?: '—' }} — Zeit: {{ $r->time ?: '—' }}</p>
-        <img src="{{ $entry['data'] }}" style="max-width: 100%; max-height: 220mm; border: 1px solid #d1d5db;">
-    @endforeach
+    @if ($returnPhotos->count())
+        <h2>Bon-Fotos der Ruecknahmen</h2>
+        <table style="border: none;">
+            @php $chunked = $returnPhotos->values()->chunk(2); @endphp
+            @foreach ($chunked as $row)
+                <tr>
+                    @foreach ($row as $entry)
+                        @php $r = $entry['return']; @endphp
+                        <td style="border: none; width: 50%; padding: 4px; vertical-align: top;">
+                            <div class="small" style="margin-bottom: 2px;">
+                                <strong>Bon {{ $r->receipt_number ?: '—' }}</strong>
+                                — {{ number_format((float) $r->amount, 2, ',', '.') }} €
+                                <br>{{ $r->reason ?: '—' }} ({{ $r->time ?: '—' }})
+                            </div>
+                            <img src="{{ $entry['data'] }}" style="max-width: 85mm; max-height: 85mm; border: 1px solid #d1d5db;">
+                        </td>
+                    @endforeach
+                    @if ($row->count() === 1)
+                        <td style="border: none; width: 50%;"></td>
+                    @endif
+                </tr>
+            @endforeach
+        </table>
+    @endif
 
     @if ($record->signature)
-        <h2 style="page-break-before: {{ ($cashPhoto || $returnPhotos->count()) ? 'always' : 'auto' }};">Unterschrift (gross)</h2>
-        <img src="{{ $record->signature }}" style="max-width: 100%; max-height: 100mm; border: 1px solid #d1d5db; background: white; padding: 8px;">
+        <h2 style="margin-top: 8px;">Unterschrift</h2>
+        <img src="{{ $record->signature }}" style="max-width: 70mm; max-height: 35mm; border: 1px solid #d1d5db; background: white; padding: 4px;">
         <div class="small">{{ $record->user?->name ?? '—' }}</div>
     @endif
 @endif

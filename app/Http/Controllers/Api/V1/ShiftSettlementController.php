@@ -8,6 +8,7 @@ use App\Models\ShiftReturnReason;
 use App\Models\ShiftSettlement;
 use App\Models\ShiftSettlementCheckQuestion;
 use App\Models\ShiftSettlementCoinRoll;
+use App\Models\TenantSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -429,9 +430,16 @@ class ShiftSettlementController extends ApiController
         // Daten fuer Etikett
         $station = $settlement->gasStation;
 
+        // Tenant-Einstellung: DYMO-Etikett automatisch drucken? (Default: ja)
+        $autoPrint = filter_var(
+            TenantSetting::get('auto_print_safe_label', '1', $settlement->tenant_id, 'shift'),
+            FILTER_VALIDATE_BOOLEAN,
+        );
+
         return $this->success([
             'id' => $deposit->id,
             'barcode' => $barcode,
+            'auto_print_label' => $autoPrint,
             'label_data' => [
                 'station_name' => $station->name ?? 'Station',
                 'employee_name' => $user->name,

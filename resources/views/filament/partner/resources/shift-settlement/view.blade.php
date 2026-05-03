@@ -70,68 +70,57 @@
             @endif
         </div>
 
-        {{-- Muenzrollen --}}
-        @if ($record->coinRolls->count())
+        {{-- Muenzrollen-Verbrauch --}}
+        @php
+            $usedRolls = $record->coinRolls->filter(fn ($r) => $r->count_used > 0)->sortByDesc('denomination');
+        @endphp
+        @if ($usedRolls->count())
             <div class="rounded-xl bg-white dark:bg-gray-900 shadow p-6">
-                <h3 class="text-lg font-semibold mb-4">Muenzrollen</h3>
-                <table class="w-full text-sm">
-                    <thead class="border-b text-left text-gray-500">
-                        <tr>
-                            <th class="py-2">Stueckelung</th>
-                            <th class="py-2">Anfang</th>
-                            <th class="py-2">Ende</th>
-                            <th class="py-2">Verbraucht</th>
-                            <th class="py-2 text-right">Wert verbraucht</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($record->coinRolls->sortByDesc('denomination') as $roll)
-                            <tr class="border-b">
-                                <td class="py-2 font-medium">
-                                    @php
-                                        $label = match ($roll->denomination) {
-                                            200 => '2,00 €', 100 => '1,00 €', 50 => '0,50 €', 20 => '0,20 €',
-                                            10 => '0,10 €', 5 => '0,05 €', 2 => '0,02 €', 1 => '0,01 €',
-                                            default => $roll->denomination . ' ct',
-                                        };
-                                    @endphp
-                                    {{ $label }}
-                                </td>
-                                <td class="py-2">{{ $roll->count_start }}</td>
-                                <td class="py-2">{{ $roll->count_end }}</td>
-                                <td class="py-2">{{ $roll->count_used }}</td>
-                                <td class="py-2 text-right">{{ number_format((float) $roll->value_used, 2, ',', '.') }} €</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                <h3 class="text-lg font-semibold mb-4">Muenzrollen-Verbrauch</h3>
+                <ul class="space-y-2 text-sm">
+                    @foreach ($usedRolls as $roll)
+                        @php
+                            $label = match ($roll->denomination) {
+                                200 => '2,00 €', 100 => '1,00 €', 50 => '0,50 €', 20 => '0,20 €',
+                                10 => '0,10 €', 5 => '0,05 €', 2 => '0,02 €', 1 => '0,01 €',
+                                default => $roll->denomination . ' ct',
+                            };
+                        @endphp
+                        <li class="flex justify-between border-b pb-1">
+                            <span><span class="font-medium">{{ $label }}</span> Muenze {{ $roll->count_used }} × {{ number_format((float) $roll->roll_value, 2, ',', '.') }} €</span>
+                            <span class="font-semibold">{{ number_format((float) $roll->value_used, 2, ',', '.') }} €</span>
+                        </li>
+                    @endforeach
+                    <li class="flex justify-between pt-2 font-bold">
+                        <span>Summe:</span>
+                        <span>{{ number_format((float) $usedRolls->sum('value_used'), 2, ',', '.') }} €</span>
+                    </li>
+                </ul>
             </div>
         @endif
 
-        {{-- Zaehlerstaende --}}
-        @if ($record->counters->count())
+        {{-- Zaehlerstaende-Verbrauch --}}
+        @php
+            $usedCounters = $record->counters->filter(fn ($c) => (float) $c->value_used != 0.0);
+        @endphp
+        @if ($usedCounters->count())
             <div class="rounded-xl bg-white dark:bg-gray-900 shadow p-6">
-                <h3 class="text-lg font-semibold mb-4">Zaehlerstaende</h3>
-                <table class="w-full text-sm">
-                    <thead class="border-b text-left text-gray-500">
-                        <tr>
-                            <th class="py-2">Zaehler</th>
-                            <th class="py-2">Anfang</th>
-                            <th class="py-2">Ende</th>
-                            <th class="py-2 text-right">Verbraucht</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($record->counters as $counter)
-                            <tr class="border-b">
-                                <td class="py-2 font-medium">{{ $counter->counter_label ?: $counter->counter_type }}</td>
-                                <td class="py-2">{{ rtrim(rtrim(number_format((float) $counter->value_start, 2, ',', '.'), '0'), ',') }}</td>
-                                <td class="py-2">{{ rtrim(rtrim(number_format((float) $counter->value_end, 2, ',', '.'), '0'), ',') }}</td>
-                                <td class="py-2 text-right">{{ rtrim(rtrim(number_format((float) $counter->value_used, 2, ',', '.'), '0'), ',') }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                <h3 class="text-lg font-semibold mb-4">Zaehlerstaende-Verbrauch</h3>
+                <ul class="space-y-2 text-sm">
+                    @foreach ($usedCounters as $counter)
+                        @php
+                            $used = (float) $counter->value_used;
+                            $unit = $counter->counter_type === 'hermes' ? '€' : 'Stueck';
+                            $value = $unit === '€'
+                                ? number_format($used, 2, ',', '.')
+                                : rtrim(rtrim(number_format($used, 2, ',', '.'), '0'), ',');
+                        @endphp
+                        <li class="flex justify-between border-b pb-1">
+                            <span class="font-medium">{{ $counter->counter_label ?: $counter->counter_type }}</span>
+                            <span class="font-semibold">{{ $value }} {{ $unit }}</span>
+                        </li>
+                    @endforeach
+                </ul>
             </div>
         @endif
 

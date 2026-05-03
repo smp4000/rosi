@@ -82,21 +82,23 @@
     </tr>
 </table>
 
-{{-- Muenzrollen --}}
-@if ($record->coinRolls->count())
-    <h2>Muenzrollen</h2>
+{{-- Muenzrollen-Verbrauch --}}
+@php
+    $usedRolls = $record->coinRolls->filter(fn ($r) => $r->count_used > 0)->sortByDesc('denomination');
+@endphp
+@if ($usedRolls->count())
+    <h2>Muenzrollen-Verbrauch</h2>
     <table>
         <thead>
             <tr>
                 <th>Stueckelung</th>
-                <th class="right">Anfang</th>
-                <th class="right">Ende</th>
-                <th class="right">Verbraucht</th>
+                <th class="right">Anzahl Rollen</th>
+                <th class="right">Rollenwert</th>
                 <th class="right">Wert verbraucht</th>
             </tr>
         </thead>
         <tbody>
-            @foreach ($record->coinRolls->sortByDesc('denomination') as $roll)
+            @foreach ($usedRolls as $roll)
                 @php
                     $label = match ($roll->denomination) {
                         200 => '2,00 €', 100 => '1,00 €', 50 => '0,50 €', 20 => '0,20 €',
@@ -105,36 +107,45 @@
                     };
                 @endphp
                 <tr>
-                    <td>{{ $label }}</td>
-                    <td class="right">{{ $roll->count_start }}</td>
-                    <td class="right">{{ $roll->count_end }}</td>
+                    <td>{{ $label }} Muenze</td>
                     <td class="right">{{ $roll->count_used }}</td>
+                    <td class="right">{{ number_format((float) $roll->roll_value, 2, ',', '.') }} €</td>
                     <td class="right">{{ number_format((float) $roll->value_used, 2, ',', '.') }} €</td>
                 </tr>
             @endforeach
+            <tr class="summary-row">
+                <td colspan="3" class="right">Summe:</td>
+                <td class="right">{{ number_format((float) $usedRolls->sum('value_used'), 2, ',', '.') }} €</td>
+            </tr>
         </tbody>
     </table>
 @endif
 
-{{-- Zaehlerstaende --}}
-@if ($record->counters->count())
-    <h2>Zaehlerstaende</h2>
+{{-- Zaehlerstaende-Verbrauch --}}
+@php
+    $usedCounters = $record->counters->filter(fn ($c) => (float) $c->value_used != 0.0);
+@endphp
+@if ($usedCounters->count())
+    <h2>Zaehlerstaende-Verbrauch</h2>
     <table>
         <thead>
             <tr>
                 <th>Zaehler</th>
-                <th class="right">Anfang</th>
-                <th class="right">Ende</th>
-                <th class="right">Verbraucht</th>
+                <th class="right">Verbrauch</th>
             </tr>
         </thead>
         <tbody>
-            @foreach ($record->counters as $counter)
+            @foreach ($usedCounters as $counter)
+                @php
+                    $used = (float) $counter->value_used;
+                    $unit = $counter->counter_type === 'hermes' ? '€' : 'Stueck';
+                    $value = $unit === '€'
+                        ? number_format($used, 2, ',', '.')
+                        : rtrim(rtrim(number_format($used, 2, ',', '.'), '0'), ',');
+                @endphp
                 <tr>
                     <td>{{ $counter->counter_label ?: $counter->counter_type }}</td>
-                    <td class="right">{{ rtrim(rtrim(number_format((float) $counter->value_start, 2, ',', '.'), '0'), ',') }}</td>
-                    <td class="right">{{ rtrim(rtrim(number_format((float) $counter->value_end, 2, ',', '.'), '0'), ',') }}</td>
-                    <td class="right">{{ rtrim(rtrim(number_format((float) $counter->value_used, 2, ',', '.'), '0'), ',') }}</td>
+                    <td class="right">{{ $value }} {{ $unit }}</td>
                 </tr>
             @endforeach
         </tbody>

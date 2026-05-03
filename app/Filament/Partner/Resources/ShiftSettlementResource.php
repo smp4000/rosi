@@ -33,7 +33,7 @@ class ShiftSettlementResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Schichtabrechnungen';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Tankstelle';
+    protected static string|\UnitEnum|null $navigationGroup = 'Tankstellen';
 
     protected static ?int $navigationSort = 10;
 

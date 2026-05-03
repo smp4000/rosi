@@ -42,6 +42,20 @@
     $diffClass = $diff > 1.0 ? 'diff-warn' : ($diff < -1.0 ? 'diff-neg' : 'diff-pos');
     $statusLabels = ['active' => 'Offen', 'completed' => 'Abgeschlossen', 'cancelled' => 'Abgebrochen'];
     $statusBadges = ['active' => 'b-warning', 'completed' => 'b-success', 'cancelled' => 'b-gray'];
+
+    // Bilder als Base64 einbetten — robust gegen Pfad-Probleme auf Produktiv
+    $embedImage = function ($relativePath) {
+        if (empty($relativePath)) return null;
+        try {
+            $disk = \Illuminate\Support\Facades\Storage::disk('public');
+            if (! $disk->exists($relativePath)) return null;
+            $contents = $disk->get($relativePath);
+            $mime = $disk->mimeType($relativePath) ?: 'image/jpeg';
+            return 'data:' . $mime . ';base64,' . base64_encode($contents);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    };
 @endphp
 
 <div class="header">
@@ -192,8 +206,9 @@
                     <td class="right"><strong>{{ number_format((float) $return->amount, 2, ',', '.') }} €</strong></td>
                 </tr>
             </table>
-            @if ($return->photo && file_exists(public_path('storage/' . $return->photo)))
-                <img src="{{ public_path('storage/' . $return->photo) }}" class="photo" style="margin-top: 4px;">
+            @php $returnPhoto = $embedImage($return->photo); @endphp
+            @if ($returnPhoto)
+                <img src="{{ $returnPhoto }}" class="photo" style="margin-top: 4px;">
             @endif
         </div>
     @endforeach
@@ -237,17 +252,48 @@
     <p style="white-space: pre-line;">{{ $record->notes }}</p>
 @endif
 
-{{-- Kassenbericht-Foto --}}
-@if ($record->cash_report_photo && file_exists(public_path('storage/' . $record->cash_report_photo)))
-    <h2>Foto vom Kassenbericht-Zettel</h2>
-    <img src="{{ public_path('storage/' . $record->cash_report_photo) }}" class="photo">
-@endif
-
 {{-- Unterschrift --}}
 @if ($record->signature)
     <h2>Unterschrift</h2>
     <img src="{{ $record->signature }}" class="signature-img">
     <div class="small">{{ $record->user?->name ?? '—' }}</div>
+@endif
+
+{{-- ANHANG: Alle Anlagen in voller Groesse --}}
+@php
+    $cashPhoto = $embedImage($record->cash_report_photo);
+    $returnPhotos = $record->returns
+        ->filter(fn ($r) => !empty($r->photo))
+        ->map(fn ($r) => ['return' => $r, 'data' => $embedImage($r->photo)])
+        ->filter(fn ($e) => !empty($e['data']));
+    $hasAttachments = $cashPhoto || $returnPhotos->count() || !empty($record->signature);
+@endphp
+
+@if ($hasAttachments)
+    <div style="page-break-before: always;"></div>
+    <h1 style="font-size: 14pt; color: #1e40af; margin-bottom: 8px;">Anlagen</h1>
+    <p class="small" style="margin-bottom: 12px;">Alle Anhaenge zur Schichtabrechnung in voller Groesse.</p>
+
+    @if ($cashPhoto)
+        <h2>Kassenbericht-Zettel</h2>
+        <img src="{{ $cashPhoto }}" style="max-width: 100%; max-height: 240mm; border: 1px solid #d1d5db;">
+    @endif
+
+    @foreach ($returnPhotos as $entry)
+        @php $r = $entry['return']; @endphp
+        <h2 style="page-break-before: {{ $loop->first && !$cashPhoto ? 'auto' : 'always' }};">
+            Bon Ruecknahme: {{ $r->receipt_number ?: '—' }}
+            ({{ number_format((float) $r->amount, 2, ',', '.') }} €)
+        </h2>
+        <p class="small">Grund: {{ $r->reason ?: '—' }} — Zeit: {{ $r->time ?: '—' }}</p>
+        <img src="{{ $entry['data'] }}" style="max-width: 100%; max-height: 220mm; border: 1px solid #d1d5db;">
+    @endforeach
+
+    @if ($record->signature)
+        <h2 style="page-break-before: {{ ($cashPhoto || $returnPhotos->count()) ? 'always' : 'auto' }};">Unterschrift (gross)</h2>
+        <img src="{{ $record->signature }}" style="max-width: 100%; max-height: 100mm; border: 1px solid #d1d5db; background: white; padding: 8px;">
+        <div class="small">{{ $record->user?->name ?? '—' }}</div>
+    @endif
 @endif
 
 <div class="footer">

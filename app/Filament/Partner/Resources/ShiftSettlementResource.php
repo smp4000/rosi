@@ -6,7 +6,13 @@ use App\Filament\Partner\Resources\ShiftSettlementResource\Pages;
 use App\Models\GasStation;
 use App\Models\ShiftSettlement;
 use Filament\Actions;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\BadgeColumn;
@@ -15,7 +21,6 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Grouping\Group as TableGroup;
 use Filament\Tables\Table;
-use Filament\Forms\Components\DatePicker;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -55,11 +60,67 @@ class ShiftSettlementResource extends Resource
         ];
     }
 
-    // ── Formular (nicht genutzt, aber Pflicht) ─────
+    // ── Formular (Edit-Seite) ──────────────────────
 
     public static function form(Schema $schema): Schema
     {
-        return $schema->schema([]);
+        return $schema->schema([
+            Section::make('Allgemein')
+                ->icon('heroicon-o-information-circle')
+                ->schema([
+                    Grid::make(2)->schema([
+                        DateTimePicker::make('started_at')
+                            ->label('Beginn')
+                            ->displayFormat('d.m.Y H:i')
+                            ->seconds(false)
+                            ->required(),
+                        DateTimePicker::make('ended_at')
+                            ->label('Ende')
+                            ->displayFormat('d.m.Y H:i')
+                            ->seconds(false),
+                    ]),
+                    Select::make('status')
+                        ->label('Status')
+                        ->options(static::getStatusOptions())
+                        ->required(),
+                ]),
+
+            Section::make('Kassenbericht')
+                ->icon('heroicon-o-currency-euro')
+                ->schema([
+                    Grid::make(3)->schema([
+                        TextInput::make('cash_report_soll')
+                            ->label('Soll')
+                            ->numeric()
+                            ->step(0.01)
+                            ->prefix('€'),
+                        TextInput::make('cash_remaining')
+                            ->label('Ist')
+                            ->numeric()
+                            ->step(0.01)
+                            ->prefix('€'),
+                        TextInput::make('cash_difference')
+                            ->label('Differenz')
+                            ->numeric()
+                            ->step(0.01)
+                            ->prefix('€'),
+                    ]),
+                    TextInput::make('safe_total')
+                        ->label('Tresor-Summe')
+                        ->numeric()
+                        ->step(0.01)
+                        ->prefix('€'),
+                ]),
+
+            Section::make('Bemerkungen')
+                ->icon('heroicon-o-chat-bubble-left-right')
+                ->schema([
+                    Textarea::make('notes')
+                        ->label('Bemerkungen zur Schicht')
+                        ->rows(4)
+                        ->maxLength(2000),
+                ]),
+        ]);
     }
 
     // ── Tabelle ────────────────────────────────────
@@ -171,6 +232,7 @@ class ShiftSettlementResource extends Resource
             ])
             ->actions([
                 Actions\ViewAction::make(),
+                Actions\EditAction::make(),
             ])
             ->bulkActions([]);
     }
@@ -182,6 +244,7 @@ class ShiftSettlementResource extends Resource
         return [
             'index' => Pages\ListShiftSettlements::route('/'),
             'view' => Pages\ViewShiftSettlement::route('/{record}'),
+            'edit' => Pages\EditShiftSettlement::route('/{record}/edit'),
         ];
     }
 

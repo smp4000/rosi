@@ -165,6 +165,12 @@ Route::prefix('v1')->group(function () {
             ->name('api.v1.shift-settlements.returns');
         Route::post('/shift-settlements/{id}/complete', [ShiftSettlementController::class, 'complete'])
             ->name('api.v1.shift-settlements.complete');
+        Route::get('/shift-settlements/mine', [ShiftSettlementController::class, 'mine'])
+            ->name('api.v1.shift-settlements.mine');
+        Route::get('/shift-settlements/{id}/details', [ShiftSettlementController::class, 'details'])
+            ->name('api.v1.shift-settlements.details');
+        Route::post('/shift-settlements/{id}/comments', [ShiftSettlementController::class, 'addComment'])
+            ->name('api.v1.shift-settlements.comments');
 
     });
 

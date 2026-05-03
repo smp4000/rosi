@@ -285,6 +285,116 @@ class ShiftSettlementController extends ApiController
         ]);
     }
 
+    // ── Eigene Schichten (App-Liste) ─────────────────────
+
+    /**
+     * GET /api/v1/shift-settlements/mine?device_token=xxx
+     *
+     * Liefert alle Schichten des angemeldeten Mitarbeiters
+     * (sortiert nach Beginn absteigend, max. 50).
+     */
+    public function mine(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return $this->error('Nicht angemeldet.', 401);
+        }
+
+        $device = $this->findDevice($request->query('device_token', ''));
+        if (! $device) {
+            return $this->error('Geraet nicht erkannt.', 401);
+        }
+
+        $settlements = ShiftSettlement::where('user_id', $user->id)
+            ->where('gas_station_id', $device->station_id)
+            ->orderByDesc('started_at')
+            ->limit(50)
+            ->get();
+
+        return $this->success([
+            'settlements' => $settlements->map(fn ($s) => [
+                'id' => $s->id,
+                'status' => $s->status,
+                'started_at' => $s->started_at->toIso8601String(),
+                'ended_at' => $s->ended_at?->toIso8601String(),
+                'cash_remaining' => (float) $s->cash_remaining,
+                'cash_report_soll' => (float) $s->cash_report_soll,
+                'cash_difference' => (float) $s->cash_difference,
+                'safe_total' => (float) $s->safe_total,
+            ]),
+        ]);
+    }
+
+    /**
+     * GET /api/v1/shift-settlements/{id}/details?device_token=xxx
+     *
+     * Vollstaendige Details einer eigenen Schicht (read-only).
+     */
+    public function details(Request $request, string $id): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return $this->error('Nicht angemeldet.', 401);
+        }
+
+        $settlement = ShiftSettlement::where('id', $id)
+            ->where('user_id', $user->id)
+            ->with(['coinRolls', 'counters', 'safeDeposits', 'returns', 'comments.user'])
+            ->first();
+
+        if (! $settlement) {
+            return $this->error('Schicht nicht gefunden.', 404);
+        }
+
+        return $this->success([
+            'settlement' => $this->formatSettlement($settlement),
+            'comments' => $settlement->comments->map(fn ($c) => [
+                'id' => $c->id,
+                'body' => $c->body,
+                'user_name' => $c->user?->name ?? '—',
+                'created_at' => $c->created_at->toIso8601String(),
+            ]),
+        ]);
+    }
+
+    /**
+     * POST /api/v1/shift-settlements/{id}/comments
+     *
+     * Nachtraeglicher Kommentar zu einer eigenen Schicht.
+     * Funktioniert auch nach Abschluss.
+     */
+    public function addComment(Request $request, string $id): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return $this->error('Nicht angemeldet.', 401);
+        }
+
+        $settlement = ShiftSettlement::where('id', $id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (! $settlement) {
+            return $this->error('Schicht nicht gefunden.', 404);
+        }
+
+        $validated = $request->validate([
+            'body' => 'required|string|max:2000',
+        ]);
+
+        $comment = $settlement->comments()->create([
+            'user_id' => $user->id,
+            'body' => $validated['body'],
+        ]);
+
+        return $this->success([
+            'id' => $comment->id,
+            'body' => $comment->body,
+            'user_name' => $user->name,
+            'created_at' => $comment->created_at->toIso8601String(),
+        ], 'Kommentar gespeichert.', 201);
+    }
+
     // ── Tresor-Einlage ───────────────────────────────────
 
     /**

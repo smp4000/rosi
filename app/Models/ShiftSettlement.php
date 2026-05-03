@@ -101,6 +101,12 @@ class ShiftSettlement extends \Illuminate\Database\Eloquent\Model
         return $this->hasMany(ShiftSettlementReturn::class);
     }
 
+    /** Nachtraegliche Kommentare */
+    public function comments(): HasMany
+    {
+        return $this->hasMany(ShiftSettlementComment::class);
+    }
+
     // --- Status-Helfer ---
 
     public function isActive(): bool

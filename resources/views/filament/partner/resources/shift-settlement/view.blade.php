@@ -61,10 +61,11 @@
             </div>
 
             @if ($record->cash_report_photo)
+                @php $cashUrl = route('shift.attachment', ['settlement' => $record->id, 'type' => 'cash_report']); @endphp
                 <div>
                     <p class="text-sm text-gray-500 mb-2">Foto vom Kassenbericht-Zettel</p>
-                    <a href="{{ asset('storage/' . $record->cash_report_photo) }}" target="_blank">
-                        <img src="{{ asset('storage/' . $record->cash_report_photo) }}" class="max-w-md rounded-lg border" alt="Kassenbericht">
+                    <a href="{{ $cashUrl }}" target="_blank">
+                        <img src="{{ $cashUrl }}" class="max-w-md rounded-lg border" alt="Kassenbericht">
                     </a>
                 </div>
             @endif
@@ -161,8 +162,9 @@
                     @foreach ($record->returns->sortBy('time') as $return)
                         <div class="border rounded-lg p-4 flex flex-wrap gap-4">
                             @if ($return->photo)
-                                <a href="{{ asset('storage/' . $return->photo) }}" target="_blank" class="shrink-0">
-                                    <img src="{{ asset('storage/' . $return->photo) }}" class="w-32 h-32 object-cover rounded-lg border" alt="Bon">
+                                @php $bonUrl = route('shift.attachment', ['settlement' => $record->id, 'type' => 'return', 'returnId' => $return->id]); @endphp
+                                <a href="{{ $bonUrl }}" target="_blank" class="shrink-0">
+                                    <img src="{{ $bonUrl }}" class="w-32 h-32 object-cover rounded-lg border" alt="Bon">
                                 </a>
                             @endif
                             <div class="flex-1 min-w-[200px]">

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\EmailVerificationController;
+use App\Http\Controllers\ShiftSettlementAttachmentController;
 use App\Http\Controllers\TelegramWebhookController;
 use App\Livewire\Auth\ForgotPassword;
 use App\Livewire\Auth\Login;
@@ -59,6 +60,11 @@ Route::middleware('guest')->group(function () {
 */
 
 Route::middleware('auth')->group(function () {
+
+    // --- Schichtabrechnung Anhaenge (gestreamt, kein storage:link noetig) ---
+    Route::get('/shift-attachments/{settlement}/{type}/{returnId?}', [ShiftSettlementAttachmentController::class, 'show'])
+        ->name('shift.attachment')
+        ->where('type', 'cash_report|return');
 
     // --- E-Mail-Verifizierung ---
     Route::get('/email/verifizieren', VerifyEmail::class)

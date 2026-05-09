@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\ArticleController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DeviceController;
 use App\Http\Controllers\Api\V1\FuelTheftController;
+use App\Http\Controllers\Api\V1\KioskController;
 use App\Http\Controllers\Api\V1\MhdController;
 use App\Http\Controllers\Api\V1\PrintController;
 use App\Http\Controllers\Api\V1\ShiftSettlementController;
@@ -120,6 +121,16 @@ Route::prefix('v1')->group(function () {
     Route::get('/shift-settlements/last-values', [ShiftSettlementController::class, 'lastValues'])
         ->name('api.v1.shift-settlements.last-values');
 
+    // --- Kiosk: Health + Artikel-Lookup (oeffentlich, nur device_token) ---
+    Route::get('/kiosk/ping', [KioskController::class, 'ping'])
+        ->name('api.v1.kiosk.ping');
+    Route::get('/kiosk/articles/lookup', [KioskController::class, 'lookupByEan'])
+        ->name('api.v1.kiosk.articles.lookup');
+    Route::get('/kiosk/articles/by-objekt', [KioskController::class, 'lookupByObjekt'])
+        ->name('api.v1.kiosk.articles.by-objekt');
+    Route::post('/kiosk/articles/upsert-pending', [KioskController::class, 'upsertPending'])
+        ->name('api.v1.kiosk.articles.upsert-pending');
+
     // ------------------------------------------------------------------
     // Geschuetzte Routen (Sanctum Session-Token + Abo-Pruefung)
     // ------------------------------------------------------------------
@@ -171,6 +182,14 @@ Route::prefix('v1')->group(function () {
             ->name('api.v1.shift-settlements.details');
         Route::post('/shift-settlements/{id}/comments', [ShiftSettlementController::class, 'addComment'])
             ->name('api.v1.shift-settlements.comments');
+
+        // --- Kiosk: Bewegungen (geschuetzt) ---
+        Route::post('/kiosk/deliveries/save', [KioskController::class, 'saveDelivery'])
+            ->name('api.v1.kiosk.deliveries.save');
+        Route::post('/kiosk/remissions/save', [KioskController::class, 'saveRemission'])
+            ->name('api.v1.kiosk.remissions.save');
+        Route::post('/kiosk/inventory/save', [KioskController::class, 'saveInventory'])
+            ->name('api.v1.kiosk.inventory.save');
 
     });
 

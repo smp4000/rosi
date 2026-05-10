@@ -84,6 +84,7 @@ class KioskUpload extends Page implements HasForms
 
             if (empty($pdfRef)) {
                 Notification::make()->title('Keine Datei ausgewaehlt')->danger()->send();
+                $this->cleanupTempFiles(null);
                 return;
             }
 
@@ -100,6 +101,7 @@ class KioskUpload extends Page implements HasForms
                     ->danger()
                     ->persistent()
                     ->send();
+                $this->cleanupTempFiles(null);
                 return;
             }
 
@@ -131,8 +133,6 @@ class KioskUpload extends Page implements HasForms
                         ->send();
                 }
                 $this->form->fill();
-                // Aufraeumen: importierte Datei + alte livewire-tmp Dateien loeschen
-                $this->cleanupTempFiles($absolutePath);
             } else {
                 Notification::make()
                     ->title('Import nicht abgeschlossen')
@@ -141,7 +141,12 @@ class KioskUpload extends Page implements HasForms
                     ->persistent()
                     ->send();
             }
+
+            // Egal ob success oder Duplikat — IMMER aufraeumen
+            $this->cleanupTempFiles($absolutePath);
         } catch (\Throwable $e) {
+            // Auch bei Exception aufraeumen
+            $this->cleanupTempFiles(null);
             \Illuminate\Support\Facades\Log::error('Kiosk PDF Upload', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -158,7 +163,7 @@ class KioskUpload extends Page implements HasForms
     /**
      * Leert nach jedem Import den livewire-tmp Ordner komplett.
      */
-    private function cleanupTempFiles(string $importedPath): void
+    private function cleanupTempFiles(?string $importedPath = null): void
     {
         $dirs = [
             storage_path('app/private/livewire-tmp'),

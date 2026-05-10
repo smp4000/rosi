@@ -55,6 +55,16 @@ class PvgPdfParserService
             $header = $this->parseHeader($lines);
             $positions = $this->parsePositions($lines);
 
+            // Debug: Wenn keine Positionen erkannt, log die ersten Zeilen
+            if (empty($positions)) {
+                Log::warning('PVG-Parser: Keine Positionen erkannt', [
+                    'file' => $originalFilename,
+                    'header' => $header,
+                    'first_30_lines' => array_slice($lines, 0, 30),
+                    'total_lines' => count($lines),
+                ]);
+            }
+
             return DB::transaction(function () use ($header, $positions, $tenantId, $hash, $originalFilename) {
                 $invoice = Invoice::firstOrCreate(
                     [

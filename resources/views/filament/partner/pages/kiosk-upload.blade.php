@@ -2,33 +2,33 @@
     @php $kpis = $this->kpis; @endphp
 
     {{-- KPIs --}}
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-        <div class="rounded-xl bg-white dark:bg-gray-900 shadow p-4">
-            <p class="text-xs text-gray-500">Rechnungen</p>
-            <p class="text-2xl font-bold">{{ $kpis['invoices'] }}</p>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px;">
+        <div style="background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); padding: 16px;">
+            <p style="margin:0;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Rechnungen</p>
+            <p style="margin:4px 0 0;font-size:24px;font-weight:700;">{{ $kpis['invoices'] }}</p>
         </div>
-        <div class="rounded-xl bg-white dark:bg-gray-900 shadow p-4">
-            <p class="text-xs text-gray-500">Artikel</p>
-            <p class="text-2xl font-bold">{{ $kpis['articles'] }}</p>
+        <div style="background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); padding: 16px;">
+            <p style="margin:0;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Artikel</p>
+            <p style="margin:4px 0 0;font-size:24px;font-weight:700;">{{ $kpis['articles'] }}</p>
         </div>
-        <div class="rounded-xl bg-white dark:bg-gray-900 shadow p-4">
-            <p class="text-xs text-gray-500">Pending</p>
-            <p class="text-2xl font-bold {{ $kpis['pending'] > 0 ? 'text-amber-600' : '' }}">{{ $kpis['pending'] }}</p>
+        <div style="background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); padding: 16px;">
+            <p style="margin:0;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Pending</p>
+            <p style="margin:4px 0 0;font-size:24px;font-weight:700;color:{{ $kpis['pending'] > 0 ? '#d97706' : 'inherit' }};">{{ $kpis['pending'] }}</p>
         </div>
-        <div class="rounded-xl bg-white dark:bg-gray-900 shadow p-4">
-            <p class="text-xs text-gray-500">Bestellzeilen</p>
-            <p class="text-2xl font-bold">{{ $kpis['order_lines'] }}</p>
+        <div style="background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); padding: 16px;">
+            <p style="margin:0;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Bestellzeilen</p>
+            <p style="margin:4px 0 0;font-size:24px;font-weight:700;">{{ $kpis['order_lines'] }}</p>
         </div>
-        <div class="rounded-xl bg-white dark:bg-gray-900 shadow p-4">
-            <p class="text-xs text-gray-500">Preisaenderungen</p>
-            <p class="text-2xl font-bold">{{ $kpis['price_changes'] }}</p>
+        <div style="background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); padding: 16px;">
+            <p style="margin:0;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Preisaenderungen</p>
+            <p style="margin:4px 0 0;font-size:24px;font-weight:700;">{{ $kpis['price_changes'] }}</p>
         </div>
     </div>
 
-    {{-- Upload-Formular: Nach PDF-Auswahl auf "PDF importieren" oben rechts klicken --}}
-    <div class="mb-6">
+    {{-- Upload-Formular --}}
+    <div style="margin-bottom: 24px;">
         {{ $this->form }}
-        <div class="flex justify-end mt-4">
+        <div style="display:flex; justify-content:flex-end; margin-top: 16px;">
             <x-filament::button
                 wire:click="runImport"
                 size="lg"
@@ -41,60 +41,74 @@
     </div>
 
     {{-- Letzte Importe --}}
-    <div class="rounded-xl bg-white dark:bg-gray-900 shadow p-6 mb-6">
-        <h3 class="text-lg font-semibold mb-4">Letzte Importe</h3>
+    <div style="background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); padding: 20px; margin-bottom: 16px;">
+        <h3 style="margin:0 0 12px;font-size:16px;font-weight:600;">Letzte Importe</h3>
         @if ($this->recentImports->count())
-            <table class="w-full text-sm">
-                <thead class="border-b text-left text-gray-500">
-                    <tr><th class="py-2">Datum</th><th class="py-2">Datei</th><th class="py-2">Status</th><th class="py-2 text-right">Eingefuegt</th><th class="py-2 text-right">Aktualisiert</th></tr>
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <thead>
+                    <tr style="text-align: left; color: #6b7280; border-bottom: 1px solid #e5e7eb;">
+                        <th style="padding: 8px 6px;">Datum</th>
+                        <th style="padding: 8px 6px;">Datei</th>
+                        <th style="padding: 8px 6px;">Status</th>
+                        <th style="padding: 8px 6px; text-align: right;">Eingefuegt</th>
+                        <th style="padding: 8px 6px; text-align: right;">Aktualisiert</th>
+                    </tr>
                 </thead>
                 <tbody>
                     @foreach ($this->recentImports as $imp)
-                        <tr class="border-b">
-                            <td class="py-2">{{ $imp->created_at?->format('d.m.Y H:i') }}</td>
-                            <td class="py-2 truncate max-w-xs">{{ $imp->filename ?? '—' }}</td>
-                            <td class="py-2">
-                                @if ($imp->status === 'success')
-                                    <span class="px-2 py-0.5 rounded bg-green-100 text-green-800 text-xs">OK</span>
+                        <tr style="border-bottom: 1px solid #f3f4f6;">
+                            <td style="padding: 8px 6px;">{{ $imp->created_at?->format('d.m.Y H:i') }}</td>
+                            <td style="padding: 8px 6px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ $imp->filename ?? '—' }}</td>
+                            <td style="padding: 8px 6px;">
+                                @if ($imp->status === 'success' && $imp->articles_inserted == 0 && $imp->articles_updated == 0)
+                                    <span style="padding: 2px 8px; border-radius: 8px; background: #fef3c7; color: #92400e; font-size: 11px;">Leer</span>
+                                @elseif ($imp->status === 'success')
+                                    <span style="padding: 2px 8px; border-radius: 8px; background: #d1fae5; color: #065f46; font-size: 11px;">OK</span>
                                 @elseif ($imp->status === 'skipped')
-                                    <span class="px-2 py-0.5 rounded bg-gray-100 text-gray-800 text-xs">Skipped</span>
+                                    <span style="padding: 2px 8px; border-radius: 8px; background: #f3f4f6; color: #4b5563; font-size: 11px;">Skipped</span>
                                 @else
-                                    <span class="px-2 py-0.5 rounded bg-red-100 text-red-800 text-xs">Fehler</span>
+                                    <span style="padding: 2px 8px; border-radius: 8px; background: #fee2e2; color: #991b1b; font-size: 11px;">Fehler</span>
                                 @endif
                             </td>
-                            <td class="py-2 text-right">{{ $imp->articles_inserted }}</td>
-                            <td class="py-2 text-right">{{ $imp->articles_updated }}</td>
+                            <td style="padding: 8px 6px; text-align: right;">{{ $imp->articles_inserted }}</td>
+                            <td style="padding: 8px 6px; text-align: right;">{{ $imp->articles_updated }}</td>
                         </tr>
                     @endforeach
                 </tbody>
             </table>
         @else
-            <p class="text-sm text-gray-500">Noch keine Importe vorhanden.</p>
+            <p style="margin:0;color:#6b7280;font-size:13px;">Noch keine Importe vorhanden.</p>
         @endif
     </div>
 
     {{-- Letzte Preisaenderungen --}}
-    <div class="rounded-xl bg-white dark:bg-gray-900 shadow p-6">
-        <h3 class="text-lg font-semibold mb-4">Letzte Preisaenderungen</h3>
+    <div style="background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); padding: 20px;">
+        <h3 style="margin:0 0 12px;font-size:16px;font-weight:600;">Letzte Preisaenderungen</h3>
         @if ($this->recentPriceChanges->count())
-            <table class="w-full text-sm">
-                <thead class="border-b text-left text-gray-500">
-                    <tr><th class="py-2">Datum</th><th class="py-2">Artikel</th><th class="py-2">Typ</th><th class="py-2">Alt</th><th class="py-2">Neu</th></tr>
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <thead>
+                    <tr style="text-align: left; color: #6b7280; border-bottom: 1px solid #e5e7eb;">
+                        <th style="padding: 8px 6px;">Datum</th>
+                        <th style="padding: 8px 6px;">Artikel</th>
+                        <th style="padding: 8px 6px;">Typ</th>
+                        <th style="padding: 8px 6px;">Alt</th>
+                        <th style="padding: 8px 6px;">Neu</th>
+                    </tr>
                 </thead>
                 <tbody>
                     @foreach ($this->recentPriceChanges as $pc)
-                        <tr class="border-b">
-                            <td class="py-2">{{ $pc->changed_at?->format('d.m.Y H:i') }}</td>
-                            <td class="py-2">{{ $pc->article?->bezeichnung ?? '—' }}</td>
-                            <td class="py-2">{{ $pc->change_type }}</td>
-                            <td class="py-2">{{ $pc->old_preis_netto ?? $pc->old_ek ?? '—' }}</td>
-                            <td class="py-2 font-semibold">{{ $pc->new_preis_netto ?? $pc->new_ek ?? '—' }}</td>
+                        <tr style="border-bottom: 1px solid #f3f4f6;">
+                            <td style="padding: 8px 6px;">{{ $pc->changed_at?->format('d.m.Y H:i') }}</td>
+                            <td style="padding: 8px 6px;">{{ $pc->article?->bezeichnung ?? '—' }}</td>
+                            <td style="padding: 8px 6px;">{{ $pc->change_type }}</td>
+                            <td style="padding: 8px 6px;">{{ $pc->old_preis_netto ?? $pc->old_ek ?? '—' }}</td>
+                            <td style="padding: 8px 6px; font-weight: 600;">{{ $pc->new_preis_netto ?? $pc->new_ek ?? '—' }}</td>
                         </tr>
                     @endforeach
                 </tbody>
             </table>
         @else
-            <p class="text-sm text-gray-500">Noch keine Preisaenderungen vorhanden.</p>
+            <p style="margin:0;color:#6b7280;font-size:13px;">Noch keine Preisaenderungen vorhanden.</p>
         @endif
     </div>
 </x-filament-panels::page>

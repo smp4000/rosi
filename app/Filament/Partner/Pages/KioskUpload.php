@@ -109,11 +109,20 @@ class KioskUpload extends Page implements HasForms
             $result = $parser->import($absolutePath, $tenantId, $originalName);
 
             if ($result['success']) {
-                Notification::make()
-                    ->title('Import erfolgreich')
-                    ->body("Eingefuegt: {$result['articles_inserted']}, Aktualisiert: {$result['articles_updated']}")
-                    ->success()
-                    ->send();
+                if ($result['articles_inserted'] == 0 && $result['articles_updated'] == 0) {
+                    Notification::make()
+                        ->title('Import abgeschlossen — aber keine Positionen erkannt')
+                        ->body('Das PDF-Layout passt eventuell nicht zum erwarteten PVG-Format. Pruefe storage/logs/laravel.log fuer Debug-Ausgabe.')
+                        ->warning()
+                        ->persistent()
+                        ->send();
+                } else {
+                    Notification::make()
+                        ->title('Import erfolgreich')
+                        ->body("Eingefuegt: {$result['articles_inserted']}, Aktualisiert: {$result['articles_updated']}")
+                        ->success()
+                        ->send();
+                }
                 $this->form->fill();
             } else {
                 Notification::make()

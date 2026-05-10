@@ -15,6 +15,7 @@
         "laravel/tinker": "^2.10.1",
         "setasign/fpdf": "^1.8",
         "simplesoftwareio/simple-qrcode": "^4.2",
+        "smalot/pdfparser": "^2.12",
         "spatie/laravel-permission": "^6.0"
     },
     "require-dev": {

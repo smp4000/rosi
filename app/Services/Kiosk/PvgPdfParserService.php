@@ -120,25 +120,52 @@ class PvgPdfParserService
     }
 
     /**
-     * pdftotext als externen Prozess aufrufen.
+     * Text aus PDF extrahieren.
+     *
+     * 1. Versucht pdftotext (besser fuer Layout)
+     * 2. Faellt auf smalot/pdfparser zurueck (reines PHP, ohne Binaries)
      */
     private function extractText(string $pdfPath): string
     {
+        if (! file_exists($pdfPath)) {
+            throw new \RuntimeException("PDF-Datei nicht gefunden: {$pdfPath}");
+        }
+
+        // Versuch 1: pdftotext mit -layout
         $output = [];
         $code = 0;
         @exec('pdftotext -layout ' . escapeshellarg($pdfPath) . ' - 2>&1', $output, $code);
 
-        if ($code !== 0 || empty($output)) {
-            // Fallback: ohne -layout
-            $output = [];
-            @exec('pdftotext ' . escapeshellarg($pdfPath) . ' - 2>&1', $output, $code);
+        if ($code === 0 && ! empty($output)) {
+            return implode("\n", $output);
         }
 
-        if ($code !== 0 || empty($output)) {
-            throw new \RuntimeException('pdftotext nicht verfuegbar oder PDF unlesbar.');
+        // Versuch 2: pdftotext ohne Layout
+        $output = [];
+        @exec('pdftotext ' . escapeshellarg($pdfPath) . ' - 2>&1', $output, $code);
+
+        if ($code === 0 && ! empty($output)) {
+            return implode("\n", $output);
         }
 
-        return implode("\n", $output);
+        // Fallback: smalot/pdfparser (reines PHP)
+        try {
+            $parser = new \Smalot\PdfParser\Parser();
+            $document = $parser->parseFile($pdfPath);
+            $text = $document->getText();
+
+            if (empty(trim($text))) {
+                throw new \RuntimeException('PDF enthaelt keinen lesbaren Text.');
+            }
+
+            return $text;
+        } catch (\Throwable $e) {
+            throw new \RuntimeException(
+                'PDF-Extraktion fehlgeschlagen. ' .
+                'Weder pdftotext noch PHP-Parser konnten Text auslesen. ' .
+                'Original-Fehler: ' . $e->getMessage(),
+            );
+        }
     }
 
     /**

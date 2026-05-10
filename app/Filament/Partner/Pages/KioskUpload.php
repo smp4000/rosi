@@ -66,33 +66,70 @@ class KioskUpload extends Page implements HasForms
 
     public function upload(): void
     {
-        $data = $this->form->getState();
+        try {
+            $data = $this->form->getState();
 
-        if (empty($data['pdf'])) {
-            Notification::make()->title('Keine Datei')->danger()->send();
-            return;
-        }
+            if (empty($data['pdf'])) {
+                Notification::make()->title('Keine Datei ausgewaehlt')->danger()->send();
+                return;
+            }
 
-        $tenantId = auth()->user()->tenant_id;
-        $relativePath = is_array($data['pdf']) ? reset($data['pdf']) : $data['pdf'];
-        $absolutePath = \Illuminate\Support\Facades\Storage::disk('local')->path($relativePath);
-        $originalName = basename($relativePath);
+            $tenantId = auth()->user()->tenant_id;
+            // FileUpload kann ein Array oder String sein, manchmal mit Schlüsseln
+            $pdfValue = $data['pdf'];
+            if (is_array($pdfValue)) {
+                $pdfValue = reset($pdfValue);
+            }
+            if (! is_string($pdfValue) || empty($pdfValue)) {
+                Notification::make()
+                    ->title('Datei-Pfad nicht erkannt')
+                    ->body('Form-State: ' . json_encode($data['pdf']))
+                    ->danger()
+                    ->send();
+                return;
+            }
 
-        $parser = app(PvgPdfParserService::class);
-        $result = $parser->import($absolutePath, $tenantId, $originalName);
+            $disk = \Illuminate\Support\Facades\Storage::disk('local');
+            if (! $disk->exists($pdfValue)) {
+                Notification::make()
+                    ->title('Datei nicht gefunden')
+                    ->body("Pfad: {$pdfValue}")
+                    ->danger()
+                    ->send();
+                return;
+            }
 
-        if ($result['success']) {
+            $absolutePath = $disk->path($pdfValue);
+            $originalName = basename($pdfValue);
+
+            $parser = app(PvgPdfParserService::class);
+            $result = $parser->import($absolutePath, $tenantId, $originalName);
+
+            if ($result['success']) {
+                Notification::make()
+                    ->title('Import erfolgreich')
+                    ->body("Eingefuegt: {$result['articles_inserted']}, Aktualisiert: {$result['articles_updated']}")
+                    ->success()
+                    ->send();
+                $this->form->fill();
+            } else {
+                Notification::make()
+                    ->title('Import nicht abgeschlossen')
+                    ->body($result['message'] ?? 'Unbekannter Fehler')
+                    ->warning()
+                    ->persistent()
+                    ->send();
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Kiosk PDF Upload', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             Notification::make()
-                ->title('Import erfolgreich')
-                ->body("Eingefuegt: {$result['articles_inserted']}, Aktualisiert: {$result['articles_updated']}")
-                ->success()
-                ->send();
-            $this->form->fill();
-        } else {
-            Notification::make()
-                ->title('Import nicht abgeschlossen')
-                ->body($result['message'] ?? 'Unbekannter Fehler')
-                ->warning()
+                ->title('Fehler beim Upload')
+                ->body($e->getMessage())
+                ->danger()
+                ->persistent()
                 ->send();
         }
     }

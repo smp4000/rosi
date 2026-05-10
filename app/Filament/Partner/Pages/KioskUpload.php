@@ -161,7 +161,8 @@ class KioskUpload extends Page implements HasForms
     }
 
     /**
-     * Leert nach jedem Import den livewire-tmp Ordner komplett.
+     * Leert den livewire-tmp Ordner. Loescht nur Dateien aelter als
+     * 1 Minute, damit gerade laufende Uploads nicht abgebrochen werden.
      */
     private function cleanupTempFiles(?string $importedPath = null): void
     {
@@ -170,10 +171,14 @@ class KioskUpload extends Page implements HasForms
             storage_path('app/livewire-tmp'),
         ];
 
+        $cutoff = time() - 60;
+
         foreach ($dirs as $dir) {
             if (! is_dir($dir)) continue;
             foreach (glob($dir . '/*') ?: [] as $file) {
-                if (is_file($file)) @unlink($file);
+                if (is_file($file) && filemtime($file) < $cutoff) {
+                    @unlink($file);
+                }
             }
         }
     }

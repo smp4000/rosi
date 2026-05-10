@@ -131,6 +131,8 @@ class KioskUpload extends Page implements HasForms
                         ->send();
                 }
                 $this->form->fill();
+                // Aufraeumen: importierte Datei + alte livewire-tmp Dateien loeschen
+                $this->cleanupTempFiles($absolutePath);
             } else {
                 Notification::make()
                     ->title('Import nicht abgeschlossen')
@@ -150,6 +152,34 @@ class KioskUpload extends Page implements HasForms
                 ->danger()
                 ->persistent()
                 ->send();
+        }
+    }
+
+    /**
+     * Loescht die soeben importierte Datei sowie alle alten Livewire-Temp-Files
+     * (PDF + .json-Sidecar). Default-Schwelle: alle Dateien aelter als 1h.
+     */
+    private function cleanupTempFiles(string $importedPath): void
+    {
+        // 1. Importierte Datei direkt loeschen
+        @unlink($importedPath);
+        @unlink($importedPath . '.json');
+
+        // 2. Alte Reste in livewire-tmp aufraeumen (>1h alt)
+        $dirs = [
+            storage_path('app/private/livewire-tmp'),
+            storage_path('app/livewire-tmp'),
+        ];
+        $cutoff = time() - 3600;
+
+        foreach ($dirs as $dir) {
+            if (! is_dir($dir)) continue;
+            foreach (glob($dir . '/*') ?: [] as $file) {
+                if (! is_file($file)) continue;
+                if (filemtime($file) < $cutoff) {
+                    @unlink($file);
+                }
+            }
         }
     }
 

@@ -19,11 +19,11 @@ class KioskInvoiceResource extends Resource
 
     protected static ?string $navigationLabel = 'Rechnungen';
 
-    protected static ?string $modelLabel = 'Kiosk-Rechnung';
+    protected static ?string $modelLabel = 'Zeitungs-Rechnung';
 
-    protected static ?string $pluralModelLabel = 'Kiosk-Rechnungen';
+    protected static ?string $pluralModelLabel = 'Zeitungs-Rechnungen';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Kiosk';
+    protected static string|\UnitEnum|null $navigationGroup = 'Zeitungen';
 
     protected static ?int $navigationSort = 30;
 

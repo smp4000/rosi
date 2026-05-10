@@ -22,11 +22,11 @@ class KioskArticleResource extends Resource
 
     protected static ?string $navigationLabel = 'Artikel';
 
-    protected static ?string $modelLabel = 'Kiosk-Artikel';
+    protected static ?string $modelLabel = 'Zeitung';
 
-    protected static ?string $pluralModelLabel = 'Kiosk-Artikel';
+    protected static ?string $pluralModelLabel = 'Zeitungen';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Kiosk';
+    protected static string|\UnitEnum|null $navigationGroup = 'Zeitungen';
 
     protected static ?int $navigationSort = 20;
 

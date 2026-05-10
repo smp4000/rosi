@@ -27,11 +27,11 @@ class KioskUpload extends Page implements HasForms
 
     protected static ?string $navigationLabel = 'Dashboard';
 
-    protected static ?string $title = 'Kiosk-Dashboard';
+    protected static ?string $title = 'Zeitungen-Dashboard';
 
     protected static ?string $slug = 'kiosk';
 
-    protected static string|\UnitEnum|null $navigationGroup = 'Kiosk';
+    protected static string|\UnitEnum|null $navigationGroup = 'Zeitungen';
 
     protected static ?int $navigationSort = 10;
 

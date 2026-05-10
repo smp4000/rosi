@@ -25,11 +25,13 @@
         </div>
     </div>
 
-    {{-- Upload-Formular --}}
-    <form wire:submit="upload" class="mb-6">
+    {{-- Upload-Formular (Submit-Button via Header-Action "PDF importieren") --}}
+    <form wire:submit.prevent="upload" class="mb-6">
         {{ $this->form }}
         <div class="flex justify-end mt-4">
-            <x-filament::button type="submit">PDF importieren</x-filament::button>
+            <x-filament::button type="submit" size="lg" icon="heroicon-o-arrow-up-tray">
+                PDF importieren
+            </x-filament::button>
         </div>
     </form>
 

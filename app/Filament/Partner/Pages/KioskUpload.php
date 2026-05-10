@@ -8,6 +8,7 @@ use App\Models\Kiosk\Invoice;
 use App\Models\Kiosk\OrderLine;
 use App\Models\Kiosk\PriceChangeLog;
 use App\Services\Kiosk\PvgPdfParserService;
+use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -47,7 +48,8 @@ class KioskUpload extends Page implements HasForms
     public function form(Schema $form): Schema
     {
         return $form
-            ->schema([
+            ->statePath('data')
+            ->components([
                 Section::make('PVG-Rechnung importieren')
                     ->icon('heroicon-o-arrow-up-tray')
                     ->description('PDF-Datei hochladen — Artikel, Preise und Bestellzeilen werden automatisch extrahiert.')
@@ -56,12 +58,22 @@ class KioskUpload extends Page implements HasForms
                             ->label('PDF-Datei')
                             ->disk('local')
                             ->directory('kiosk-uploads')
-                            ->acceptedFileTypes(['application/pdf'])
+                            ->acceptedFileTypes(['application/pdf', '.pdf'])
                             ->maxSize(25 * 1024)
                             ->required(),
                     ]),
-            ])
-            ->statePath('data');
+            ]);
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('importPdf')
+                ->label('PDF importieren')
+                ->icon('heroicon-o-arrow-up-tray')
+                ->color('primary')
+                ->action('upload'),
+        ];
     }
 
     public function upload(): void

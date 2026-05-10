@@ -139,15 +139,33 @@ class KioskUpload extends Page implements HasForms
 
     private function resolvePath(mixed $pdfRef): ?string
     {
+        // Direkter TemporaryUploadedFile
         if ($pdfRef instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
             return $pdfRef->getRealPath();
         }
 
-        $value = is_array($pdfRef) ? reset($pdfRef) : $pdfRef;
-        if (! is_string($value) || $value === '') {
-            return null;
+        // Wert kann auch in Array stecken
+        if (is_array($pdfRef)) {
+            foreach ($pdfRef as $entry) {
+                if ($entry instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
+                    return $entry->getRealPath();
+                }
+                if (is_string($entry) && $entry !== '') {
+                    $resolved = $this->resolveString($entry);
+                    if ($resolved) return $resolved;
+                }
+            }
+        } elseif (is_string($pdfRef) && $pdfRef !== '') {
+            $resolved = $this->resolveString($pdfRef);
+            if ($resolved) return $resolved;
         }
 
+        // Letzter Fallback: neueste PDF in livewire-tmp
+        return $this->getRecentLivewirePdf();
+    }
+
+    private function resolveString(string $value): ?string
+    {
         $candidates = [
             storage_path('app/private/' . $value),
             storage_path('app/' . $value),
@@ -161,8 +179,29 @@ class KioskUpload extends Page implements HasForms
                 return $candidate;
             }
         }
-
         return null;
+    }
+
+    private function getRecentLivewirePdf(): ?string
+    {
+        $dirs = [
+            storage_path('app/private/livewire-tmp'),
+            storage_path('app/livewire-tmp'),
+        ];
+
+        $newest = null;
+        $newestTime = 0;
+        foreach ($dirs as $dir) {
+            if (! is_dir($dir)) continue;
+            foreach (glob($dir . '/*.pdf') ?: [] as $file) {
+                $mtime = filemtime($file);
+                if ($mtime > $newestTime && (time() - $mtime) < 300) { // max 5 Min alt
+                    $newest = $file;
+                    $newestTime = $mtime;
+                }
+            }
+        }
+        return $newest;
     }
 
     public function getKpisProperty(): array

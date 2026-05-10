@@ -67,40 +67,31 @@ class KioskUpload extends Page implements HasForms
     public function upload(): void
     {
         try {
-            $data = $this->form->getState();
+            $pdfRef = $this->data['pdf'] ?? null;
 
-            if (empty($data['pdf'])) {
+            if (empty($pdfRef)) {
                 Notification::make()->title('Keine Datei ausgewaehlt')->danger()->send();
                 return;
             }
 
-            $tenantId = auth()->user()->tenant_id;
-            // FileUpload kann ein Array oder String sein, manchmal mit Schlüsseln
-            $pdfValue = $data['pdf'];
-            if (is_array($pdfValue)) {
-                $pdfValue = reset($pdfValue);
-            }
-            if (! is_string($pdfValue) || empty($pdfValue)) {
-                Notification::make()
-                    ->title('Datei-Pfad nicht erkannt')
-                    ->body('Form-State: ' . json_encode($data['pdf']))
-                    ->danger()
-                    ->send();
-                return;
-            }
-
-            $disk = \Illuminate\Support\Facades\Storage::disk('local');
-            if (! $disk->exists($pdfValue)) {
+            // FileUpload kann ein Array, String oder TemporaryUploadedFile sein.
+            $absolutePath = $this->resolvePath($pdfRef);
+            if (! $absolutePath || ! file_exists($absolutePath)) {
+                \Illuminate\Support\Facades\Log::warning('Kiosk Upload: Datei nicht gefunden', [
+                    'pdf' => $pdfRef,
+                    'data' => $this->data,
+                ]);
                 Notification::make()
                     ->title('Datei nicht gefunden')
-                    ->body("Pfad: {$pdfValue}")
+                    ->body('Form-State: ' . json_encode($pdfRef))
                     ->danger()
+                    ->persistent()
                     ->send();
                 return;
             }
 
-            $absolutePath = $disk->path($pdfValue);
-            $originalName = basename($pdfValue);
+            $originalName = basename($absolutePath);
+            $tenantId = auth()->user()->tenant_id;
 
             $parser = app(PvgPdfParserService::class);
             $result = $parser->import($absolutePath, $tenantId, $originalName);
@@ -132,6 +123,34 @@ class KioskUpload extends Page implements HasForms
                 ->persistent()
                 ->send();
         }
+    }
+
+    private function resolvePath(mixed $pdfRef): ?string
+    {
+        if ($pdfRef instanceof \Livewire\Features\SupportFileUploads\TemporaryUploadedFile) {
+            return $pdfRef->getRealPath();
+        }
+
+        $value = is_array($pdfRef) ? reset($pdfRef) : $pdfRef;
+        if (! is_string($value) || $value === '') {
+            return null;
+        }
+
+        $candidates = [
+            storage_path('app/private/' . $value),
+            storage_path('app/' . $value),
+            storage_path('app/private/kiosk-uploads/' . basename($value)),
+            storage_path('app/private/livewire-tmp/' . $value),
+            storage_path('app/livewire-tmp/' . $value),
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (file_exists($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 
     public function getKpisProperty(): array

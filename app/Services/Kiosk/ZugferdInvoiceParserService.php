@@ -209,6 +209,7 @@ class ZugferdInvoiceParserService
             $ean = (string) ($line->xpath('.//ram:SpecifiedTradeProduct/ram:GlobalID')[0] ?? '');
             $objekt = (string) ($line->xpath('.//ram:SpecifiedTradeProduct/ram:SellerAssignedID')[0] ?? '');
             $bezeichnung = (string) ($line->xpath('.//ram:SpecifiedTradeProduct/ram:Name')[0] ?? '');
+            $weekday = $this->extractWeekday($bezeichnung);
 
             // FIXED_PRICE = VKP brutto
             $fixedPrice = null;
@@ -235,6 +236,7 @@ class ZugferdInvoiceParserService
                 'lieferschein_datum' => $datum,
                 'objekt' => $objekt,
                 'bezeichnung' => $bezeichnung,
+                'weekday' => $weekday,
                 'ean' => $ean,
                 'ausgabe' => $ausgabe,
                 'menge' => $menge,
@@ -246,6 +248,33 @@ class ZugferdInvoiceParserService
         }
 
         return $positions;
+    }
+
+    /**
+     * Wochentag aus Bezeichnung extrahieren.
+     * Beispiele: "BILD Bund 1Mo" -> 1, "Welt am Sonntag 7So" -> 7
+     * Auch ohne Ziffer: "Bezeichnung Mo" -> 1, "... So" -> 7
+     */
+    private function extractWeekday(string $bezeichnung): ?int
+    {
+        // Mit Ziffer: "1Mo", "2Di" usw.
+        if (preg_match('/\b([1-7])(Mo|Di|Mi|Do|Fr|Sa|So)\b/u', $bezeichnung, $m)) {
+            return (int) $m[1];
+        }
+
+        // Tag-Suffix ohne Ziffer
+        $map = ['Mo' => 1, 'Di' => 2, 'Mi' => 3, 'Do' => 4, 'Fr' => 5, 'Sa' => 6, 'So' => 7];
+        if (preg_match('/\b(Mo|Di|Mi|Do|Fr|Sa|So)\b\s*$/u', $bezeichnung, $m)) {
+            return $map[$m[1]] ?? null;
+        }
+
+        // Volle Wochentagsnamen
+        $full = ['Montag' => 1, 'Dienstag' => 2, 'Mittwoch' => 3, 'Donnerstag' => 4, 'Freitag' => 5, 'Samstag' => 6, 'Sonntag' => 7];
+        foreach ($full as $name => $num) {
+            if (stripos($bezeichnung, $name) !== false) return $num;
+        }
+
+        return null;
     }
 
     /**
@@ -271,6 +300,7 @@ class ZugferdInvoiceParserService
                 'supplier' => 'PVG',
                 'objekt' => $pos['objekt'],
                 'ean' => $pos['ean'],
+                'weekday' => $pos['weekday'] ?? null,
                 'bezeichnung' => $pos['bezeichnung'],
                 'aktueller_preis_brutto' => $vkpBrutto,
                 'aktueller_preis_netto' => $vkpNetto,
@@ -296,6 +326,7 @@ class ZugferdInvoiceParserService
             $article->update([
                 'ean' => $pos['ean'] ?: $article->ean,
                 'bezeichnung' => $pos['bezeichnung'] ?: $article->bezeichnung,
+                'weekday' => $pos['weekday'] ?? $article->weekday,
                 'aktueller_preis_brutto' => $vkpBrutto,
                 'aktueller_preis_netto' => $vkpNetto,
                 'mwst_satz' => $mwstSatz,

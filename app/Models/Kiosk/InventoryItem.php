@@ -10,7 +10,7 @@ class InventoryItem extends Model
 {
     use HasUuids;
 
-    protected $table = 'kiosk_inventory_items';
+    protected $table = 'newspaper_inventory_items';
 
     public $timestamps = false;
 

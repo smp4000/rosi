@@ -11,7 +11,7 @@ class OrderLine extends Model
 {
     use HasFactory, HasUuids;
 
-    protected $table = 'kiosk_order_lines';
+    protected $table = 'newspaper_order_lines';
 
     protected $fillable = [
         'invoice_id', 'article_id', 'typ', 'lieferschein_nr', 'lieferschein_datum',

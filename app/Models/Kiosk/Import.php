@@ -11,7 +11,7 @@ class Import extends Model
 {
     use HasUuids, BelongsToTenant;
 
-    protected $table = 'kiosk_imports';
+    protected $table = 'newspaper_imports';
 
     public $timestamps = false;
 

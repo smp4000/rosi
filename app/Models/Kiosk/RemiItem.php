@@ -10,7 +10,7 @@ class RemiItem extends Model
 {
     use HasUuids;
 
-    protected $table = 'kiosk_remi_items';
+    protected $table = 'newspaper_remi_items';
 
     public $timestamps = false;
 

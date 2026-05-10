@@ -12,7 +12,7 @@ class Article extends Model
 {
     use HasFactory, HasUuids, BelongsToTenant;
 
-    protected $table = 'kiosk_articles';
+    protected $table = 'newspaper_articles';
 
     protected $fillable = [
         'tenant_id',

@@ -15,7 +15,7 @@ class Delivery extends Model
 {
     use HasFactory, HasUuids, BelongsToTenant;
 
-    protected $table = 'kiosk_deliveries';
+    protected $table = 'newspaper_deliveries';
 
     protected $fillable = [
         'tenant_id', 'gas_station_id', 'user_id',

@@ -15,7 +15,7 @@ class InventoryRun extends Model
 {
     use HasFactory, HasUuids, BelongsToTenant;
 
-    protected $table = 'kiosk_inventory_runs';
+    protected $table = 'newspaper_inventory_runs';
 
     protected $fillable = [
         'tenant_id', 'gas_station_id', 'user_id',

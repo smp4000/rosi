@@ -11,7 +11,7 @@ class ArticleIssue extends Model
 {
     use HasFactory, HasUuids;
 
-    protected $table = 'kiosk_article_issues';
+    protected $table = 'newspaper_article_issues';
 
     public $timestamps = false;
 

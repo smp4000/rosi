@@ -15,7 +15,7 @@ class RemiPackage extends Model
 {
     use HasFactory, HasUuids, BelongsToTenant;
 
-    protected $table = 'kiosk_remi_packages';
+    protected $table = 'newspaper_remi_packages';
 
     protected $fillable = [
         'tenant_id', 'gas_station_id', 'user_id',

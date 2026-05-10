@@ -8,6 +8,8 @@ use App\Models\Kiosk\Import;
 use App\Models\Kiosk\Invoice;
 use App\Models\Kiosk\OrderLine;
 use App\Models\Kiosk\PriceChangeLog;
+use App\Models\Kiosk\Supplier;
+use App\Models\Kiosk\SupplierStation;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -49,6 +51,7 @@ class ZugferdInvoiceParserService
             }
 
             $header = $this->parseHeader($xml);
+            $sellerInfo = $this->parseSeller($xml);
             $positions = $this->parseLineItems($xml);
 
             if (empty($positions)) {
@@ -58,14 +61,30 @@ class ZugferdInvoiceParserService
                 ]);
             }
 
-            return DB::transaction(function () use ($header, $positions, $tenantId, $hash, $originalFilename) {
+            return DB::transaction(function () use ($header, $sellerInfo, $positions, $tenantId, $hash, $originalFilename) {
+                // Lieferant erkennen oder anlegen
+                $supplier = $this->findOrCreateSupplier($tenantId, $sellerInfo);
+
+                // Tankstelle ueber Kundennummer aufloesen
+                $gasStationId = null;
+                $kundennummer = $header['kundennummer'] ?? null;
+                if ($supplier && $kundennummer) {
+                    $pivot = SupplierStation::where('supplier_id', $supplier->id)
+                        ->where('kundennummer', $kundennummer)
+                        ->first();
+                    $gasStationId = $pivot?->gas_station_id;
+                }
+
                 $invoice = Invoice::firstOrCreate(
                     [
                         'tenant_id' => $tenantId,
-                        'supplier' => 'PVG',
+                        'supplier' => $supplier?->short_code ?? 'PVG',
                         'rechnungsnummer' => $header['rechnungsnummer'] ?? 'UNBEKANNT-' . substr($hash, 0, 8),
                     ],
                     [
+                        'supplier_id' => $supplier?->id,
+                        'gas_station_id' => $gasStationId,
+                        'kundennummer' => $kundennummer,
                         'rechnungsdatum' => $header['rechnungsdatum'] ?? null,
                         'gesamtbetrag' => $header['gesamtbetrag'] ?? null,
                         'filename' => $originalFilename,
@@ -153,6 +172,90 @@ class ZugferdInvoiceParserService
     }
 
     /**
+     * Verkaeufer (Lieferant) aus XML extrahieren.
+     */
+    private function parseSeller(\SimpleXMLElement $xml): array
+    {
+        $info = ['name' => null, 'vat_id' => null, 'email' => null, 'phone' => null, 'address' => null];
+
+        $name = $xml->xpath('//ram:SellerTradeParty/ram:Name')[0] ?? null;
+        if ($name) $info['name'] = trim((string) $name);
+
+        $vat = $xml->xpath('//ram:SellerTradeParty/ram:SpecifiedTaxRegistration/ram:ID[@schemeID="VA"]')[0] ?? null;
+        if ($vat) $info['vat_id'] = (string) $vat;
+
+        $email = $xml->xpath('//ram:SellerTradeParty//ram:URIID[@schemeID="EM"]')[0] ?? null;
+        if ($email) $info['email'] = (string) $email;
+
+        $phone = $xml->xpath('//ram:SellerTradeParty//ram:CompleteNumber')[0] ?? null;
+        if ($phone) $info['phone'] = (string) $phone;
+
+        $street = $xml->xpath('//ram:SellerTradeParty/ram:PostalTradeAddress/ram:LineOne')[0] ?? null;
+        $plz = $xml->xpath('//ram:SellerTradeParty/ram:PostalTradeAddress/ram:PostcodeCode')[0] ?? null;
+        $city = $xml->xpath('//ram:SellerTradeParty/ram:PostalTradeAddress/ram:CityName')[0] ?? null;
+        $addr = trim(implode(', ', array_filter([
+            $street ? (string) $street : null,
+            $plz && $city ? "{$plz} {$city}" : ($city ? (string) $city : null),
+        ])));
+        if ($addr !== '') $info['address'] = $addr;
+
+        return $info;
+    }
+
+    /**
+     * Lieferant ueber Name (oder VAT-ID) finden oder neu anlegen.
+     */
+    private function findOrCreateSupplier(string $tenantId, array $sellerInfo): ?Supplier
+    {
+        $name = $sellerInfo['name'] ?? null;
+        if (! $name) return null;
+
+        // Versuche zuerst per VAT-ID, dann per Name (case-insensitive)
+        $supplier = null;
+        if (! empty($sellerInfo['vat_id'])) {
+            $supplier = Supplier::where('tenant_id', $tenantId)
+                ->where('vat_id', $sellerInfo['vat_id'])
+                ->first();
+        }
+        if (! $supplier) {
+            $supplier = Supplier::where('tenant_id', $tenantId)
+                ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+                ->first();
+        }
+
+        if ($supplier) {
+            // Update bei Bedarf
+            $supplier->update(array_filter([
+                'vat_id' => $sellerInfo['vat_id'] ?: $supplier->vat_id,
+                'email' => $sellerInfo['email'] ?: $supplier->email,
+                'phone' => $sellerInfo['phone'] ?: $supplier->phone,
+                'address' => $sellerInfo['address'] ?: $supplier->address,
+            ]));
+            return $supplier;
+        }
+
+        // Short-Code aus Name ableiten (z.B. "PVG Presse-Vertrieb GmbH" -> "PVG")
+        $shortCode = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $name), 0, 10));
+        // Eindeutigkeit sicherstellen
+        $base = $shortCode;
+        $i = 1;
+        while (Supplier::where('tenant_id', $tenantId)->where('short_code', $shortCode)->exists()) {
+            $shortCode = $base . $i++;
+        }
+
+        return Supplier::create([
+            'tenant_id' => $tenantId,
+            'name' => $name,
+            'short_code' => $shortCode ?: null,
+            'vat_id' => $sellerInfo['vat_id'] ?? null,
+            'email' => $sellerInfo['email'] ?? null,
+            'phone' => $sellerInfo['phone'] ?? null,
+            'address' => $sellerInfo['address'] ?? null,
+            'is_active' => true,
+        ]);
+    }
+
+    /**
      * Rechnungskopf aus XML extrahieren.
      */
     private function parseHeader(\SimpleXMLElement $xml): array
@@ -172,8 +275,11 @@ class ZugferdInvoiceParserService
         $gesamt = $xml->xpath('//ram:SpecifiedTradeSettlementHeaderMonetarySummation/ram:GrandTotalAmount')[0] ?? null;
         if ($gesamt) $header['gesamtbetrag'] = (float) $gesamt;
 
-        $kunde = $xml->xpath('//ram:BuyerTradeParty/ram:ID')[0] ?? null;
-        if ($kunde) $header['kundennummer'] = (string) $kunde;
+        // Kundennummer: BuyerTradeParty/ID (kann auch BuyerAssignedID am Verkaufspartner sein)
+        $kunde = $xml->xpath('//ram:BuyerTradeParty/ram:ID')[0]
+            ?? $xml->xpath('//ram:BuyerTradeParty/ram:GlobalID')[0]
+            ?? null;
+        if ($kunde) $header['kundennummer'] = trim((string) $kunde);
 
         return $header;
     }

@@ -10,7 +10,7 @@ class PriceChangeLog extends Model
 {
     use HasUuids;
 
-    protected $table = 'kiosk_price_change_log';
+    protected $table = 'newspaper_price_change_log';
 
     public $timestamps = false;
 

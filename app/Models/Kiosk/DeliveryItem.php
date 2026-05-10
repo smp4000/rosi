@@ -10,7 +10,7 @@ class DeliveryItem extends Model
 {
     use HasUuids;
 
-    protected $table = 'kiosk_delivery_items';
+    protected $table = 'newspaper_delivery_items';
 
     public $timestamps = false;
 

@@ -40,7 +40,7 @@ class Invoice extends Model
 
     public function supplierRel(): BelongsTo
     {
-        return $this->belongsTo(Supplier::class, 'supplier_id');
+        return $this->belongsTo(\App\Models\Supplier::class, 'supplier_id');
     }
 
     public function gasStation(): BelongsTo

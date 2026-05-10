@@ -1,20 +1,20 @@
 <?php
 
-namespace App\Models\Kiosk;
+namespace App\Models;
 
-use App\Models\GasStation;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 
 /**
- * Pivot-Tabelle Lieferant <-> Tankstelle mit Kundennummer.
+ * Pivot Lieferant <-> Tankstelle mit Kundennummer.
+ * Allgemein nutzbar (Zeitungen, Bistro, etc.).
  */
 class SupplierStation extends Pivot
 {
     use HasUuids;
 
-    protected $table = 'newspaper_supplier_stations';
+    protected $table = 'supplier_stations';
 
     public $incrementing = false;
 

@@ -25,6 +25,8 @@ class Supplier extends Model
     protected $fillable = [
         'tenant_id',
         'supplier_number',
+        'short_code',
+        'is_active',
         // Firmendaten
         'company_name',
         'vat_id',
@@ -80,6 +82,7 @@ class Supplier extends Model
             'tags' => 'array',
             'last_contact_at' => 'datetime',
             'next_followup_at' => 'datetime',
+            'is_active' => 'boolean',
         ];
     }
 
@@ -94,11 +97,29 @@ class Supplier extends Model
     }
 
     /**
-     * Zugeordnete Tankstellen (Many-to-Many).
+     * Zugeordnete Tankstellen (Many-to-Many) — alte CRM-Verknuepfung.
      */
     public function gasStations(): BelongsToMany
     {
         return $this->belongsToMany(GasStation::class, 'supplier_gas_station');
+    }
+
+    /**
+     * Tankstellen-Zuordnung mit Kundennummer (neu, Pivot supplier_stations).
+     * Wird modul-uebergreifend genutzt (z.B. Zeitungs-Lieferant hat
+     * pro Tankstelle eine eigene Kundennummer).
+     */
+    public function stations(): BelongsToMany
+    {
+        return $this->belongsToMany(GasStation::class, 'supplier_stations')
+            ->using(SupplierStation::class)
+            ->withPivot(['id', 'kundennummer', 'created_at', 'updated_at'])
+            ->withTimestamps();
+    }
+
+    public function supplierStations(): HasMany
+    {
+        return $this->hasMany(SupplierStation::class);
     }
 
     /**

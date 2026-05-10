@@ -1,10 +1,9 @@
 <?php
 
-namespace App\Filament\Partner\Resources\NewspaperSupplierResource\RelationManagers;
+namespace App\Filament\Partner\Resources\SupplierResource\RelationManagers;
 
 use App\Models\GasStation;
 use Filament\Actions;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
@@ -20,17 +19,6 @@ class StationsRelationManager extends RelationManager
     public function form(Schema $schema): Schema
     {
         return $schema->schema([
-            Select::make('recordId')
-                ->label('Tankstelle')
-                ->options(function () {
-                    return GasStation::where('tenant_id', auth()->user()->tenant_id)
-                        ->orderBy('name')
-                        ->pluck('name', 'id');
-                })
-                ->required()
-                ->searchable()
-                ->preload(),
-
             TextInput::make('kundennummer')
                 ->label('Kundennummer')
                 ->required()

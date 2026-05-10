@@ -8,8 +8,8 @@ use App\Models\Kiosk\Import;
 use App\Models\Kiosk\Invoice;
 use App\Models\Kiosk\OrderLine;
 use App\Models\Kiosk\PriceChangeLog;
-use App\Models\Kiosk\Supplier;
-use App\Models\Kiosk\SupplierStation;
+use App\Models\Supplier;
+use App\Models\SupplierStation;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -204,13 +204,13 @@ class ZugferdInvoiceParserService
 
     /**
      * Lieferant ueber Name (oder VAT-ID) finden oder neu anlegen.
+     * Nutzt das allgemeine App\Models\Supplier mit company_name.
      */
     private function findOrCreateSupplier(string $tenantId, array $sellerInfo): ?Supplier
     {
         $name = $sellerInfo['name'] ?? null;
         if (! $name) return null;
 
-        // Versuche zuerst per VAT-ID, dann per Name (case-insensitive)
         $supplier = null;
         if (! empty($sellerInfo['vat_id'])) {
             $supplier = Supplier::where('tenant_id', $tenantId)
@@ -219,39 +219,63 @@ class ZugferdInvoiceParserService
         }
         if (! $supplier) {
             $supplier = Supplier::where('tenant_id', $tenantId)
-                ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+                ->whereRaw('LOWER(company_name) = ?', [mb_strtolower($name)])
                 ->first();
         }
 
         if ($supplier) {
-            // Update bei Bedarf
             $supplier->update(array_filter([
                 'vat_id' => $sellerInfo['vat_id'] ?: $supplier->vat_id,
-                'email' => $sellerInfo['email'] ?: $supplier->email,
-                'phone' => $sellerInfo['phone'] ?: $supplier->phone,
-                'address' => $sellerInfo['address'] ?: $supplier->address,
+                'contact_email' => $sellerInfo['email'] ?: $supplier->contact_email,
+                'contact_phone' => $sellerInfo['phone'] ?: $supplier->contact_phone,
             ]));
             return $supplier;
         }
 
         // Short-Code aus Name ableiten (z.B. "PVG Presse-Vertrieb GmbH" -> "PVG")
         $shortCode = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $name), 0, 10));
-        // Eindeutigkeit sicherstellen
         $base = $shortCode;
         $i = 1;
-        while (Supplier::where('tenant_id', $tenantId)->where('short_code', $shortCode)->exists()) {
+        while ($shortCode && Supplier::where('tenant_id', $tenantId)->where('short_code', $shortCode)->exists()) {
             $shortCode = $base . $i++;
+        }
+
+        // Adresse aufsplitten wenn sie als "Strasse, PLZ Ort" kommt
+        $street = null; $zip = null; $city = null;
+        if (! empty($sellerInfo['address'])) {
+            $parts = array_map('trim', explode(',', $sellerInfo['address'], 2));
+            $street = $parts[0] ?? null;
+            if (isset($parts[1]) && preg_match('/^(\d{4,5})\s+(.+)$/', $parts[1], $m)) {
+                $zip = $m[1];
+                $city = $m[2];
+            } elseif (isset($parts[1])) {
+                $city = $parts[1];
+            }
+        }
+
+        // Naechste freie Lieferanten-Nummer (LIEF-0001, LIEF-0002, ...)
+        $nextNum = (int) Supplier::where('tenant_id', $tenantId)->count() + 1;
+        $supplierNumber = 'LIEF-' . str_pad((string) $nextNum, 4, '0', STR_PAD_LEFT);
+        while (Supplier::where('tenant_id', $tenantId)->where('supplier_number', $supplierNumber)->exists()) {
+            $nextNum++;
+            $supplierNumber = 'LIEF-' . str_pad((string) $nextNum, 4, '0', STR_PAD_LEFT);
         }
 
         return Supplier::create([
             'tenant_id' => $tenantId,
-            'name' => $name,
+            'supplier_number' => $supplierNumber,
+            'company_name' => $name,
             'short_code' => $shortCode ?: null,
             'vat_id' => $sellerInfo['vat_id'] ?? null,
-            'email' => $sellerInfo['email'] ?? null,
-            'phone' => $sellerInfo['phone'] ?? null,
-            'address' => $sellerInfo['address'] ?? null,
+            'contact_email' => $sellerInfo['email'] ?? null,
+            'contact_phone' => $sellerInfo['phone'] ?? null,
+            'street' => $street,
+            'zip' => $zip,
+            'city' => $city,
+            'country' => 'DE',
+            'category' => 'newspaper',
             'is_active' => true,
+            'status' => 'active',
         ]);
     }
 

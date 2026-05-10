@@ -8,6 +8,7 @@ use App\Models\Kiosk\Invoice;
 use App\Models\Kiosk\OrderLine;
 use App\Models\Kiosk\PriceChangeLog;
 use App\Services\Kiosk\PvgPdfParserService;
+use App\Services\Kiosk\ZugferdInvoiceParserService;
 use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -105,8 +106,14 @@ class KioskUpload extends Page implements HasForms
             $originalName = basename($absolutePath);
             $tenantId = auth()->user()->tenant_id;
 
-            $parser = app(PvgPdfParserService::class);
-            $result = $parser->import($absolutePath, $tenantId, $originalName);
+            // ZUGFeRD/Factur-X bevorzugen wenn eingebettetes XML vorhanden
+            $zugferd = app(ZugferdInvoiceParserService::class);
+            if ($zugferd->hasEmbeddedXml($absolutePath)) {
+                $result = $zugferd->import($absolutePath, $tenantId, $originalName);
+            } else {
+                $parser = app(PvgPdfParserService::class);
+                $result = $parser->import($absolutePath, $tenantId, $originalName);
+            }
 
             if ($result['success']) {
                 if ($result['articles_inserted'] == 0 && $result['articles_updated'] == 0) {

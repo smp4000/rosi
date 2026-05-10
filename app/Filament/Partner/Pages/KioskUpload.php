@@ -72,11 +72,11 @@ class KioskUpload extends Page implements HasForms
                 ->label('PDF importieren')
                 ->icon('heroicon-o-arrow-up-tray')
                 ->color('primary')
-                ->action('upload'),
+                ->action('runImport'),
         ];
     }
 
-    public function upload(): void
+    public function runImport(): void
     {
         try {
             $pdfRef = $this->data['pdf'] ?? null;

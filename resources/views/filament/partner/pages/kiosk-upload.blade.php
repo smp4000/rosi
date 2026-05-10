@@ -30,7 +30,7 @@
         {{ $this->form }}
         <div class="flex justify-end mt-4">
             <x-filament::button
-                wire:click="upload"
+                wire:click="runImport"
                 size="lg"
                 color="primary"
                 icon="heroicon-o-arrow-up-tray"

@@ -21,8 +21,8 @@ class KioskCleanupTemp extends Command
 
     public function handle(): int
     {
-        $hours = max(1, (int) $this->option('hours'));
-        $cutoff = time() - ($hours * 3600);
+        $hours = max(0, (int) $this->option('hours'));
+        $cutoff = $hours === 0 ? time() + 1 : time() - ($hours * 3600);
 
         $dirs = [
             storage_path('app/private/livewire-tmp'),

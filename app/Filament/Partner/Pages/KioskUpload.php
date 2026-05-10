@@ -44,6 +44,8 @@ class KioskUpload extends Page implements HasForms
     public function mount(): void
     {
         $this->form->fill();
+        // Automatisches Aufraeumen bei jedem Seitenaufruf
+        $this->cleanupTempFiles();
     }
 
     public function form(Schema $form): Schema

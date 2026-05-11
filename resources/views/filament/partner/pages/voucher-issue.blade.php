@@ -331,13 +331,14 @@
                 this.printedCount = 0;
                 this.printErrors = [];
 
+                // Roh senden — DYMO kann kein URL-Encoding (genau wie bei Drucker-Einstellungen)
                 const printParams = '<LabelWriterPrintParams><Copies>1</Copies></LabelWriterPrintParams>';
 
                 for (const label of labelXmls) {
                     try {
-                        const body = 'printerName=' + encodeURIComponent(printerName)
-                            + '&labelXml=' + encodeURIComponent(label.xml)
-                            + '&printParamsXml=' + encodeURIComponent(printParams);
+                        const body = 'printerName=' + printerName
+                            + '&labelXml=' + label.xml
+                            + '&printParamsXml=' + printParams;
 
                         const result = await this.dymoFetch('/DYMO/DLS/Printing/PrintLabel2', {
                             method: 'POST',
@@ -353,9 +354,8 @@
                     }
                     this.printedCount++;
 
-                    // Kurze Pause zwischen Labels damit DYMO nicht ueberfordert wird
-                    await new Promise(r => setTimeout(r, 300));
-                }
+                    // Pause zwischen Labels — DYMO braucht Zeit
+                    await new Promise(r => setTimeout(r, 800));
 
                 this.setStatus('done');
             },

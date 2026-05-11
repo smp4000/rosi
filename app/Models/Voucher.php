@@ -198,7 +198,7 @@ class Voucher extends \Illuminate\Database\Eloquent\Model
      * @param string $group       Basisnummer z.B. "4567"
      * @param int    $quantity    Anzahl z.B. 50
      * @param float  $amount      Betrag pro Gutschein z.B. 50.00
-     * @param string $stationId   Tankstelle
+     * @param string|null $stationId   Tankstelle (optional)
      * @param string $tenantId    Tenant
      * @param string|null $employeeId
      * @param string|null $employeeName
@@ -208,7 +208,7 @@ class Voucher extends \Illuminate\Database\Eloquent\Model
         string $group,
         int $quantity,
         float $amount,
-        string $stationId,
+        ?string $stationId,
         string $tenantId,
         ?string $employeeId = null,
         ?string $employeeName = null

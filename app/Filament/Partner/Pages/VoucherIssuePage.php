@@ -136,7 +136,8 @@ class VoucherIssuePage extends Page implements HasForms
         // Alles OK — Gutscheine generieren
         try {
             $user = auth()->user();
-            $stationId = $tenantId; // Station = Tenant
+            // Station-ID: Session oder null (Gutscheine sind Tenant-weit)
+            $stationId = session('station_id') ?? null;
 
             $vouchers = Voucher::generateGroup(
                 group: $group,

@@ -126,13 +126,16 @@ class VoucherController extends ApiController
         $user = $request->user();
         $tenantId = $user->tenant_id;
 
-        // Falls device_token mitgegeben: Station daraus ableiten
-        $stationId = $tenantId;
+        // Station-ID: aus Device ableiten, oder erste Station des Tenants
+        $stationId = null;
         if ($request->filled('device_token')) {
-            $deviceTenant = $this->resolveTenant($request);
-            if ($deviceTenant) {
-                $stationId = $deviceTenant;
+            $device = \App\Models\Device::where('device_token', $request->input('device_token'))->first();
+            if ($device && $device->gas_station_id) {
+                $stationId = $device->gas_station_id;
             }
+        }
+        if (! $stationId) {
+            $stationId = \App\Models\GasStation::where('tenant_id', $tenantId)->first()?->id;
         }
 
         // Konflikte pruefen

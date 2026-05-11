@@ -184,9 +184,11 @@ class VoucherResource extends Resource
                     ->action(function (Voucher $record, array $data) {
                         try {
                             $user = auth()->user();
+                            $stationId = session('station_id')
+                                ?? \App\Models\GasStation::where('tenant_id', $user->tenant_id)->first()?->id;
                             $record->redeem(
                                 redeemAmount: (float) $data['redeem_amount'],
-                                stationId: $user->tenant_id,
+                                stationId: $stationId,
                                 employeeId: $user->id,
                                 employeeName: $user->name,
                                 notes: $data['notes'] ?? null,

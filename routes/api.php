@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\KioskController;
 use App\Http\Controllers\Api\V1\MhdController;
 use App\Http\Controllers\Api\V1\PrintController;
 use App\Http\Controllers\Api\V1\ShiftSettlementController;
+use App\Http\Controllers\Api\V1\VoucherController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -121,6 +122,12 @@ Route::prefix('v1')->group(function () {
     Route::get('/shift-settlements/last-values', [ShiftSettlementController::class, 'lastValues'])
         ->name('api.v1.shift-settlements.last-values');
 
+    // --- Gutscheine (oeffentlich, nur device_token) ---
+    Route::get('/vouchers/lookup', [VoucherController::class, 'lookup'])
+        ->name('api.v1.vouchers.lookup');
+    Route::post('/vouchers/check-group', [VoucherController::class, 'checkGroup'])
+        ->name('api.v1.vouchers.check-group');
+
     // --- Kiosk: Health + Artikel-Lookup (oeffentlich, nur device_token) ---
     Route::get('/kiosk/ping', [KioskController::class, 'ping'])
         ->name('api.v1.kiosk.ping');
@@ -182,6 +189,12 @@ Route::prefix('v1')->group(function () {
             ->name('api.v1.shift-settlements.details');
         Route::post('/shift-settlements/{id}/comments', [ShiftSettlementController::class, 'addComment'])
             ->name('api.v1.shift-settlements.comments');
+
+        // --- Gutscheine (geschuetzt) ---
+        Route::post('/vouchers/generate', [VoucherController::class, 'generate'])
+            ->name('api.v1.vouchers.generate');
+        Route::post('/vouchers/redeem', [VoucherController::class, 'redeem'])
+            ->name('api.v1.vouchers.redeem');
 
         // --- Kiosk: Bewegungen (geschuetzt) ---
         Route::post('/kiosk/deliveries/save', [KioskController::class, 'saveDelivery'])

@@ -137,6 +137,17 @@ class LabelTemplate extends Model
                 ['key' => 'absender', 'label' => 'Absender', 'example' => 'Aral Tankstelle Welle'],
             ],
         ],
+        'gutschein' => [
+            'label' => 'Gutschein',
+            'placeholders' => [
+                ['key' => 'betrag', 'label' => 'Betrag in Euro', 'example' => '50,00 €'],
+                ['key' => 'betrag_worte', 'label' => 'Betrag in Worten', 'example' => 'fünfzig Euro'],
+                ['key' => 'datum', 'label' => 'Ausgabedatum', 'example' => '11.05.2026'],
+                ['key' => 'gueltig_bis', 'label' => 'Gueltig bis', 'example' => '11.05.2029'],
+                ['key' => 'nummer', 'label' => 'Gutscheinnummer', 'example' => '4567.000'],
+                ['key' => 'barcode', 'label' => 'QR-Code Inhalt', 'example' => 'www.aral-welle.de'],
+            ],
+        ],
     ];
 
     /**

@@ -67,6 +67,29 @@ Route::middleware('auth')->group(function () {
         return response()->json($labels);
     })->name('dymo.print-labels');
 
+    // --- Print-Queue: Pending Jobs abrufen (Polling vom Browser) ---
+    Route::get('/dymo/pending-jobs', function () {
+        $tenantId = auth()->user()->tenant_id;
+        $jobs = \App\Models\PrintJob::where('tenant_id', $tenantId)
+            ->where('status', 'pending')
+            ->orderBy('created_at')
+            ->get(['id', 'job_type', 'reference', 'payload', 'created_by', 'created_at']);
+        return response()->json($jobs);
+    })->name('dymo.pending-jobs');
+
+    // --- Print-Queue: Job als erledigt markieren ---
+    Route::post('/dymo/complete-job/{id}', function (string $id) {
+        $tenantId = auth()->user()->tenant_id;
+        $job = \App\Models\PrintJob::where('id', $id)
+            ->where('tenant_id', $tenantId)
+            ->firstOrFail();
+        $job->update([
+            'status' => 'done',
+            'printed_at' => now(),
+        ]);
+        return response()->json(['success' => true]);
+    })->name('dymo.complete-job');
+
     // --- Schichtabrechnung Anhaenge (gestreamt, kein storage:link noetig) ---
     Route::get('/shift-attachments/{settlement}/{type}/{returnId?}', [ShiftSettlementAttachmentController::class, 'show'])
         ->name('shift.attachment')

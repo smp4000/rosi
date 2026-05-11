@@ -176,6 +176,9 @@ class VoucherController extends ApiController
             $first = $vouchers->first();
             $last = $vouchers->last();
 
+            // Print-Job automatisch erstellen
+            $this->createPrintJob($vouchers, $tenantId, $user->name);
+
             return $this->success([
                 'count' => $vouchers->count(),
                 'voucher_group' => $data['voucher_group'],
@@ -344,5 +347,65 @@ class VoucherController extends ApiController
             }
         }
         return null;
+    }
+
+    /**
+     * Print-Job fuer Gutschein-Etiketten erstellen.
+     * Rendert Label-XMLs und speichert als Job in der DB.
+     * Das Web-Panel am PC pollt nach pending Jobs und druckt.
+     */
+    private function createPrintJob($vouchers, string $tenantId, string $createdBy): void
+    {
+        try {
+            $template = \App\Models\LabelTemplate::findForTenant('gutschein', $tenantId);
+            if (! $template) {
+                Log::warning('Print-Job: Keine Gutschein-Druckvorlage fuer Tenant', ['tenant_id' => $tenantId]);
+                return;
+            }
+
+            $xmls = [];
+            foreach ($vouchers as $voucher) {
+                try {
+                    $labelData = [
+                        'betrag' => number_format($voucher->amount, 2, ',', '.') . ' €',
+                        'betrag_worte' => Voucher::amountToWords($voucher->amount),
+                        'datum' => $voucher->issued_at->format('d.m.Y'),
+                        'gueltig_bis' => $voucher->valid_until->format('d.m.Y'),
+                        'nummer' => $voucher->voucher_number,
+                        'barcode' => 'www.aral-welle.de',
+                    ];
+                    $xmls[] = [
+                        'number' => $voucher->voucher_number,
+                        'xml' => $template->render($labelData),
+                    ];
+                } catch (\Throwable $e) {
+                    Log::error('Print-Job: Label rendern fehlgeschlagen', [
+                        'voucher' => $voucher->voucher_number,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            if (empty($xmls)) {
+                return;
+            }
+
+            \App\Models\PrintJob::create([
+                'tenant_id' => $tenantId,
+                'job_type' => 'voucher_labels',
+                'reference' => $vouchers->first()->voucher_group,
+                'payload' => $xmls,
+                'status' => \App\Models\PrintJob::STATUS_PENDING,
+                'created_by' => $createdBy,
+            ]);
+
+            Log::info('Print-Job erstellt', [
+                'group' => $vouchers->first()->voucher_group,
+                'labels' => count($xmls),
+            ]);
+        } catch (\Throwable $e) {
+            // Print-Job Fehler soll Generate nicht blockieren
+            Log::error('Print-Job Erstellung fehlgeschlagen', ['error' => $e->getMessage()]);
+        }
     }
 }

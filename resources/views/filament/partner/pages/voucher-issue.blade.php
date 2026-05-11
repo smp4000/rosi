@@ -313,6 +313,105 @@
                     dymo.showError('Label-Daten konnten nicht geladen werden');
                 });
         });
+
+        // ── Print-Queue: Automatisch nach Jobs von der App pollen ──
+        var pollActive = false;
+        var pollInterval = null;
+
+        function startPolling() {
+            if (pollInterval) return;
+            console.log('DYMO Queue: Polling gestartet (alle 5s)');
+            pollInterval = setInterval(checkPendingJobs, 5000);
+            checkPendingJobs(); // sofort einmal pruefen
+        }
+
+        function stopPolling() {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+            }
+        }
+
+        async function checkPendingJobs() {
+            if (pollActive) return;
+            try {
+                var r = await fetch('/dymo/pending-jobs', { credentials: 'same-origin' });
+                var jobs = await r.json();
+                if (jobs.length > 0) {
+                    console.log('DYMO Queue:', jobs.length, 'Job(s) gefunden');
+                    for (var j = 0; j < jobs.length; j++) {
+                        await processPrintJob(jobs[j]);
+                    }
+                }
+            } catch(e) {
+                console.error('DYMO Queue: Polling-Fehler', e);
+            }
+        }
+
+        async function processPrintJob(job) {
+            pollActive = true;
+            console.log('DYMO Queue: Verarbeite Job', job.id, '(' + job.reference + ')', job.payload.length, 'Labels');
+            dymo.show('<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:20px;">'
+                + '<div style="display:flex;align-items:center;gap:12px;">'
+                + '<div style="width:20px;height:20px;border:3px solid #3b82f6;border-top-color:transparent;border-radius:50%;animation:dymospin 1s linear infinite;"></div>'
+                + '<div><span style="font-size:14px;font-weight:600;color:#1e40af;">Druckauftrag von App: ' + (job.created_by || '') + '</span>'
+                + '<br><span style="font-size:13px;color:#6b7280;">Gruppe ' + (job.reference || '') + ' — ' + job.payload.length + ' Etiketten</span></div>'
+                + '</div></div>');
+
+            try {
+                await dymo.findService();
+                var printers = await dymo.getPrinters();
+                var connected = printers.filter(function(p) { return p.isConnected; });
+                if (connected.length === 0) {
+                    dymo.showError('Kein DYMO-Drucker verbunden — Job wartet');
+                    pollActive = false;
+                    return;
+                }
+                var printer = dymo.selectedPrinter;
+                if (!printer || !connected.find(function(p) { return p.name === printer; })) {
+                    printer = connected[0].name;
+                }
+                dymo.selectedPrinter = printer;
+
+                var printParams = '<LabelWriterPrintParams><Copies>1</Copies></LabelWriterPrintParams>';
+                var errors = [];
+                for (var i = 0; i < job.payload.length; i++) {
+                    dymo.showPrinting(i + 1, job.payload.length);
+                    try {
+                        var body = 'printerName=' + encodeURIComponent(printer)
+                            + '&labelXml=' + encodeURIComponent(job.payload[i].xml)
+                            + '&printParamsXml=' + encodeURIComponent(printParams);
+                        var result = await dymo.fetchDymo('/DYMO/DLS/Printing/PrintLabel2', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: body,
+                        });
+                        console.log('DYMO Queue: Label', job.payload[i].number, ':', result);
+                        if (result !== 'true') errors.push(job.payload[i].number + ': ' + result);
+                    } catch(e) {
+                        errors.push(job.payload[i].number + ': ' + e.message);
+                    }
+                    await new Promise(function(r) { setTimeout(r, 800); });
+                }
+
+                // Job als erledigt markieren
+                await fetch('/dymo/complete-job/' + job.id, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '' },
+                });
+
+                dymo.showDone(job.payload.length, errors);
+                console.log('DYMO Queue: Job', job.id, 'abgeschlossen');
+            } catch(e) {
+                console.error('DYMO Queue: Druck fehlgeschlagen', e);
+                dymo.showError('Druckfehler: ' + e.message + ' — Job bleibt in Warteschlange');
+            }
+            pollActive = false;
+        }
+
+        // Polling automatisch starten
+        startPolling();
     })();
     </script>
 </x-filament-panels::page>

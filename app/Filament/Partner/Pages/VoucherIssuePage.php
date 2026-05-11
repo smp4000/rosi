@@ -299,8 +299,11 @@ class VoucherIssuePage extends Page implements HasForms
         $this->labelXmls = $xmls;
         $this->totalToPrint = count($xmls);
 
-        // JS-Event feuern damit Alpine den Druck startet (mit Label-Daten)
+        // JS-Event feuern damit Browser den Druck startet (mit Label-Daten)
         $this->dispatch('start-dymo-print', labelXmls: $xmls);
+
+        // Array sofort leeren damit Livewire es nicht bei jedem Request mitsynct
+        $this->labelXmls = [];
     }
 
     /**

@@ -173,7 +173,12 @@ class Voucher extends \Illuminate\Database\Eloquent\Model
      * @param string|null $tenantId  Tenant-ID
      * @return array|null  Null wenn frei, sonst Array mit kollidierenden Nummern
      */
-    public static function checkGroupConflict(string $group, int $quantity, ?string $tenantId = null): ?array
+    /**
+     * Prueft ob Gutscheinnummern schon belegt sind.
+     * Wenn stationId uebergeben: prueft nur fuer diese Station.
+     * Sonst: prueft fuer den ganzen Tenant.
+     */
+    public static function checkGroupConflict(string $group, int $quantity, ?string $tenantId = null, ?string $stationId = null): ?array
     {
         $numbers = [];
         for ($i = 0; $i < $quantity; $i++) {
@@ -183,7 +188,9 @@ class Voucher extends \Illuminate\Database\Eloquent\Model
         $query = static::withoutTenantScope()
             ->whereIn('voucher_number', $numbers);
 
-        if ($tenantId) {
+        if ($stationId) {
+            $query->where('station_id', $stationId);
+        } elseif ($tenantId) {
             $query->where('tenant_id', $tenantId);
         }
 

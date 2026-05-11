@@ -65,8 +65,10 @@ class VoucherController extends ApiController
      */
     public function checkGroup(Request $request): JsonResponse
     {
-        $tenant = $this->resolveTenant($request);
-        if (! $tenant) {
+        $device = $this->findDevice(
+            $request->query('device_token', $request->input('device_token', ''))
+        );
+        if (! $device) {
             return $this->error('Geraet nicht erkannt.', 401);
         }
 
@@ -75,7 +77,13 @@ class VoucherController extends ApiController
             'quantity' => 'required|integer|min:1|max:500',
         ]);
 
-        $conflicts = Voucher::checkGroupConflict($data['voucher_group'], $data['quantity'], $tenant);
+        // Station-scoped: Gleiche Gutscheinnummern duerfen an verschiedenen Stationen existieren
+        $conflicts = Voucher::checkGroupConflict(
+            $data['voucher_group'],
+            $data['quantity'],
+            $device->tenant_id,
+            $device->station_id,
+        );
 
         if ($conflicts) {
             return $this->success([
@@ -143,8 +151,8 @@ class VoucherController extends ApiController
             'station_id' => $stationId,
         ]);
 
-        // Konflikte pruefen
-        $conflicts = Voucher::checkGroupConflict($data['voucher_group'], $data['quantity'], $tenantId);
+        // Konflikte pruefen (station-scoped)
+        $conflicts = Voucher::checkGroupConflict($data['voucher_group'], $data['quantity'], $tenantId, $stationId);
         if ($conflicts) {
             return $this->error(
                 'Gutscheinnummern existieren bereits: ' . implode(', ', array_slice($conflicts, 0, 5)),

@@ -127,8 +127,10 @@ class VoucherIssuePage extends Page implements HasForms
 
         $this->groupCheckStatus = 'checking';
         $tenantId = auth()->user()->tenant_id;
+        $stationId = session('station_id')
+            ?? \App\Models\GasStation::where('tenant_id', $tenantId)->first()?->id;
 
-        $conflicts = Voucher::checkGroupConflict($group, $quantity, $tenantId);
+        $conflicts = Voucher::checkGroupConflict($group, $quantity, $tenantId, $stationId);
 
         if ($conflicts) {
             $this->groupCheckStatus = 'conflict';
@@ -163,9 +165,11 @@ class VoucherIssuePage extends Page implements HasForms
         }
 
         $tenantId = auth()->user()->tenant_id;
+        $stationId = session('station_id')
+            ?? \App\Models\GasStation::where('tenant_id', $tenantId)->first()?->id;
 
-        // Pruefen ob Nummern schon existieren
-        $conflicts = Voucher::checkGroupConflict($group, $quantity, $tenantId);
+        // Pruefen ob Nummern schon existieren (station-scoped)
+        $conflicts = Voucher::checkGroupConflict($group, $quantity, $tenantId, $stationId);
 
         if ($conflicts) {
             $conflictList = implode(', ', array_slice($conflicts, 0, 10));

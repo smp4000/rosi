@@ -289,26 +289,23 @@
             }
         };
 
-        // Livewire Event abfangen
-        window.addEventListener('start-dymo-print', function(e) {
-            var labels = [];
-            var detail = e.detail;
-            try {
-                if (Array.isArray(detail) && detail.length > 0 && detail[0] && detail[0].labelXmls) {
-                    labels = detail[0].labelXmls;
-                } else if (detail && detail.labelXmls) {
-                    labels = detail.labelXmls;
-                } else if (Array.isArray(detail)) {
-                    labels = detail;
-                }
-            } catch(ex) { console.error('DYMO parse', ex); }
-
-            console.log('DYMO: Event empfangen, Labels:', labels.length);
-            if (labels.length > 0) {
-                dymo.startPrint(labels);
-            } else {
-                dymo.showError('Keine Label-Daten empfangen');
-            }
+        // Livewire Event abfangen — Labels per fetch vom Server holen
+        window.addEventListener('start-dymo-print', function() {
+            console.log('DYMO: Event empfangen, hole Labels vom Server...');
+            fetch('/dymo/print-labels', { credentials: 'same-origin' })
+                .then(function(r) { return r.json(); })
+                .then(function(labels) {
+                    console.log('DYMO: Labels geladen:', labels.length);
+                    if (labels.length > 0) {
+                        dymo.startPrint(labels);
+                    } else {
+                        dymo.showError('Keine Label-Daten vom Server erhalten');
+                    }
+                })
+                .catch(function(err) {
+                    console.error('DYMO: Fetch fehlgeschlagen', err);
+                    dymo.showError('Label-Daten konnten nicht geladen werden');
+                });
         });
     })();
     </script>

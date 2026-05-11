@@ -61,6 +61,12 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
 
+    // --- DYMO Druck-Labels aus Session holen (fuer Browser-JS) ---
+    Route::get('/dymo/print-labels', function () {
+        $labels = session()->pull('dymo_print_labels', []);
+        return response()->json($labels);
+    })->name('dymo.print-labels');
+
     // --- Schichtabrechnung Anhaenge (gestreamt, kein storage:link noetig) ---
     Route::get('/shift-attachments/{settlement}/{type}/{returnId?}', [ShiftSettlementAttachmentController::class, 'show'])
         ->name('shift.attachment')

@@ -56,8 +56,6 @@ class VoucherIssuePage extends Page implements HasForms
     public ?string $groupCheckStatus = null; // 'ok', 'conflict', 'checking', null
     public ?string $groupCheckMessage = null;
 
-    // Label-XMLs fuer Browser-Druck
-    public array $labelXmls = [];
 
     public function mount(): void
     {
@@ -296,14 +294,13 @@ class VoucherIssuePage extends Page implements HasForms
             }
         }
 
-        $this->labelXmls = $xmls;
         $this->totalToPrint = count($xmls);
 
-        // JS-Event feuern damit Browser den Druck startet (mit Label-Daten)
-        $this->dispatch('start-dymo-print', labelXmls: $xmls);
+        // XMLs in Session speichern — zu gross fuer Livewire-Event
+        session()->put('dymo_print_labels', $xmls);
 
-        // Array sofort leeren damit Livewire es nicht bei jedem Request mitsynct
-        $this->labelXmls = [];
+        // Leeres Event feuern — JS holt Daten per fetch vom Server
+        $this->dispatch('start-dymo-print');
     }
 
     /**
@@ -318,7 +315,6 @@ class VoucherIssuePage extends Page implements HasForms
         $this->isPrinting = false;
         $this->groupCheckStatus = null;
         $this->groupCheckMessage = null;
-        $this->labelXmls = [];
     }
 
     /**

@@ -13,7 +13,7 @@ class VoucherResource extends Resource
 {
     protected static ?string $model = Voucher::class;
 
-    protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-ticket';
+    protected static ?string $navigationIcon = 'heroicon-o-ticket';
 
     protected static ?string $navigationLabel = 'Alle Gutscheine';
 

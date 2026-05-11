@@ -52,6 +52,13 @@ class VoucherIssuePage extends Page implements HasForms
     public int $totalToPrint = 0;
     public bool $isPrinting = false;
 
+    // Live-Validierung
+    public ?string $groupCheckStatus = null; // 'ok', 'conflict', 'checking', null
+    public ?string $groupCheckMessage = null;
+
+    // Label-XMLs fuer Browser-Druck
+    public array $labelXmls = [];
+
     public function mount(): void
     {
         $this->form->fill();
@@ -94,6 +101,44 @@ class VoucherIssuePage extends Page implements HasForms
                     ])
                     ->columns(3),
             ]);
+    }
+
+    /**
+     * Live-Check wenn sich voucher_group oder quantity aendert.
+     */
+    public function checkGroupAvailability(): void
+    {
+        $group = trim($this->data['voucher_group'] ?? '');
+        $quantity = (int) ($this->data['quantity'] ?? 1);
+
+        if (empty($group)) {
+            $this->groupCheckStatus = null;
+            $this->groupCheckMessage = null;
+            return;
+        }
+
+        if (strlen($group) < 2) {
+            $this->groupCheckStatus = null;
+            $this->groupCheckMessage = null;
+            return;
+        }
+
+        $this->groupCheckStatus = 'checking';
+        $tenantId = auth()->user()->tenant_id;
+
+        $conflicts = Voucher::checkGroupConflict($group, $quantity, $tenantId);
+
+        if ($conflicts) {
+            $this->groupCheckStatus = 'conflict';
+            $conflictList = implode(', ', array_slice($conflicts, 0, 5));
+            $more = count($conflicts) > 5 ? ' (+' . (count($conflicts) - 5) . ' weitere)' : '';
+            $this->groupCheckMessage = "Bereits vergeben: {$conflictList}{$more}";
+        } else {
+            $this->groupCheckStatus = 'ok';
+            $first = sprintf('%s.%03d', $group, 0);
+            $last = sprintf('%s.%03d', $group, $quantity - 1);
+            $this->groupCheckMessage = "Nummern {$first} bis {$last} sind frei";
+        }
     }
 
     /**
@@ -192,9 +237,10 @@ class VoucherIssuePage extends Page implements HasForms
     }
 
     /**
-     * Schritt 2: DYMO-Druck fuer die generierte Gruppe starten.
+     * Schritt 2: Label-XMLs rendern und an Browser uebergeben.
+     * Der Browser druckt dann ueber DYMO Connect Service (localhost).
      */
-    public function printVouchers(): void
+    public function preparePrint(): void
     {
         if (! $this->lastResult) {
             Notification::make()->title('Erst Gutscheine generieren')->warning()->send();
@@ -226,13 +272,7 @@ class VoucherIssuePage extends Page implements HasForms
             return;
         }
 
-        $this->totalToPrint = $vouchers->count();
-        $this->printedCount = 0;
-        $this->isPrinting = true;
-
-        $printController = new \App\Http\Controllers\Api\V1\PrintController();
-        $errors = [];
-
+        $xmls = [];
         foreach ($vouchers as $voucher) {
             try {
                 $labelData = [
@@ -244,103 +284,23 @@ class VoucherIssuePage extends Page implements HasForms
                     'barcode' => 'www.aral-welle.de',
                 ];
 
-                $labelXml = $template->render($labelData);
-
-                // Direkt ueber DYMO API drucken
-                $result = $this->printViaDymo($labelXml);
-
-                if (! $result['success']) {
-                    $errors[] = "{$voucher->voucher_number}: {$result['message']}";
-                }
-
-                $this->printedCount++;
-
+                $xmls[] = [
+                    'number' => $voucher->voucher_number,
+                    'xml' => $template->render($labelData),
+                ];
             } catch (\Throwable $e) {
-                $errors[] = "{$voucher->voucher_number}: {$e->getMessage()}";
-                Log::error('Gutschein-Druck fehlgeschlagen', [
+                Log::error('Gutschein-Label rendern fehlgeschlagen', [
                     'voucher' => $voucher->voucher_number,
                     'error' => $e->getMessage(),
                 ]);
             }
         }
 
-        $this->isPrinting = false;
+        $this->labelXmls = $xmls;
+        $this->totalToPrint = count($xmls);
 
-        if (empty($errors)) {
-            Notification::make()
-                ->title("Alle {$this->totalToPrint} Gutscheine gedruckt!")
-                ->success()
-                ->send();
-        } else {
-            Notification::make()
-                ->title('Druck teilweise fehlgeschlagen')
-                ->body(implode("\n", array_slice($errors, 0, 5)))
-                ->warning()
-                ->persistent()
-                ->send();
-        }
-    }
-
-    /**
-     * Druckt ein Label-XML ueber die DYMO WebApi.
-     */
-    private function printViaDymo(string $labelXml): array
-    {
-        $ports = [41951, 41952, 41953, 41954, 41955];
-        $printer = 'DYMO LabelWriter Wireless';
-
-        // Aktiven Port finden
-        $activePort = null;
-        foreach ($ports as $port) {
-            $url = "https://localhost:{$port}/DYMO/DLS/Printing/StatusConnected";
-            $ch = curl_init($url);
-            curl_setopt_array($ch, [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_SSL_VERIFYPEER => false,
-                CURLOPT_SSL_VERIFYHOST => false,
-                CURLOPT_TIMEOUT => 3,
-            ]);
-            $result = curl_exec($ch);
-            curl_close($ch);
-            if ($result === 'true') {
-                $activePort = $port;
-                break;
-            }
-        }
-
-        if (! $activePort) {
-            return ['success' => false, 'message' => 'DYMO Service nicht erreichbar'];
-        }
-
-        // Label drucken
-        $url = "https://localhost:{$activePort}/DYMO/DLS/Printing/PrintLabel2";
-        $printParams = '<LabelWriterPrintParams><Copies>1</Copies></LabelWriterPrintParams>';
-
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => http_build_query([
-                'printerName' => $printer,
-                'labelXml' => $labelXml,
-                'printParamsXml' => $printParams,
-            ]),
-            CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded'],
-        ]);
-        $result = curl_exec($ch);
-        $error = curl_error($ch);
-        curl_close($ch);
-
-        if ($result === false) {
-            return ['success' => false, 'message' => "DYMO-Fehler: {$error}"];
-        }
-
-        return $result === 'true'
-            ? ['success' => true, 'message' => 'Gedruckt']
-            : ['success' => false, 'message' => "DYMO-Antwort: {$result}"];
+        // JS-Event feuern damit Alpine den Druck startet (mit Label-Daten)
+        $this->dispatch('start-dymo-print', labelXmls: $xmls);
     }
 
     /**
@@ -353,6 +313,9 @@ class VoucherIssuePage extends Page implements HasForms
         $this->printedCount = 0;
         $this->totalToPrint = 0;
         $this->isPrinting = false;
+        $this->groupCheckStatus = null;
+        $this->groupCheckMessage = null;
+        $this->labelXmls = [];
     }
 
     /**

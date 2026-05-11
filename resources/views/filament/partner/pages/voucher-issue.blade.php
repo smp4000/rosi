@@ -94,8 +94,9 @@
         </div>
     @endif
 
-    {{-- DYMO Druck-Status (Alpine.js) --}}
-    <div x-data="voucherPrinter()" x-init="init()"
+    {{-- DYMO Druck-Status (Alpine.js) — wire:ignore damit Livewire nicht morpht --}}
+    <div wire:ignore
+         x-data="voucherPrinter()" x-init="init()"
          @start-dymo-print.window="startPrint($event.detail)"
          x-show="printStatus !== 'idle'"
          x-cloak

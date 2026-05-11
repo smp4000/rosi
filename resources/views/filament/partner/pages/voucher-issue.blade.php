@@ -27,9 +27,7 @@
 
     {{-- Eingabe-Formular --}}
     <div style="margin-bottom: 24px;">
-        <div wire:change="checkGroupAvailability">
-            {{ $this->form }}
-        </div>
+        {{ $this->form }}
 
         {{-- Live-Validierung Anzeige --}}
         @if ($this->groupCheckStatus === 'ok')
@@ -246,7 +244,10 @@
                 console.log('DYMO: Start Druck mit', labelXmls.length, 'Labels');
                 this.showConnecting();
 
-                try { await this.findService(); }
+                try {
+                    await this.findService();
+                    console.log('DYMO: Service gefunden auf Port', this.activePort);
+                }
                 catch(e) { this.showError('DYMO Connect nicht erreichbar'); return; }
 
                 var printers;
@@ -256,10 +257,14 @@
                 var connected = printers.filter(function(p) { return p.isConnected; });
                 if (connected.length === 0) { this.showError('Kein DYMO-Drucker verbunden'); return; }
 
+                console.log('DYMO: Gefundene Drucker:', JSON.stringify(printers));
+                console.log('DYMO: Verbundene Drucker:', JSON.stringify(connected));
+
                 var printer = this.selectedPrinter;
                 if (!printer || !connected.find(function(p) { return p.name === printer; })) {
                     printer = connected[0].name;
                 }
+                console.log('DYMO: Verwende Drucker:', printer);
                 this.selectedPrinter = printer;
                 localStorage.setItem('dymo_printer', printer);
 
@@ -278,6 +283,7 @@
                             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                             body: body,
                         });
+                        console.log('DYMO PrintLabel2 Antwort fuer', labelXmls[i].number, ':', JSON.stringify(result));
                         if (result !== 'true') errors.push(labelXmls[i].number + ': ' + result);
                     } catch(e) {
                         errors.push(labelXmls[i].number + ': ' + e.message);

@@ -76,7 +76,9 @@ class VoucherIssuePage extends Page implements HasForms
                             ->placeholder('z.B. 4567')
                             ->required()
                             ->maxLength(20)
-                            ->helperText('Die Nummer aus dem WaWi-System'),
+                            ->helperText('Die Nummer aus dem WaWi-System')
+                            ->live(debounce: 500)
+                            ->afterStateUpdated(fn () => $this->checkGroupAvailability()),
 
                         TextInput::make('quantity')
                             ->label('Anzahl Gutscheine')
@@ -85,7 +87,9 @@ class VoucherIssuePage extends Page implements HasForms
                             ->minValue(1)
                             ->maxValue(500)
                             ->default(1)
-                            ->helperText('Wie viele Gutscheine sollen generiert werden?'),
+                            ->helperText('Wie viele Gutscheine sollen generiert werden?')
+                            ->live(debounce: 500)
+                            ->afterStateUpdated(fn () => $this->checkGroupAvailability()),
 
                         TextInput::make('amount')
                             ->label('Betrag pro Gutschein (EUR)')

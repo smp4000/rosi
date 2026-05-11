@@ -129,7 +129,7 @@ class VoucherController extends ApiController
         // Station-ID: aus Device ableiten, oder erste Station des Tenants
         $stationId = null;
         if ($request->filled('device_token')) {
-            $device = \App\Models\Device::where('device_token', $request->input('device_token'))->first();
+            $device = Device::where('device_token', $request->input('device_token'))->first();
             if ($device && $device->station_id) {
                 $stationId = $device->station_id;
             }
@@ -137,6 +137,12 @@ class VoucherController extends ApiController
         if (! $stationId) {
             $stationId = \App\Models\GasStation::where('tenant_id', $tenantId)->first()?->id;
         }
+
+        Log::info('Gutschein-Generate: Station-Ermittlung', [
+            'tenant_id' => $tenantId,
+            'station_id' => $stationId,
+            'device_token' => $request->input('device_token') ? substr($request->input('device_token'), 0, 10) . '...' : null,
+        ]);
 
         // Konflikte pruefen
         $conflicts = Voucher::checkGroupConflict($data['voucher_group'], $data['quantity'], $tenantId);

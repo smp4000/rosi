@@ -94,84 +94,8 @@
         </div>
     @endif
 
-    {{-- DYMO Druck-Status (Alpine.js) — wire:ignore damit Livewire nicht morpht --}}
-    <div wire:ignore
-         x-data="voucherPrinter()" x-init="init()"
-         @start-dymo-print.window="startPrint($event.detail)"
-         x-show="printStatus !== 'idle'"
-         x-cloak
-         style="margin-bottom: 24px;">
-
-        {{-- Druckfortschritt --}}
-        <template x-if="printStatus === 'connecting'">
-            <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:20px;">
-                <div style="display:flex;align-items:center;gap:12px;">
-                    <div style="width:20px;height:20px;border:3px solid #eab308;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div>
-                    <span style="font-size:14px;font-weight:500;color:#92400e;">Verbinde mit DYMO Connect Service...</span>
-                </div>
-            </div>
-        </template>
-
-        <template x-if="printStatus === 'printing'">
-            <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:20px;">
-                <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-                    <div style="width:20px;height:20px;border:3px solid #3b82f6;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div>
-                    <span style="font-size:14px;font-weight:500;color:#1e40af;" x-text="'Drucke ' + printedCount + '/' + totalCount + ' ...'"></span>
-                </div>
-                <div style="background:#dbeafe;border-radius:4px;height:8px;overflow:hidden;">
-                    <div style="background:#3b82f6;height:100%;border-radius:4px;transition:width 0.3s;"
-                         :style="'width:' + (totalCount > 0 ? Math.round(printedCount/totalCount*100) : 0) + '%'"></div>
-                </div>
-            </div>
-        </template>
-
-        <template x-if="printStatus === 'done'">
-            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:20px;">
-                <div style="display:flex;align-items:center;gap:12px;">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#16a34a" style="width:20px;height:20px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
-                    <span style="font-size:14px;font-weight:500;color:#15803d;" x-text="printedCount + ' Gutscheine erfolgreich gedruckt!'"></span>
-                </div>
-                <template x-if="printErrors.length > 0">
-                    <div style="margin-top:12px;font-size:13px;color:#92400e;">
-                        <p style="margin:0 0 4px;font-weight:500;">Fehler bei:</p>
-                        <template x-for="err in printErrors" :key="err">
-                            <p style="margin:0 0 2px;" x-text="err"></p>
-                        </template>
-                    </div>
-                </template>
-            </div>
-        </template>
-
-        <template x-if="printStatus === 'error'">
-            <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:20px;">
-                <div style="display:flex;align-items:center;gap:12px;">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#dc2626" style="width:20px;height:20px"><path stroke-linecap="round" stroke-linejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
-                    <span style="font-size:14px;font-weight:500;color:#dc2626;" x-text="errorMessage"></span>
-                </div>
-                <p style="margin:12px 0 0;font-size:13px;color:#6b7280;">
-                    Stelle sicher dass <strong>DYMO Connect</strong> auf diesem PC gestartet ist und der Drucker verbunden ist.
-                </p>
-            </div>
-        </template>
-
-        {{-- Drucker-Auswahl wenn mehrere vorhanden --}}
-        <template x-if="showPrinterSelect">
-            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:20px;margin-top:12px;">
-                <p style="font-size:14px;font-weight:500;margin:0 0 12px;">Drucker auswaehlen:</p>
-                <template x-for="p in availablePrinters" :key="p.name">
-                    <button @click="selectPrinterAndPrint(p.name)"
-                            style="display:block;width:100%;text-align:left;padding:12px 16px;margin-bottom:8px;border-radius:8px;border:1px solid #d1d5db;background:#f9fafb;cursor:pointer;font-size:14px;"
-                            :style="p.isConnected ? 'border-color:#bbf7d0;background:#f0fdf4' : ''">
-                        <div style="display:flex;align-items:center;gap:10px;">
-                            <div :style="'width:8px;height:8px;border-radius:50%;background:' + (p.isConnected ? '#22c55e' : '#9ca3af')"></div>
-                            <span x-text="p.name"></span>
-                            <span style="font-size:12px;color:#6b7280;" x-text="p.modelName || ''"></span>
-                        </div>
-                    </button>
-                </template>
-            </div>
-        </template>
-    </div>
+    {{-- DYMO Druck-Bereich --}}
+    <div id="dymo-print-area" style="margin-bottom:24px;display:none;"></div>
 
     {{-- Letzte Gutschein-Gruppen --}}
     <div style="background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.08); padding: 20px;">
@@ -207,244 +131,185 @@
     </div>
 
     <style>
-        @keyframes spin { to { transform: rotate(360deg); } }
-        [x-cloak] { display: none !important; }
+        @keyframes dymospin { to { transform: rotate(360deg); } }
     </style>
 
-    @push('scripts')
+    {{-- Reines JS ohne Alpine — kein Konflikt mit Livewire morphing --}}
     <script>
-    // Globaler Store fuer Druck-Status (Button kann darauf zugreifen)
-    document.addEventListener('alpine:init', () => {
-        Alpine.store('dymo', { status: 'idle' });
-    });
-
-    function voucherPrinter() {
-        return {
-            printStatus: 'idle',  // idle, connecting, printing, done, error
-            printedCount: 0,
-            totalCount: 0,
-            printErrors: [],
-            errorMessage: '',
+    (function() {
+        var dymo = {
             activePort: null,
-            availablePrinters: [],
-            showPrinterSelect: false,
-            selectedPrinter: null,
-            pendingLabels: [],
+            selectedPrinter: localStorage.getItem('dymo_printer') || null,
 
-            init() {
-                // Gespeicherten Drucker aus localStorage laden
-                this.selectedPrinter = localStorage.getItem('dymo_printer') || null;
+            show: function(html) {
+                var area = document.getElementById('dymo-print-area');
+                if (area) { area.innerHTML = html; area.style.display = ''; }
             },
 
-            setStatus(status) {
-                this.printStatus = status;
-                if (Alpine.store('dymo')) Alpine.store('dymo').status = status;
-                // Button ausblenden waehrend Druck / nach Erfolg
-                const btnWrapper = document.getElementById('dymo-print-btn-wrapper');
-                if (btnWrapper) {
-                    if (status === 'connecting' || status === 'printing' || status === 'done') {
-                        btnWrapper.style.display = 'none';
-                    } else {
-                        btnWrapper.style.display = '';
-                    }
-                }
+            hideBtn: function() {
+                var btn = document.getElementById('dymo-print-btn-wrapper');
+                if (btn) btn.style.display = 'none';
             },
 
-            async startPrint(detail) {
-                this.setStatus('connecting');
-                this.printedCount = 0;
-                this.printErrors = [];
-                this.showPrinterSelect = false;
+            showBtn: function() {
+                var btn = document.getElementById('dymo-print-btn-wrapper');
+                if (btn) btn.style.display = '';
+            },
 
-                // Label-XMLs aus dem Livewire-Event — alle moeglichen Formate abdecken
-                let labelXmls = [];
-                try {
-                    if (detail && typeof detail === 'object') {
-                        // Livewire 3: dispatch('event', key: val) => detail = [{key: val}]
-                        if (Array.isArray(detail) && detail.length > 0) {
-                            if (detail[0]?.labelXmls) {
-                                labelXmls = detail[0].labelXmls;
-                            } else if (Array.isArray(detail[0])) {
-                                labelXmls = detail[0];
-                            } else if (detail[0]?.xml) {
-                                labelXmls = detail;
-                            }
-                        } else if (detail.labelXmls) {
-                            labelXmls = detail.labelXmls;
-                        }
+            showConnecting: function() {
+                this.hideBtn();
+                this.show('<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:20px;">'
+                    + '<div style="display:flex;align-items:center;gap:12px;">'
+                    + '<div style="width:20px;height:20px;border:3px solid #eab308;border-top-color:transparent;border-radius:50%;animation:dymospin 1s linear infinite;"></div>'
+                    + '<span style="font-size:14px;font-weight:500;color:#92400e;">Verbinde mit DYMO Connect Service...</span>'
+                    + '</div></div>');
+            },
+
+            showPrinting: function(current, total) {
+                var pct = total > 0 ? Math.round(current / total * 100) : 0;
+                this.show('<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:20px;">'
+                    + '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">'
+                    + '<div style="width:20px;height:20px;border:3px solid #3b82f6;border-top-color:transparent;border-radius:50%;animation:dymospin 1s linear infinite;"></div>'
+                    + '<span style="font-size:14px;font-weight:500;color:#1e40af;">Drucke ' + current + '/' + total + ' ...</span>'
+                    + '</div>'
+                    + '<div style="background:#dbeafe;border-radius:4px;height:8px;overflow:hidden;">'
+                    + '<div style="background:#3b82f6;height:100%;border-radius:4px;width:' + pct + '%;transition:width 0.3s;"></div>'
+                    + '</div></div>');
+            },
+
+            showDone: function(count, errors) {
+                var html = '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:20px;">'
+                    + '<div style="display:flex;align-items:center;gap:12px;">'
+                    + '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#16a34a" style="width:20px;height:20px"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>'
+                    + '<span style="font-size:14px;font-weight:500;color:#15803d;">' + count + ' Gutscheine erfolgreich gedruckt!</span>'
+                    + '</div>';
+                if (errors && errors.length > 0) {
+                    html += '<div style="margin-top:12px;font-size:13px;color:#92400e;"><p style="margin:0 0 4px;font-weight:500;">Fehler bei:</p>';
+                    for (var i = 0; i < errors.length; i++) {
+                        html += '<p style="margin:0 0 2px;">' + errors[i] + '</p>';
                     }
-                } catch(e) {
-                    console.error('DYMO: Event-Daten parsen fehlgeschlagen', e, detail);
+                    html += '</div>';
                 }
-                console.log('DYMO: Event detail:', JSON.stringify(detail).substring(0, 200));
-                console.log('DYMO: Empfange', labelXmls.length, 'Labels zum Drucken');
-                this.pendingLabels = labelXmls;
-                this.totalCount = labelXmls.length;
+                html += '</div>';
+                this.show(html);
+            },
 
-                if (this.totalCount === 0) {
-                    // Fallback: Labels direkt von Livewire-Property holen
-                    console.log('DYMO: Event hatte keine Daten, versuche Livewire-Property...');
+            showError: function(msg) {
+                this.showBtn();
+                this.show('<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:20px;">'
+                    + '<div style="display:flex;align-items:center;gap:12px;">'
+                    + '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="#dc2626" style="width:20px;height:20px"><path stroke-linecap="round" stroke-linejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>'
+                    + '<span style="font-size:14px;font-weight:500;color:#dc2626;">' + msg + '</span>'
+                    + '</div>'
+                    + '<p style="margin:12px 0 0;font-size:13px;color:#6b7280;">Stelle sicher dass <strong>DYMO Connect</strong> auf diesem PC gestartet ist.</p>'
+                    + '</div>');
+            },
+
+            findService: async function() {
+                if (this.activePort) {
                     try {
-                        const lwLabels = @this.labelXmls;
-                        if (lwLabels && lwLabels.length > 0) {
-                            labelXmls = lwLabels;
-                            this.pendingLabels = labelXmls;
-                            this.totalCount = labelXmls.length;
-                            console.log('DYMO: Fallback erfolgreich,', labelXmls.length, 'Labels');
-                        }
-                    } catch(e) {
-                        console.error('DYMO: Fallback fehlgeschlagen', e);
-                    }
+                        var r = await fetch('https://127.0.0.1:' + this.activePort + '/DYMO/DLS/Printing/StatusConnected', { mode: 'cors' });
+                        if ((await r.text()) === 'true') return;
+                    } catch(e) { this.activePort = null; }
                 }
-
-                if (this.totalCount === 0) {
-                    this.setStatus('error');
-                    this.errorMessage = 'Keine Label-Daten vorhanden. Bitte Seite neu laden und nochmal versuchen.';
-                    return;
-                }
-
-                // DYMO Service finden
-                try {
-                    await this.findDymoService();
-                } catch (e) {
-                    this.setStatus('error');
-                    this.errorMessage = 'DYMO Connect Service nicht erreichbar. Ist DYMO Connect gestartet?';
-                    return;
-                }
-
-                // Drucker ermitteln
-                try {
-                    await this.loadPrinters();
-                } catch (e) {
-                    this.setStatus('error');
-                    this.errorMessage = 'Konnte Drucker-Liste nicht laden';
-                    return;
-                }
-
-                const connectedPrinters = this.availablePrinters.filter(p => p.isConnected);
-
-                if (connectedPrinters.length === 0) {
-                    this.setStatus('error');
-                    this.errorMessage = 'Kein DYMO-Drucker verbunden';
-                    return;
-                }
-
-                // Wenn gespeicherter Drucker noch verbunden, direkt drucken
-                if (this.selectedPrinter && connectedPrinters.find(p => p.name === this.selectedPrinter)) {
-                    await this.printAll(labelXmls, this.selectedPrinter);
-                    return;
-                }
-
-                // Nur ein Drucker? Direkt verwenden
-                if (connectedPrinters.length === 1) {
-                    this.selectedPrinter = connectedPrinters[0].name;
-                    localStorage.setItem('dymo_printer', this.selectedPrinter);
-                    await this.printAll(labelXmls, this.selectedPrinter);
-                    return;
-                }
-
-                // Mehrere Drucker: Auswahl zeigen
-                this.showPrinterSelect = true;
-                this.setStatus('idle');
-            },
-
-            async selectPrinterAndPrint(printerName) {
-                this.selectedPrinter = printerName;
-                localStorage.setItem('dymo_printer', printerName);
-                this.showPrinterSelect = false;
-
-                await this.printAll(this.pendingLabels, printerName);
-            },
-
-            async printAll(labelXmls, printerName) {
-                this.setStatus('printing');
-                this.printedCount = 0;
-                this.printErrors = [];
-
-                // Roh senden — DYMO kann kein URL-Encoding (genau wie bei Drucker-Einstellungen)
-                const printParams = '<LabelWriterPrintParams><Copies>1</Copies></LabelWriterPrintParams>';
-
-                for (const label of labelXmls) {
+                var ports = [41951, 41952, 41953, 41954, 41955];
+                for (var i = 0; i < ports.length; i++) {
                     try {
-                        const body = 'printerName=' + printerName
-                            + '&labelXml=' + label.xml
+                        var r2 = await fetch('https://127.0.0.1:' + ports[i] + '/DYMO/DLS/Printing/StatusConnected', { mode: 'cors' });
+                        if ((await r2.text()) === 'true') { this.activePort = ports[i]; return; }
+                    } catch(e) {}
+                }
+                throw new Error('not found');
+            },
+
+            getPrinters: async function() {
+                var xml = await this.fetchDymo('/DYMO/DLS/Printing/GetPrinters');
+                var doc = new DOMParser().parseFromString(xml, 'text/xml');
+                var nodes = doc.querySelectorAll('LabelWriterPrinter');
+                var list = [];
+                nodes.forEach(function(n) {
+                    list.push({
+                        name: n.querySelector('Name') ? n.querySelector('Name').textContent : '',
+                        isConnected: n.querySelector('IsConnected') ? n.querySelector('IsConnected').textContent === 'True' : false
+                    });
+                });
+                return list;
+            },
+
+            fetchDymo: async function(path, opts) {
+                if (!this.activePort) throw new Error('no port');
+                var r = await fetch('https://127.0.0.1:' + this.activePort + path, Object.assign({}, opts || {}, { mode: 'cors' }));
+                return await r.text();
+            },
+
+            startPrint: async function(labelXmls) {
+                console.log('DYMO: Start Druck mit', labelXmls.length, 'Labels');
+                this.showConnecting();
+
+                try { await this.findService(); }
+                catch(e) { this.showError('DYMO Connect nicht erreichbar'); return; }
+
+                var printers;
+                try { printers = await this.getPrinters(); }
+                catch(e) { this.showError('Drucker-Liste nicht ladbar'); return; }
+
+                var connected = printers.filter(function(p) { return p.isConnected; });
+                if (connected.length === 0) { this.showError('Kein DYMO-Drucker verbunden'); return; }
+
+                var printer = this.selectedPrinter;
+                if (!printer || !connected.find(function(p) { return p.name === printer; })) {
+                    printer = connected[0].name;
+                }
+                this.selectedPrinter = printer;
+                localStorage.setItem('dymo_printer', printer);
+
+                var printParams = '<LabelWriterPrintParams><Copies>1</Copies></LabelWriterPrintParams>';
+                var errors = [];
+                var self = this;
+
+                for (var i = 0; i < labelXmls.length; i++) {
+                    self.showPrinting(i + 1, labelXmls.length);
+                    try {
+                        var body = 'printerName=' + printer
+                            + '&labelXml=' + labelXmls[i].xml
                             + '&printParamsXml=' + printParams;
-
-                        const result = await this.dymoFetch('/DYMO/DLS/Printing/PrintLabel2', {
+                        var result = await self.fetchDymo('/DYMO/DLS/Printing/PrintLabel2', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                             body: body,
                         });
-
-                        if (result !== 'true') {
-                            this.printErrors.push(label.number + ': ' + result);
-                        }
-                    } catch (e) {
-                        this.printErrors.push(label.number + ': ' + e.message);
+                        if (result !== 'true') errors.push(labelXmls[i].number + ': ' + result);
+                    } catch(e) {
+                        errors.push(labelXmls[i].number + ': ' + e.message);
                     }
-                    this.printedCount++;
-
-                    // Pause zwischen Labels — DYMO braucht Zeit
-                    await new Promise(r => setTimeout(r, 800));
-
-                this.setStatus('done');
-            },
-
-            async findDymoService() {
-                // Bekannten Port probieren
-                if (this.activePort) {
-                    try {
-                        const url = 'https://127.0.0.1:' + this.activePort + '/DYMO/DLS/Printing/StatusConnected';
-                        const res = await fetch(url, { mode: 'cors' });
-                        const text = await res.text();
-                        if (text === 'true') return;
-                    } catch (e) {
-                        this.activePort = null;
-                    }
+                    await new Promise(function(r) { setTimeout(r, 800); });
                 }
 
-                // Port-Scan
-                const ports = [41951, 41952, 41953, 41954, 41955];
-                for (const port of ports) {
-                    try {
-                        const url = 'https://127.0.0.1:' + port + '/DYMO/DLS/Printing/StatusConnected';
-                        const res = await fetch(url, { mode: 'cors' });
-                        const text = await res.text();
-                        if (text === 'true') {
-                            this.activePort = port;
-                            console.log('DYMO Service gefunden auf Port', port);
-                            return;
-                        }
-                    } catch (e) {
-                        // Naechsten Port probieren
-                    }
-                }
-                throw new Error('Kein DYMO Service gefunden');
-            },
-
-            async loadPrinters() {
-                const xml = await this.dymoFetch('/DYMO/DLS/Printing/GetPrinters');
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(xml, 'text/xml');
-                const nodes = doc.querySelectorAll('LabelWriterPrinter');
-                this.availablePrinters = [];
-                nodes.forEach(node => {
-                    this.availablePrinters.push({
-                        name: node.querySelector('Name')?.textContent || '',
-                        modelName: node.querySelector('ModelName')?.textContent || '',
-                        isConnected: node.querySelector('IsConnected')?.textContent === 'True',
-                    });
-                });
-            },
-
-            async dymoFetch(path, options = {}) {
-                if (!this.activePort) throw new Error('Kein aktiver Port');
-                const url = 'https://127.0.0.1:' + this.activePort + path;
-                const response = await fetch(url, { ...options, mode: 'cors' });
-                return await response.text();
-            },
+                self.showDone(labelXmls.length, errors);
+            }
         };
-    }
+
+        // Livewire Event abfangen
+        window.addEventListener('start-dymo-print', function(e) {
+            var labels = [];
+            var detail = e.detail;
+            try {
+                if (Array.isArray(detail) && detail.length > 0 && detail[0] && detail[0].labelXmls) {
+                    labels = detail[0].labelXmls;
+                } else if (detail && detail.labelXmls) {
+                    labels = detail.labelXmls;
+                } else if (Array.isArray(detail)) {
+                    labels = detail;
+                }
+            } catch(ex) { console.error('DYMO parse', ex); }
+
+            console.log('DYMO: Event empfangen, Labels:', labels.length);
+            if (labels.length > 0) {
+                dymo.startPrint(labels);
+            } else {
+                dymo.showError('Keine Label-Daten empfangen');
+            }
+        });
+    })();
     </script>
-    @endpush
 </x-filament-panels::page>

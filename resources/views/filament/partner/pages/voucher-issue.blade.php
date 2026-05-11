@@ -44,7 +44,7 @@
             </div>
         @endif
 
-        <div style="display:flex; gap: 12px; justify-content:flex-end; margin-top: 16px;">
+        <div style="display:flex; gap: 12px; justify-content:flex-end; margin-top: 16px;" x-data>
             @if ($this->lastResult)
                 <x-filament::button
                     wire:click="resetForm"
@@ -55,14 +55,24 @@
                     Neue Gruppe
                 </x-filament::button>
 
-                <x-filament::button
-                    wire:click="preparePrint"
-                    size="lg"
-                    color="success"
-                    icon="heroicon-o-printer"
-                >
-                    {{ $this->lastResult['count'] }} Gutscheine drucken
-                </x-filament::button>
+                {{-- Drucken-Button: versteckt wenn fertig oder am Drucken --}}
+                <template x-if="!$store.dymo || $store.dymo.status === 'idle' || $store.dymo.status === 'error'">
+                    <button wire:click="preparePrint"
+                            class="fi-btn fi-btn-size-lg fi-btn-color-success"
+                            style="display:inline-flex;align-items:center;gap:8px;background:#16a34a;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer;">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:20px;height:20px"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-3 0h.008v.008H15V10.5Z" /></svg>
+                        {{ $this->lastResult['count'] }} Gutscheine drucken
+                    </button>
+                </template>
+
+                {{-- Spinner waehrend Druck laeuft --}}
+                <template x-if="$store.dymo && ($store.dymo.status === 'connecting' || $store.dymo.status === 'printing')">
+                    <button disabled
+                            style="display:inline-flex;align-items:center;gap:8px;background:#9ca3af;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:600;cursor:not-allowed;opacity:0.7;">
+                        <div style="width:16px;height:16px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div>
+                        Druckt...
+                    </button>
+                </template>
             @else
                 <x-filament::button
                     wire:click="checkAndGenerate"
@@ -210,6 +220,11 @@
 
     @push('scripts')
     <script>
+    // Globaler Store fuer Druck-Status (Button kann darauf zugreifen)
+    document.addEventListener('alpine:init', () => {
+        Alpine.store('dymo', { status: 'idle' });
+    });
+
     function voucherPrinter() {
         return {
             printStatus: 'idle',  // idle, connecting, printing, done, error
@@ -228,8 +243,13 @@
                 this.selectedPrinter = localStorage.getItem('dymo_printer') || null;
             },
 
+            setStatus(status) {
+                this.printStatus = status;
+                if (Alpine.store('dymo')) Alpine.store('dymo').status = status;
+            },
+
             async startPrint(detail) {
-                this.printStatus = 'connecting';
+                this.setStatus('connecting');
                 this.printedCount = 0;
                 this.printErrors = [];
                 this.showPrinterSelect = false;
@@ -248,7 +268,7 @@
                 this.totalCount = labelXmls.length;
 
                 if (this.totalCount === 0) {
-                    this.printStatus = 'error';
+                    this.setStatus('error');
                     this.errorMessage = 'Keine Label-Daten vorhanden';
                     return;
                 }
@@ -257,7 +277,7 @@
                 try {
                     await this.findDymoService();
                 } catch (e) {
-                    this.printStatus = 'error';
+                    this.setStatus('error');
                     this.errorMessage = 'DYMO Connect Service nicht erreichbar. Ist DYMO Connect gestartet?';
                     return;
                 }
@@ -266,7 +286,7 @@
                 try {
                     await this.loadPrinters();
                 } catch (e) {
-                    this.printStatus = 'error';
+                    this.setStatus('error');
                     this.errorMessage = 'Konnte Drucker-Liste nicht laden';
                     return;
                 }
@@ -274,7 +294,7 @@
                 const connectedPrinters = this.availablePrinters.filter(p => p.isConnected);
 
                 if (connectedPrinters.length === 0) {
-                    this.printStatus = 'error';
+                    this.setStatus('error');
                     this.errorMessage = 'Kein DYMO-Drucker verbunden';
                     return;
                 }
@@ -295,7 +315,7 @@
 
                 // Mehrere Drucker: Auswahl zeigen
                 this.showPrinterSelect = true;
-                this.printStatus = 'idle';
+                this.setStatus('idle');
             },
 
             async selectPrinterAndPrint(printerName) {
@@ -307,7 +327,7 @@
             },
 
             async printAll(labelXmls, printerName) {
-                this.printStatus = 'printing';
+                this.setStatus('printing');
                 this.printedCount = 0;
                 this.printErrors = [];
 
@@ -337,7 +357,7 @@
                     await new Promise(r => setTimeout(r, 300));
                 }
 
-                this.printStatus = 'done';
+                this.setStatus('done');
             },
 
             async findDymoService() {

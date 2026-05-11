@@ -44,7 +44,7 @@
             </div>
         @endif
 
-        <div style="display:flex; gap: 12px; justify-content:flex-end; margin-top: 16px;" x-data>
+        <div style="display:flex; gap: 12px; justify-content:flex-end; margin-top: 16px;">
             @if ($this->lastResult)
                 <x-filament::button
                     wire:click="resetForm"
@@ -55,24 +55,16 @@
                     Neue Gruppe
                 </x-filament::button>
 
-                {{-- Drucken-Button: versteckt wenn fertig oder am Drucken --}}
-                <template x-if="!$store.dymo || $store.dymo.status === 'idle' || $store.dymo.status === 'error'">
-                    <button wire:click="preparePrint"
-                            class="fi-btn fi-btn-size-lg fi-btn-color-success"
-                            style="display:inline-flex;align-items:center;gap:8px;background:#16a34a;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:600;cursor:pointer;">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:20px;height:20px"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-3 0h.008v.008H15V10.5Z" /></svg>
+                <div id="dymo-print-btn-wrapper">
+                    <x-filament::button
+                        wire:click="preparePrint"
+                        size="lg"
+                        color="success"
+                        icon="heroicon-o-printer"
+                    >
                         {{ $this->lastResult['count'] }} Gutscheine drucken
-                    </button>
-                </template>
-
-                {{-- Spinner waehrend Druck laeuft --}}
-                <template x-if="$store.dymo && ($store.dymo.status === 'connecting' || $store.dymo.status === 'printing')">
-                    <button disabled
-                            style="display:inline-flex;align-items:center;gap:8px;background:#9ca3af;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:600;cursor:not-allowed;opacity:0.7;">
-                        <div style="width:16px;height:16px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></div>
-                        Druckt...
-                    </button>
-                </template>
+                    </x-filament::button>
+                </div>
             @else
                 <x-filament::button
                     wire:click="checkAndGenerate"
@@ -246,6 +238,15 @@
             setStatus(status) {
                 this.printStatus = status;
                 if (Alpine.store('dymo')) Alpine.store('dymo').status = status;
+                // Button ausblenden waehrend Druck / nach Erfolg
+                const btnWrapper = document.getElementById('dymo-print-btn-wrapper');
+                if (btnWrapper) {
+                    if (status === 'connecting' || status === 'printing' || status === 'done') {
+                        btnWrapper.style.display = 'none';
+                    } else {
+                        btnWrapper.style.display = '';
+                    }
+                }
             },
 
             async startPrint(detail) {
@@ -254,22 +255,50 @@
                 this.printErrors = [];
                 this.showPrinterSelect = false;
 
-                // Label-XMLs aus dem Livewire-Event (Livewire 3 format)
+                // Label-XMLs aus dem Livewire-Event — alle moeglichen Formate abdecken
                 let labelXmls = [];
-                if (Array.isArray(detail) && detail.length > 0 && detail[0]?.labelXmls) {
-                    labelXmls = detail[0].labelXmls;
-                } else if (detail?.labelXmls) {
-                    labelXmls = detail.labelXmls;
-                } else if (Array.isArray(detail)) {
-                    labelXmls = detail;
+                try {
+                    if (detail && typeof detail === 'object') {
+                        // Livewire 3: dispatch('event', key: val) => detail = [{key: val}]
+                        if (Array.isArray(detail) && detail.length > 0) {
+                            if (detail[0]?.labelXmls) {
+                                labelXmls = detail[0].labelXmls;
+                            } else if (Array.isArray(detail[0])) {
+                                labelXmls = detail[0];
+                            } else if (detail[0]?.xml) {
+                                labelXmls = detail;
+                            }
+                        } else if (detail.labelXmls) {
+                            labelXmls = detail.labelXmls;
+                        }
+                    }
+                } catch(e) {
+                    console.error('DYMO: Event-Daten parsen fehlgeschlagen', e, detail);
                 }
+                console.log('DYMO: Event detail:', JSON.stringify(detail).substring(0, 200));
                 console.log('DYMO: Empfange', labelXmls.length, 'Labels zum Drucken');
                 this.pendingLabels = labelXmls;
                 this.totalCount = labelXmls.length;
 
                 if (this.totalCount === 0) {
+                    // Fallback: Labels direkt von Livewire-Property holen
+                    console.log('DYMO: Event hatte keine Daten, versuche Livewire-Property...');
+                    try {
+                        const lwLabels = @this.labelXmls;
+                        if (lwLabels && lwLabels.length > 0) {
+                            labelXmls = lwLabels;
+                            this.pendingLabels = labelXmls;
+                            this.totalCount = labelXmls.length;
+                            console.log('DYMO: Fallback erfolgreich,', labelXmls.length, 'Labels');
+                        }
+                    } catch(e) {
+                        console.error('DYMO: Fallback fehlgeschlagen', e);
+                    }
+                }
+
+                if (this.totalCount === 0) {
                     this.setStatus('error');
-                    this.errorMessage = 'Keine Label-Daten vorhanden';
+                    this.errorMessage = 'Keine Label-Daten vorhanden. Bitte Seite neu laden und nochmal versuchen.';
                     return;
                 }
 

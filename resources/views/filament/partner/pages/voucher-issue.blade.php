@@ -270,9 +270,9 @@
                 for (var i = 0; i < labelXmls.length; i++) {
                     self.showPrinting(i + 1, labelXmls.length);
                     try {
-                        var body = 'printerName=' + printer
-                            + '&labelXml=' + labelXmls[i].xml
-                            + '&printParamsXml=' + printParams;
+                        var body = 'printerName=' + encodeURIComponent(printer)
+                            + '&labelXml=' + encodeURIComponent(labelXmls[i].xml)
+                            + '&printParamsXml=' + encodeURIComponent(printParams);
                         var result = await self.fetchDymo('/DYMO/DLS/Printing/PrintLabel2', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

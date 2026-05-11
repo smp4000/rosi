@@ -130,8 +130,8 @@ class VoucherController extends ApiController
         $stationId = null;
         if ($request->filled('device_token')) {
             $device = \App\Models\Device::where('device_token', $request->input('device_token'))->first();
-            if ($device && $device->gas_station_id) {
-                $stationId = $device->gas_station_id;
+            if ($device && $device->station_id) {
+                $stationId = $device->station_id;
             }
         }
         if (! $stationId) {

@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\DeviceController;
 use App\Http\Controllers\Api\V1\FuelTheftController;
 use App\Http\Controllers\Api\V1\KioskController;
 use App\Http\Controllers\Api\V1\MhdController;
+use App\Http\Controllers\Api\V1\NfcAdminController;
 use App\Http\Controllers\Api\V1\PrintController;
 use App\Http\Controllers\Api\V1\ShiftSettlementController;
 use App\Http\Controllers\Api\V1\VoucherController;
@@ -125,6 +126,12 @@ Route::prefix('v1')->group(function () {
         ->name('api.v1.shift-settlements.return-reasons');
     Route::get('/shift-settlements/last-values', [ShiftSettlementController::class, 'lastValues'])
         ->name('api.v1.shift-settlements.last-values');
+
+    // --- Admin-Bereich der App: NFC-Chips beschreiben (nur device_token) ---
+    Route::get('/admin/stations', [NfcAdminController::class, 'stations'])
+        ->name('api.v1.admin.stations');
+    Route::get('/admin/station-employees', [NfcAdminController::class, 'stationEmployees'])
+        ->name('api.v1.admin.station-employees');
 
     // --- Gutscheine (oeffentlich, nur device_token) ---
     Route::get('/vouchers/lookup', [VoucherController::class, 'lookup'])

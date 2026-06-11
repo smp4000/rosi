@@ -80,6 +80,152 @@ class DeviceController extends ApiController
     }
 
     /**
+     * POST /api/v1/devices/register-station
+     *
+     * MDE-Geraet direkt an der Tankstelle anmelden.
+     * An der Kasse haengt ein permanenter QR-Code (device_setup_token der Station).
+     * Die App scannt ihn und schickt zusaetzlich ihre GPS-Position mit.
+     *
+     * GPS-Pruefung (Soft-Fail):
+     * - Position passt (<= Radius)          → Geraet sofort aktiv
+     * - Position fehlt oder weicht ab       → Geraet "wartet auf Freigabe" im Dashboard
+     * - APP_ENV=local / POS_SKIP_GPS_CHECK  → Pruefung uebersprungen (Entwicklung)
+     *
+     * Stationswechsel: Schickt die App ihren vorhandenen device_token mit,
+     * wird kein neues Geraet angelegt, sondern nur die Station umgehaengt.
+     * Das geht nur vor Ort (GPS muss passen) — sonst Wechsel im Dashboard.
+     */
+    public function registerStation(Request $request): JsonResponse
+    {
+        $request->validate([
+            'station_token' => 'required|string|max:32',
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
+            'device_token' => 'nullable|string',
+            'device_name' => 'nullable|string|max:100',
+            'device_os' => 'nullable|string|max:50',
+            'app_version' => 'nullable|string|max:20',
+        ]);
+
+        // Station anhand des permanenten Setup-Tokens suchen
+        // (ohne Tenant-Scope: die API hat keine Session, der Token identifiziert den Mandanten)
+        $station = GasStation::withoutTenantScope()
+            ->where('device_setup_token', strtoupper(trim($request->station_token)))
+            ->first();
+
+        if (! $station) {
+            return $this->error('Ungueltiger Stations-Code. Bitte den QR-Code an der Kasse scannen.', 404);
+        }
+
+        // ── GPS-Pruefung ──────────────────────────────────────
+        $skipGps = app()->environment('local') || config('pos.skip_gps_check');
+        $radius = (int) config('pos.gps_radius_m', 250);
+
+        $distance = null;
+        if ($request->filled(['latitude', 'longitude'])) {
+            $distance = $station->distanceToMeters(
+                (float) $request->latitude,
+                (float) $request->longitude
+            );
+        }
+
+        // Bestanden, wenn: Entwicklung ODER Distanz berechenbar und im Radius
+        $gpsOk = $skipGps || ($distance !== null && $distance <= $radius);
+
+        // ── Stationswechsel: Geraet existiert schon ──────────
+        if ($request->filled('device_token')) {
+            $device = $this->findDeviceByToken($request->device_token);
+
+            if ($device) {
+                // Stationen anderer Mandanten sind tabu
+                if ($device->tenant_id !== $station->tenant_id) {
+                    return $this->error('Diese Station gehoert zu einem anderen Unternehmen.', 403);
+                }
+
+                if (! $gpsOk) {
+                    return $this->error(
+                        'Stationswechsel nur vor Ort moeglich (GPS-Position weicht ab'
+                        . ($distance !== null ? ': ' . number_format($distance / 1000, 1, ',', '.') . ' km' : '')
+                        . '). Alternativ kann die Station im Dashboard geaendert werden.',
+                        422
+                    );
+                }
+
+                $device->update([
+                    'station_id' => $station->id,
+                    // GPS hat gepasst → ein evtl. noch wartendes Geraet ist damit bestaetigt
+                    'approval_status' => Device::APPROVAL_ACTIVE,
+                    'registration_distance_m' => $distance,
+                    'registration_latitude' => $request->latitude,
+                    'registration_longitude' => $request->longitude,
+                    'last_seen_at' => now(),
+                ]);
+
+                return $this->success([
+                    'device_id' => $device->id,
+                    'approval_status' => $device->approval_status,
+                    'tenant_name' => $station->tenant->name ?? null,
+                    'station_name' => $station->name,
+                    'distance_m' => $distance,
+                ], "Geraet ist jetzt an {$station->name} angemeldet.");
+            }
+            // Token unbekannt (Geraet wurde z.B. geloescht) → faellt durch zur Neu-Registrierung
+        }
+
+        // ── Neues Geraet registrieren ─────────────────────────
+        $plainToken = Str::random(64);
+
+        $device = Device::create([
+            'tenant_id' => $station->tenant_id,
+            'station_id' => $station->id,
+            'user_id' => null,
+            'device_type' => 'mde',
+            'device_name' => $request->device_name,
+            'device_os' => $request->device_os,
+            'app_version' => $request->app_version,
+            'device_token_hash' => Hash::make($plainToken),
+            'is_active' => true,
+            'approval_status' => $gpsOk ? Device::APPROVAL_ACTIVE : Device::APPROVAL_PENDING,
+            'registration_distance_m' => $distance,
+            'registration_latitude' => $request->latitude,
+            'registration_longitude' => $request->longitude,
+            'last_seen_at' => now(),
+        ]);
+
+        $message = $gpsOk
+            ? 'Geraet erfolgreich registriert.'
+            : 'Geraet registriert — wartet auf Freigabe im Dashboard (GPS-Position konnte nicht bestaetigt werden).';
+
+        return $this->success([
+            'device_id' => $device->id,
+            'device_token' => $plainToken,
+            'approval_status' => $device->approval_status,
+            'tenant_name' => $station->tenant->name ?? null,
+            'station_name' => $station->name,
+            'distance_m' => $distance,
+        ], $message, 201);
+    }
+
+    /**
+     * Geraet anhand des Klartext-Tokens finden (Token ist gehasht gespeichert).
+     */
+    private function findDeviceByToken(string $plainToken): ?Device
+    {
+        if (empty($plainToken)) {
+            return null;
+        }
+
+        $devices = Device::where('is_active', true)->get();
+        foreach ($devices as $device) {
+            if (Hash::check($plainToken, $device->device_token_hash)) {
+                return $device;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * POST /api/v1/devices/invite/accept
      *
      * Geraet per Einladungslink registrieren.
@@ -165,6 +311,17 @@ class DeviceController extends ApiController
 
         foreach ($devices as $device) {
             if (Hash::check($request->device_token, $device->device_token_hash)) {
+                // Wartet noch auf Freigabe durch den Partner (GPS-Abweichung bei Anmeldung)
+                // → kein Fehler, damit die App den Status anzeigen und weiter pollen kann
+                if ($device->isPending()) {
+                    return $this->success([
+                        'device_id' => $device->id,
+                        'station_name' => $device->station->name ?? 'Station',
+                        'is_active' => false,
+                        'approval_status' => $device->approval_status,
+                    ], 'Geraet wartet auf Freigabe im Dashboard.');
+                }
+
                 if (! $device->isAllowed()) {
                     return $this->error('Geraet wurde deaktiviert.', 403);
                 }
@@ -176,6 +333,7 @@ class DeviceController extends ApiController
                     'device_id' => $device->id,
                     'station_name' => $device->station->name ?? 'Station',
                     'is_active' => $device->is_active,
+                    'approval_status' => $device->approval_status,
                 ], 'Geraet ist registriert.');
             }
         }

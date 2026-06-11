@@ -48,6 +48,10 @@ Route::prefix('v1')->group(function () {
     Route::post('/devices/register', [DeviceController::class, 'register'])
         ->name('api.v1.devices.register');
 
+    // Stations-QR: MDE meldet sich direkt an der Tankstelle an (permanenter Code + GPS-Pruefung)
+    Route::post('/devices/register-station', [DeviceController::class, 'registerStation'])
+        ->name('api.v1.devices.register-station');
+
     // Einladungslink: Info abrufen (bevor MA sich registriert)
     Route::get('/devices/invite/{token}/info', [DeviceController::class, 'inviteInfo'])
         ->name('api.v1.devices.invite.info');

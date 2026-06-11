@@ -48,6 +48,8 @@ class GasStation extends Model
         // Geo
         'latitude',
         'longitude',
+        // MDE-Anmeldung
+        'device_setup_token',
         // Kontakt
         'academic_title',
         'contact_first_name',
@@ -226,6 +228,49 @@ class GasStation extends Model
     }
 
     // --- Hilfsmethoden ---
+
+    /**
+     * Setup-Token fuer die MDE-Anmeldung sicherstellen.
+     * Wird beim ersten Anzeigen des QR-Codes erzeugt, danach bleibt er stabil.
+     */
+    public function ensureDeviceSetupToken(): string
+    {
+        if (! $this->device_setup_token) {
+            $this->update(['device_setup_token' => strtoupper(\Illuminate\Support\Str::random(12))]);
+        }
+
+        return $this->device_setup_token;
+    }
+
+    /**
+     * Neuen Setup-Token erzeugen (z.B. wenn der alte QR-Code kompromittiert ist).
+     * Bereits registrierte Geraete bleiben angemeldet.
+     */
+    public function regenerateDeviceSetupToken(): string
+    {
+        $this->update(['device_setup_token' => strtoupper(\Illuminate\Support\Str::random(12))]);
+
+        return $this->device_setup_token;
+    }
+
+    /**
+     * Entfernung dieser Station zu einer GPS-Position in Metern (Haversine).
+     * Null, wenn die Station keine Koordinaten hat.
+     */
+    public function distanceToMeters(float $lat, float $lng): ?int
+    {
+        if ($this->latitude === null || $this->longitude === null) {
+            return null;
+        }
+
+        $earthRadius = 6371000; // Meter
+        $dLat = deg2rad($lat - (float) $this->latitude);
+        $dLng = deg2rad($lng - (float) $this->longitude);
+        $a = sin($dLat / 2) ** 2
+            + cos(deg2rad((float) $this->latitude)) * cos(deg2rad($lat)) * sin($dLng / 2) ** 2;
+
+        return (int) round($earthRadius * 2 * atan2(sqrt($a), sqrt(1 - $a)));
+    }
 
     /**
      * Vollstaendige Adresse als String (mit Hausnummer).

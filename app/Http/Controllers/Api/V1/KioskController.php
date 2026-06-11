@@ -270,16 +270,7 @@ class KioskController extends ApiController
 
     private function findDevice(string $plainToken): ?Device
     {
-        if (empty($plainToken)) {
-            return null;
-        }
-        $devices = Device::where('is_active', true)->get();
-        foreach ($devices as $device) {
-            if (Hash::check($plainToken, $device->device_token_hash)) {
-                return $device;
-            }
-        }
-        return null;
+        return Device::findByPlainToken($plainToken);
     }
 
     private function formatArticle(Article $a): array

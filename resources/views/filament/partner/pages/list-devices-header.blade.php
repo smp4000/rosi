@@ -61,9 +61,10 @@
             </div>
         </div>
 
-        {{-- Gueltig bis --}}
+        {{-- Gueltig bis (Datum mit "Uhr", Texte wie "Dauerhaft gueltig" ohne) --}}
+        @php $expiresText = session('qr_expires') . (preg_match('/\d{2}:\d{2}$/', session('qr_expires', '')) ? ' Uhr' : ''); @endphp
         <div class="text-center text-sm text-gray-500">
-            Gueltig bis: <strong>{{ session('qr_expires') }} Uhr</strong>
+            Gueltig bis: <strong>{{ $expiresText }}</strong>
         </div>
 
         {{-- Drucken Button --}}
@@ -74,7 +75,7 @@
                     w.document.write('<html><body style=&quot;text-align:center;font-family:sans-serif&quot;>');
                     w.document.write('<h2>ROSI POS - {{ session('qr_station') }}</h2>');
                     w.document.write('<img src=&quot;data:image/svg+xml;base64,{{ session('qr_base64') }}&quot; style=&quot;width:300px;height:300px&quot;/>');
-                    w.document.write('<p>Gueltig bis: {{ session('qr_expires') }} Uhr</p>');
+                    w.document.write('<p>Gueltig bis: {{ $expiresText }}</p>');
                     w.document.write('</body></html>');
                     w.document.close();
                     w.print();

@@ -265,14 +265,6 @@ class MhdController extends ApiController
      */
     private function findDevice(string $plainToken): ?Device
     {
-        $devices = Device::where('is_active', true)->get();
-
-        foreach ($devices as $device) {
-            if (Hash::check($plainToken, $device->device_token_hash)) {
-                return $device;
-            }
-        }
-
-        return null;
+        return Device::findByPlainToken($plainToken);
     }
 }

@@ -41,6 +41,19 @@ class DeviceResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
+    /** Badge: Anzahl Geraete, die auf Freigabe warten */
+    public static function getNavigationBadge(): ?string
+    {
+        $count = Device::where('approval_status', Device::APPROVAL_PENDING)->count();
+
+        return $count > 0 ? (string) $count : null;
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
+    }
+
     public static function table(Table $table): Table
     {
         return $table
@@ -99,6 +112,28 @@ class DeviceResource extends Resource
                 BooleanColumn::make('is_active')
                     ->label('Aktiv'),
 
+                // ── Freigabe-Status (GPS-Pruefung bei Stations-Anmeldung) ──
+                TextColumn::make('approval_status')
+                    ->label('Freigabe')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state) => match ($state) {
+                        Device::APPROVAL_ACTIVE => 'Freigegeben',
+                        Device::APPROVAL_PENDING => 'Wartet auf Freigabe',
+                        Device::APPROVAL_REJECTED => 'Abgelehnt',
+                        default => $state,
+                    })
+                    ->color(fn (string $state) => match ($state) {
+                        Device::APPROVAL_ACTIVE => 'success',
+                        Device::APPROVAL_PENDING => 'warning',
+                        Device::APPROVAL_REJECTED => 'danger',
+                        default => 'gray',
+                    })
+                    ->description(fn (Device $record) => $record->isPending()
+                        ? ($record->registration_distance_m !== null
+                            ? 'GPS-Abweichung: ' . number_format($record->registration_distance_m / 1000, 1, ',', '.') . ' km'
+                            : 'Keine GPS-Position uebermittelt')
+                        : null),
+
                 TextColumn::make('last_seen_at')
                     ->label('Zuletzt online')
                     ->since()
@@ -139,6 +174,52 @@ class DeviceResource extends Resource
             ])
             ->defaultGroup('device_type')
             ->actions([
+                // ── Geraet freigeben (GPS-Pruefung war nicht erfolgreich) ──
+                Action::make('approve')
+                    ->label('Freigeben')
+                    ->icon('heroicon-o-check-badge')
+                    ->color('success')
+                    ->visible(fn (Device $record) => $record->isPending())
+                    ->requiresConfirmation()
+                    ->modalHeading('Geraet freigeben?')
+                    ->modalDescription(fn (Device $record) =>
+                        'Das Geraet "' . ($record->device_name ?? 'Unbekannt') . '" wurde an '
+                        . ($record->station->name ?? 'einer Station') . ' angemeldet, '
+                        . ($record->registration_distance_m !== null
+                            ? 'die GPS-Position war aber ' . number_format($record->registration_distance_m / 1000, 1, ',', '.') . ' km entfernt.'
+                            : 'hat aber keine GPS-Position uebermittelt.')
+                        . ' Nach der Freigabe kann es sofort arbeiten.')
+                    ->action(function (Device $record) {
+                        $record->update(['approval_status' => Device::APPROVAL_ACTIVE]);
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Geraet freigegeben')
+                            ->body('Das Geraet kann jetzt an ' . ($record->station->name ?? 'der Station') . ' arbeiten.')
+                            ->success()
+                            ->send();
+                    }),
+
+                // ── Geraet ablehnen ──
+                Action::make('reject')
+                    ->label('Ablehnen')
+                    ->icon('heroicon-o-no-symbol')
+                    ->color('danger')
+                    ->visible(fn (Device $record) => $record->isPending())
+                    ->requiresConfirmation()
+                    ->modalHeading('Anmeldung ablehnen?')
+                    ->modalDescription('Das Geraet erhaelt keinen Zugriff. Es kann sich spaeter erneut anmelden.')
+                    ->action(function (Device $record) {
+                        $record->update([
+                            'approval_status' => Device::APPROVAL_REJECTED,
+                            'is_active' => false,
+                        ]);
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Anmeldung abgelehnt')
+                            ->warning()
+                            ->send();
+                    }),
+
                 // ── QR-Code / Setup-Code nochmal anzeigen ──
                 Action::make('show_code')
                     ->label('Code anzeigen')
@@ -348,6 +429,42 @@ class DeviceResource extends Resource
                     ->deselectRecordsAfterCompletion(),
             ])
             ->headerActions([
+                // ── Permanenter Stations-Code (zum Ausdrucken/Laminieren an der Kasse) ──
+                Action::make('station_code')
+                    ->label('Stations-Code (dauerhaft)')
+                    ->icon('heroicon-o-building-storefront')
+                    ->color('primary')
+                    ->form([
+                        \Filament\Forms\Components\Select::make('station_id')
+                            ->label('Tankstelle')
+                            ->options(fn () => GasStation::where('tenant_id', session('tenant_id'))->pluck('name', 'id'))
+                            ->required()
+                            ->helperText('Der QR-Code haengt dauerhaft an der Kasse. MDE-Geraete scannen ihn, um sich an dieser Station anzumelden.'),
+
+                        \Filament\Forms\Components\Toggle::make('regenerate')
+                            ->label('Neuen Code erzeugen')
+                            ->default(false)
+                            ->helperText('Nur noetig, wenn der alte Code in falsche Haende geraten ist. Bereits angemeldete Geraete bleiben angemeldet — nur der ausgehaengte QR-Code muss ersetzt werden.'),
+                    ])
+                    ->action(function (array $data) {
+                        $station = GasStation::find($data['station_id']);
+                        if (! $station) {
+                            return;
+                        }
+
+                        $token = ($data['regenerate'] ?? false)
+                            ? $station->regenerateDeviceSetupToken()
+                            : $station->ensureDeviceSetupToken();
+
+                        $qrSvg = QrCode::size(300)->margin(2)->generate($token);
+
+                        session()->flash('show_qr_code', true);
+                        session()->flash('qr_base64', base64_encode($qrSvg));
+                        session()->flash('qr_station', $station->name);
+                        session()->flash('qr_token', $token);
+                        session()->flash('qr_expires', 'Dauerhaft gueltig');
+                    }),
+
                 // ── QR-Code fuer MDE-Geraet generieren ──
                 Action::make('generate_qr')
                     ->label('QR-Code fuer Station')

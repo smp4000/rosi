@@ -20,6 +20,40 @@
         </div>
     </div>
 
+    {{-- Info: Was bedeuten die Aktionen? --}}
+    <div x-data="{ offen: false }"
+         style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;overflow:hidden;margin-bottom:4px">
+        <div @click="offen = !offen"
+             style="padding:10px 16px;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:13px;color:#1e40af;font-weight:600">
+            <span x-text="offen ? '▾' : '▸'"></span>
+            ℹ️ Was bedeuten die Aktionen?
+        </div>
+        <div x-show="offen" x-cloak style="padding:0 16px 14px 16px">
+            <table style="width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;border-radius:8px;overflow:hidden">
+                <thead>
+                    <tr style="border-bottom:1px solid #e5e7eb;background:#f9fafb">
+                        <th style="text-align:left;padding:7px 12px;width:220px">Aktion</th>
+                        <th style="text-align:left;padding:7px 12px">Steuert in der Oberfläche</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:6px 12px;font-weight:600">Liste ansehen</td><td style="padding:6px 12px"><strong>Menüpunkt</strong> in der Navigation + die Übersichtstabelle. Ohne dieses Häkchen ist das Modul komplett unsichtbar.</td></tr>
+                    <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:6px 12px;font-weight:600">Details ansehen</td><td style="padding:6px 12px">„Ansehen"-Button pro Zeile + die Detailseite</td></tr>
+                    <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:6px 12px;font-weight:600">Anlegen</td><td style="padding:6px 12px">„Anlegen"-Button + die Anlegen-Seite</td></tr>
+                    <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:6px 12px;font-weight:600">Bearbeiten</td><td style="padding:6px 12px">„Bearbeiten"-Button pro Zeile + die Bearbeiten-Seite</td></tr>
+                    <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:6px 12px;font-weight:600">Löschen / Archivieren</td><td style="padding:6px 12px">„Löschen"- bzw. „Archivieren"-Button pro Zeile</td></tr>
+                    <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:6px 12px;font-weight:600">Mehrere löschen (Auswahl)</td><td style="padding:6px 12px">Sammel-Löschen über die Checkbox-Auswahl in der Tabelle</td></tr>
+                    <tr style="border-bottom:1px solid #f3f4f6"><td style="padding:6px 12px;font-weight:600">Wiederherstellen (aus Archiv)</td><td style="padding:6px 12px">„Wiederherstellen"-Button bei archivierten Einträgen</td></tr>
+                    <tr><td style="padding:6px 12px;font-weight:600">Spezial-Aktionen</td><td style="padding:6px 12px">z.&nbsp;B. „Versenden", „Freigeben", „Einlösen" — steuern genau den jeweiligen Button bzw. die MDE-Kachel</td></tr>
+                </tbody>
+            </table>
+            <div style="margin-top:8px;font-size:12px;color:#1e40af">
+                Buttons ohne Berechtigung werden automatisch <strong>ausgeblendet</strong> — der direkte URL-Aufruf wird zusätzlich mit „403 – keine Berechtigung" blockiert.
+                Änderungen wirken im Dashboard sofort, in der MDE-App beim nächsten Login.
+            </div>
+        </div>
+    </div>
+
     @foreach ($this->bereiche as $bereichKey => $bereichLabel)
         <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
             <div style="padding:12px 16px;font-weight:700;font-size:14px;background:#f9fafb;border-bottom:1px solid #e5e7eb">

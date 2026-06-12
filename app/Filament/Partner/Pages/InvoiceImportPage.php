@@ -22,6 +22,11 @@ use Illuminate\Support\HtmlString;
  */
 class InvoiceImportPage extends Page implements HasForms
 {
+    use \App\Filament\Concerns\HasPageCatalogPermission;
+
+    /** Permission fuer den Seitenzugriff (Rollen-Matrix) */
+    protected static string $accessPermission = 'partner.invoices.import';
+
     use InteractsWithForms;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-arrow-up-tray';

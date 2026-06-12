@@ -28,6 +28,11 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class ShiftSettlementResource extends Resource
 {
+    use \App\Filament\Concerns\HasCatalogPermissions;
+
+    /** Katalog-Schluessel fuer die Rechte-Pruefung (Rollen-Matrix) */
+    protected static ?string $permissionKey = 'partner.shift-settlements';
+
     protected static ?string $model = ShiftSettlement::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-clipboard-document-check';

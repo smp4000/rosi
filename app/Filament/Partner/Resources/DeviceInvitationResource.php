@@ -19,6 +19,11 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
  */
 class DeviceInvitationResource extends Resource
 {
+    use \App\Filament\Concerns\HasCatalogPermissions;
+
+    /** Katalog-Schluessel fuer die Rechte-Pruefung (Rollen-Matrix) */
+    protected static ?string $permissionKey = 'partner.devices';
+
     protected static ?string $model = DeviceInvitation::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-envelope';

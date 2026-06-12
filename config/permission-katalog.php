@@ -167,9 +167,12 @@ return [
 
         'partner.vouchers' => [
             'label' => 'Gutscheine', 'bereich' => 'dashboard', 'emoji' => '🎟️',
-            'aktionen' => ['list' => 'Liste ansehen'],
+            'aktionen' => [
+                'list' => 'Liste ansehen',
+                'issue' => 'Ausgeben (Web-Druck)',
+            ],
             'defaults' => [
-                'stationsleiter' => ['list'],
+                'stationsleiter' => ['list', 'issue'],
                 'buero' => ['list'],
             ],
         ],

@@ -47,6 +47,11 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
  */
 class EmployeeResource extends Resource
 {
+    use \App\Filament\Concerns\HasCatalogPermissions;
+
+    /** Katalog-Schluessel fuer die Rechte-Pruefung (Rollen-Matrix) */
+    protected static ?string $permissionKey = 'partner.employees';
+
     protected static ?string $model = User::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-users';
@@ -69,49 +74,9 @@ class EmployeeResource extends Resource
         return $record?->name ?? $record?->email;
     }
 
-    // --- Autorisierung ---
-
-    protected static function ensureTeamContext(): void
-    {
-        $user = auth()->user();
-        if ($user?->tenant_id) {
-            app(\Spatie\Permission\PermissionRegistrar::class)
-                ->setPermissionsTeamId($user->tenant_id);
-        }
-    }
-
-    public static function canAccess(): bool
-    {
-        static::ensureTeamContext();
-
-        return auth()->user()->can('partner.employees.list');
-    }
-
-    public static function canCreate(): bool
-    {
-        static::ensureTeamContext();
-
-        return auth()->user()->can('partner.employees.create');
-    }
-
-    public static function canEdit(Model $record): bool
-    {
-        static::ensureTeamContext();
-
-        return auth()->user()->can('partner.employees.edit');
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        return false;
-    }
-
-    public static function canView(Model $record): bool
-    {
-        static::ensureTeamContext();
-
-        return auth()->user()->can('partner.employees.view');
-    }
+    // --- Autorisierung: laeuft komplett ueber HasCatalogPermissions ---
+    // (canViewAny/canCreate/canEdit/canDelete kommen aus der Rollen-Matrix;
+    //  Loeschen/Archivieren steuert die Permission partner.employees.delete)
 
     // --- Query: Nur Mitarbeiter des eigenen Mandanten ---
 

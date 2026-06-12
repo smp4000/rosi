@@ -11,6 +11,11 @@ use Illuminate\Support\Facades\Session;
 
 class LabelTemplateSelection extends Page
 {
+    use \App\Filament\Concerns\HasPageCatalogPermission;
+
+    /** Permission fuer den Seitenzugriff (Rollen-Matrix) */
+    protected static string $accessPermission = 'partner.print.settings';
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-tag';
     protected static ?string $navigationLabel = 'Druckvorlagen';
     protected static ?string $title = 'Druckvorlagen auswaehlen';

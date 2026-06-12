@@ -25,6 +25,11 @@ use Spatie\Permission\Models\Role;
  */
 class InvitationResource extends Resource
 {
+    use \App\Filament\Concerns\HasCatalogPermissions;
+
+    /** Katalog-Schluessel fuer die Rechte-Pruefung (Rollen-Matrix) */
+    protected static ?string $permissionKey = 'partner.invitations';
+
     protected static ?string $model = Invitation::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-envelope';
@@ -39,12 +44,7 @@ class InvitationResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'email';
 
-    public static function canAccess(): bool
-    {
-        $user = auth()->user();
-
-        return $user && $user->can('partner.invitations.list');
-    }
+    // Autorisierung laeuft komplett ueber HasCatalogPermissions (Rollen-Matrix)
 
     public static function form(Schema $form): Schema
     {

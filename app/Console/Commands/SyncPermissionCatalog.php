@@ -24,7 +24,9 @@ use Spatie\Permission\PermissionRegistrar;
  */
 class SyncPermissionCatalog extends Command
 {
-    protected $signature = 'rosi:permissions-sync {--prune : Verwaiste Permissions loeschen}';
+    protected $signature = 'rosi:permissions-sync
+        {--prune : Verwaiste Permissions loeschen}
+        {--apply-defaults : Alle Katalog-Defaults erneut ADDITIV auf System-Rollen anwenden (Erst-Rollout / Werkseinstellungen)}';
 
     protected $description = 'Permission-Katalog in die Datenbank synchronisieren (Rollen, Permissions, Defaults)';
 
@@ -88,12 +90,14 @@ class SyncPermissionCatalog extends Command
                 }
 
                 // Andere System-Rollen: Defaults verteilen —
-                // bei neuer Rolle alle Defaults, sonst nur fuer neue Permissions
+                // bei neuer Rolle alle Defaults, sonst nur fuer neue Permissions.
+                // --apply-defaults: alle Defaults erneut additiv (entzogene
+                // Default-Rechte kommen zurueck, zusaetzliche bleiben).
                 $zuVergeben = [];
                 foreach ($katalog as $ressourceKey => $ressource) {
                     foreach ($ressource['defaults'][$rolleName] ?? [] as $aktion) {
                         $name = "{$ressourceKey}.{$aktion}";
-                        if ($istNeu || in_array($name, $neuePermissions, true)) {
+                        if ($istNeu || $this->option('apply-defaults') || in_array($name, $neuePermissions, true)) {
                             $zuVergeben[] = $name;
                         }
                     }

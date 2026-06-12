@@ -11,6 +11,11 @@ use Filament\Tables\Table;
 
 class VoucherResource extends Resource
 {
+    use \App\Filament\Concerns\HasCatalogPermissions;
+
+    /** Katalog-Schluessel fuer die Rechte-Pruefung (Rollen-Matrix) */
+    protected static ?string $permissionKey = 'partner.vouchers';
+
     protected static ?string $model = Voucher::class;
 
     protected static string | \BackedEnum | null $navigationIcon = 'heroicon-o-ticket';

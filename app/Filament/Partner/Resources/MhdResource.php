@@ -26,6 +26,11 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class MhdResource extends Resource
 {
+    use \App\Filament\Concerns\HasCatalogPermissions;
+
+    /** Katalog-Schluessel fuer die Rechte-Pruefung (Rollen-Matrix) */
+    protected static ?string $permissionKey = 'partner.mhd';
+
     protected static ?string $model = Mhd::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-calendar-days';

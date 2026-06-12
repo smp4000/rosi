@@ -36,6 +36,11 @@ use Illuminate\Support\Facades\Storage;
  */
 class DocumentResource extends Resource
 {
+    use \App\Filament\Concerns\HasCatalogPermissions;
+
+    /** Katalog-Schluessel fuer die Rechte-Pruefung (Rollen-Matrix) */
+    protected static ?string $permissionKey = 'partner.documents';
+
     protected static ?string $model = Document::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-document-text';
@@ -48,25 +53,7 @@ class DocumentResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'title';
 
-    public static function canAccess(): bool
-    {
-        return auth()->user()?->can('partner.documents.list') ?? false;
-    }
-
-    public static function canCreate(): bool
-    {
-        return auth()->user()?->can('partner.documents.create') ?? false;
-    }
-
-    public static function canEdit(Model $record): bool
-    {
-        return auth()->user()?->can('partner.documents.edit') ?? false;
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        return auth()->user()?->can('partner.documents.delete') ?? false;
-    }
+    // Autorisierung laeuft komplett ueber HasCatalogPermissions (Rollen-Matrix)
 
     public static function form(Schema $schema): Schema
     {

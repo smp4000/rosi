@@ -23,6 +23,11 @@ use Filament\Schemas\Schema;
  */
 class KioskUpload extends Page implements HasForms
 {
+    use \App\Filament\Concerns\HasPageCatalogPermission;
+
+    /** Permission fuer den Seitenzugriff (Rollen-Matrix) */
+    protected static string $accessPermission = 'partner.newspapers.import';
+
     use InteractsWithForms;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-presentation-chart-bar';

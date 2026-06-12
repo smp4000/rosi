@@ -32,6 +32,11 @@ use Illuminate\Support\HtmlString;
  */
 class InvoiceResource extends Resource
 {
+    use \App\Filament\Concerns\HasCatalogPermissions;
+
+    /** Katalog-Schluessel fuer die Rechte-Pruefung (Rollen-Matrix) */
+    protected static ?string $permissionKey = 'partner.invoices';
+
     protected static ?string $model = Invoice::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-document-text';

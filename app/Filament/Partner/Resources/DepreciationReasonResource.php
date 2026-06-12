@@ -27,6 +27,11 @@ use Illuminate\Database\Eloquent\Collection;
  */
 class DepreciationReasonResource extends Resource
 {
+    use \App\Filament\Concerns\HasCatalogPermissions;
+
+    /** Katalog-Schluessel fuer die Rechte-Pruefung (Rollen-Matrix) */
+    protected static ?string $permissionKey = 'partner.mhd';
+
     protected static ?string $model = DepreciationReason::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-clipboard-document-list';

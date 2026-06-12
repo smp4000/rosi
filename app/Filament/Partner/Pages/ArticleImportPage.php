@@ -28,6 +28,11 @@ use Illuminate\Support\HtmlString;
  */
 class ArticleImportPage extends Page implements HasForms
 {
+    use \App\Filament\Concerns\HasPageCatalogPermission;
+
+    /** Permission fuer den Seitenzugriff (Rollen-Matrix) */
+    protected static string $accessPermission = 'partner.articles.import';
+
     use InteractsWithForms;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-arrow-up-tray';

@@ -19,6 +19,11 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class InvoiceBatchResource extends Resource
 {
+    use \App\Filament\Concerns\HasCatalogPermissions;
+
+    /** Katalog-Schluessel fuer die Rechte-Pruefung (Rollen-Matrix) */
+    protected static ?string $permissionKey = 'partner.invoices';
+
     protected static ?string $model = InvoiceBatch::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-queue-list';

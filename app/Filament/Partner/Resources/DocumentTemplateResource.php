@@ -32,6 +32,11 @@ use Illuminate\Support\HtmlString;
  */
 class DocumentTemplateResource extends Resource
 {
+    use \App\Filament\Concerns\HasCatalogPermissions;
+
+    /** Katalog-Schluessel fuer die Rechte-Pruefung (Rollen-Matrix) */
+    protected static ?string $permissionKey = 'partner.templates';
+
     protected static ?string $model = DocumentTemplate::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-document-duplicate';

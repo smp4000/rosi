@@ -37,6 +37,11 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class FuelTheftResource extends Resource
 {
+    use \App\Filament\Concerns\HasCatalogPermissions;
+
+    /** Katalog-Schluessel fuer die Rechte-Pruefung (Rollen-Matrix) */
+    protected static ?string $permissionKey = 'partner.fuel-thefts';
+
     protected static ?string $model = FuelTheft::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-exclamation-triangle';

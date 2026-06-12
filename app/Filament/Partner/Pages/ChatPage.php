@@ -10,6 +10,11 @@ use Filament\Pages\Page;
  */
 class ChatPage extends Page
 {
+    use \App\Filament\Concerns\HasPageCatalogPermission;
+
+    /** Permission fuer den Seitenzugriff (Rollen-Matrix) */
+    protected static string $accessPermission = 'partner.chat.use';
+
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-chat-bubble-left-right';
 
     protected static ?string $navigationLabel = 'Chat';

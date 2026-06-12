@@ -24,6 +24,11 @@ use Illuminate\Support\HtmlString;
  */
 class MailSettingsPage extends Page implements HasForms
 {
+    use \App\Filament\Concerns\HasPageCatalogPermission;
+
+    /** Permission fuer den Seitenzugriff (Rollen-Matrix) */
+    protected static string $accessPermission = 'partner.settings.manage';
+
     use InteractsWithForms;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-envelope';

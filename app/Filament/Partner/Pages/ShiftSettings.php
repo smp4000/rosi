@@ -16,6 +16,11 @@ use Filament\Schemas\Schema;
  */
 class ShiftSettings extends Page implements HasForms
 {
+    use \App\Filament\Concerns\HasPageCatalogPermission;
+
+    /** Permission fuer den Seitenzugriff (Rollen-Matrix) */
+    protected static string $accessPermission = 'partner.shift-settlements.edit';
+
     use InteractsWithForms;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-clipboard-document-check';

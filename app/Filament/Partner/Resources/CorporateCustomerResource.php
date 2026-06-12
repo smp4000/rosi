@@ -32,6 +32,11 @@ use Illuminate\Support\HtmlString;
  */
 class CorporateCustomerResource extends Resource
 {
+    use \App\Filament\Concerns\HasCatalogPermissions;
+
+    /** Katalog-Schluessel fuer die Rechte-Pruefung (Rollen-Matrix) */
+    protected static ?string $permissionKey = 'partner.corporate-customers';
+
     protected static ?string $model = CorporateCustomer::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-building-office';

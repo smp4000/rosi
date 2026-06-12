@@ -39,6 +39,11 @@ use Illuminate\Support\Facades\Http;
  */
 class GasStationResource extends Resource
 {
+    use \App\Filament\Concerns\HasCatalogPermissions;
+
+    /** Katalog-Schluessel fuer die Rechte-Pruefung (Rollen-Matrix) */
+    protected static ?string $permissionKey = 'partner.gas-stations';
+
     protected static ?string $model = GasStation::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-map-pin';
@@ -53,46 +58,7 @@ class GasStationResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
-    // --- Autorisierung ---
-
-    protected static function ensureTeamContext(): void
-    {
-        $user = auth()->user();
-        if ($user?->tenant_id) {
-            $registrar = app(\Spatie\Permission\PermissionRegistrar::class);
-            $registrar->setPermissionsTeamId($user->tenant_id);
-        }
-    }
-
-    public static function canAccess(): bool
-    {
-        static::ensureTeamContext();
-        return auth()->user()->can('partner.gas-stations.list');
-    }
-
-    public static function canCreate(): bool
-    {
-        static::ensureTeamContext();
-        return auth()->user()->can('partner.gas-stations.create');
-    }
-
-    public static function canEdit(Model $record): bool
-    {
-        static::ensureTeamContext();
-        return auth()->user()->can('partner.gas-stations.edit');
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        static::ensureTeamContext();
-        return auth()->user()->can('partner.gas-stations.delete');
-    }
-
-    public static function canView(Model $record): bool
-    {
-        static::ensureTeamContext();
-        return auth()->user()->can('partner.gas-stations.view');
-    }
+    // --- Autorisierung: laeuft komplett ueber HasCatalogPermissions (Rollen-Matrix) ---
 
     // --- Formular (7 Tabs) ---
 

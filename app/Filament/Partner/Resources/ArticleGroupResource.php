@@ -23,6 +23,11 @@ use Illuminate\Database\Eloquent\Model;
  */
 class ArticleGroupResource extends Resource
 {
+    use \App\Filament\Concerns\HasCatalogPermissions;
+
+    /** Katalog-Schluessel fuer die Rechte-Pruefung (Rollen-Matrix) */
+    protected static ?string $permissionKey = 'partner.articles';
+
     protected static ?string $model = ArticleGroup::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-rectangle-stack';

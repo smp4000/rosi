@@ -18,6 +18,11 @@ use Illuminate\Database\Eloquent\Builder;
  */
 class PrintLogResource extends Resource
 {
+    use \App\Filament\Concerns\HasCatalogPermissions;
+
+    /** Katalog-Schluessel fuer die Rechte-Pruefung (Rollen-Matrix) */
+    protected static ?string $permissionKey = 'partner.print';
+
     protected static ?string $model = InvoiceLog::class;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-printer';

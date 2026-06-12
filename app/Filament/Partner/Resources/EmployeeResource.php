@@ -1276,6 +1276,43 @@ class EmployeeResource extends Resource
                     // =============================================
                     // Tab 10: Kommunikation
                     // =============================================
+                    Tab::make('Rollen & Rechte')
+                        ->icon('heroicon-o-shield-check')
+                        ->schema([
+                            Section::make('Rollen pro Tankstelle')
+                                ->description('Welche Rolle hat der Mitarbeiter wo? Ohne Tankstelle gilt die Rolle im ganzen Betrieb. Was die Rollen duerfen, wird unter Einstellungen → Rollen & Rechte festgelegt.')
+                                ->schema([
+                                    Repeater::make('stationRoles')
+                                        ->relationship()
+                                        ->label('Zuweisungen')
+                                        ->schema([
+                                            Select::make('gas_station_id')
+                                                ->label('Tankstelle')
+                                                ->options(fn () => \App\Models\GasStation::where('tenant_id', session('tenant_id'))->pluck('name', 'id'))
+                                                ->placeholder('🏢 Ganzer Betrieb')
+                                                ->nullable(),
+
+                                            Select::make('role_id')
+                                                ->label('Rolle')
+                                                ->options(function () {
+                                                    return \Spatie\Permission\Models\Role::where('tenant_id', session('tenant_id'))
+                                                        ->where('name', '!=', 'partner') // Inhaber-Rolle nicht zuweisbar
+                                                        ->orderByDesc('is_system')
+                                                        ->orderBy('name')
+                                                        ->get()
+                                                        ->mapWithKeys(fn ($r) => [
+                                                            $r->id => ucfirst($r->name) . ($r->is_system ? ' 🔒' : ' ✏️'),
+                                                        ]);
+                                                })
+                                                ->required(),
+                                        ])
+                                        ->columns(2)
+                                        ->addActionLabel('＋ Rolle zuweisen')
+                                        ->defaultItems(0)
+                                        ->helperText('Beispiel: Kassierer in Fulda + Schichtleiter in Petersberg = zwei Zeilen.'),
+                                ]),
+                        ]),
+
                     Tab::make('Kommunikation')
                         ->icon('heroicon-o-chat-bubble-left-right')
                         ->schema([

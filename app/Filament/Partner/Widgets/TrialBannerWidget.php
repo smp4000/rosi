@@ -15,9 +15,16 @@ class TrialBannerWidget extends Widget
 
     protected string $view = 'filament.partner.widgets.trial-banner';
 
+    use \App\Filament\Concerns\HasWidgetCatalogPermission;
+
+    /** Sichtbarkeit ueber die Rollen-Matrix */
+    protected static string $accessPermission = 'partner.dashboard.view';
+
     public static function canView(): bool
     {
-        return auth()->user()->tenant?->isOnTrial() ?? false;
+        // Nur waehrend der Testphase UND mit Dashboard-Recht
+        return (auth()->user()->tenant?->isOnTrial() ?? false)
+            && static::katalogWidgetPermission();
     }
 
     public function getDaysRemaining(): int

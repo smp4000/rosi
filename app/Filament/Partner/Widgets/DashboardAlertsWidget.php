@@ -17,6 +17,11 @@ use Filament\Widgets\Widget;
  */
 class DashboardAlertsWidget extends Widget
 {
+    use \App\Filament\Concerns\HasWidgetCatalogPermission;
+
+    /** Sichtbarkeit ueber die Rollen-Matrix */
+    protected static string $accessPermission = 'partner.dashboard.alerts';
+
     protected static ?int $sort = -1; // Ganz oben
 
     protected int | string | array $columnSpan = 'full';
@@ -155,8 +160,5 @@ class DashboardAlertsWidget extends Widget
         }
     }
 
-    public static function canView(): bool
-    {
-        return true;
-    }
+    // canView() kommt aus HasWidgetCatalogPermission (partner.dashboard.alerts)
 }

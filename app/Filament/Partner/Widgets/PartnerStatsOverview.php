@@ -14,6 +14,11 @@ use Filament\Widgets\StatsOverviewWidget\Stat;
  */
 class PartnerStatsOverview extends StatsOverviewWidget
 {
+    use \App\Filament\Concerns\HasWidgetCatalogPermission;
+
+    /** Sichtbarkeit ueber die Rollen-Matrix */
+    protected static string $accessPermission = 'partner.dashboard.stats';
+
     protected static ?int $sort = 1;
 
     protected function getStats(): array

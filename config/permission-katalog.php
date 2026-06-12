@@ -48,10 +48,15 @@ return [
 
         'partner.dashboard' => [
             'label' => 'Dashboard', 'bereich' => 'dashboard', 'emoji' => '🏠',
-            'aktionen' => ['view' => 'Ansehen'],
+            'aktionen' => [
+                'view' => 'Dashboard ansehen',
+                'stats' => 'Statistik-Karten (Tankstellen, Mitarbeiter, ...)',
+                'alerts' => 'Warnungen (Tankbetrug, MHD)',
+                'quick-actions' => 'Schnellaktionen (Anlegen, Import)',
+            ],
             'defaults' => [
-                'stationsleiter' => ['view'],
-                'buero' => ['view'],
+                'stationsleiter' => ['view', 'stats', 'alerts', 'quick-actions'],
+                'buero' => ['view', 'stats'],
             ],
         ],
 

@@ -10,6 +10,11 @@ use Filament\Widgets\Widget;
  */
 class VersionHistoryWidget extends Widget
 {
+    use \App\Filament\Concerns\HasWidgetCatalogPermission;
+
+    /** Sichtbarkeit ueber die Rollen-Matrix */
+    protected static string $accessPermission = 'partner.dashboard.view';
+
     protected static ?int $sort = 99;
 
     protected int | string | array $columnSpan = 'full';

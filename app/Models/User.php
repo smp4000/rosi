@@ -144,6 +144,60 @@ class User extends Authenticatable implements MustVerifyEmail, FilamentUser
     }
 
     /**
+     * Stations-Rollen-Zuweisungen (Rolle pro Tankstelle, NULL = ganzer Betrieb).
+     */
+    public function stationRoles(): HasMany
+    {
+        return $this->hasMany(EmployeeStationRole::class);
+    }
+
+    /**
+     * Alle Rollen, die fuer eine bestimmte Tankstelle gelten:
+     * stationsgebundene Rollen + betriebsweite Zuweisungen + direkte Spatie-Rollen
+     * (z.B. partner/buero fuer Dashboard-Nutzer).
+     */
+    public function rolesForStation(?string $stationId): \Illuminate\Support\Collection
+    {
+        app(\Spatie\Permission\PermissionRegistrar::class)->setPermissionsTeamId($this->tenant_id);
+
+        $zuweisungen = $this->stationRoles()
+            ->where(function ($q) use ($stationId) {
+                $q->whereNull('gas_station_id');
+                if ($stationId) {
+                    $q->orWhere('gas_station_id', $stationId);
+                }
+            })
+            ->with('role.permissions')
+            ->get()
+            ->pluck('role')
+            ->filter();
+
+        return $zuweisungen->merge($this->roles)->unique('id')->values();
+    }
+
+    /**
+     * Effektive Permission-Namen fuer eine Tankstelle (fuer Login-Response
+     * der POS-App und die API-Middleware).
+     */
+    public function permissionsForStation(?string $stationId): array
+    {
+        return $this->rolesForStation($stationId)
+            ->flatMap(fn ($rolle) => $rolle->permissions->pluck('name'))
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Hat der Mitarbeiter eine bestimmte Permission an dieser Station?
+     */
+    public function hasStationPermission(string $permission, ?string $stationId): bool
+    {
+        return in_array($permission, $this->permissionsForStation($stationId), true);
+    }
+
+    /**
      * Bankkonten des Mitarbeiters.
      */
     public function bankAccounts(): HasMany

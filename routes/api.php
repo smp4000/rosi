@@ -177,6 +177,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/fuel-thefts/form-data', [FuelTheftController::class, 'formData'])
             ->name('api.v1.fuel-thefts.form-data');
         Route::post('/fuel-thefts', [FuelTheftController::class, 'store'])
+            ->middleware('mde.permission:mde.fuel-theft.report')
             ->name('api.v1.fuel-thefts.store');
 
         // --- Drucken (Print-Gateway) ---
@@ -185,6 +186,7 @@ Route::prefix('v1')->group(function () {
 
         // --- Schichtabrechnung ---
         Route::post('/shift-settlements/start', [ShiftSettlementController::class, 'start'])
+            ->middleware('mde.permission:mde.shift-settlement.own')
             ->name('api.v1.shift-settlements.start');
         Route::get('/shift-settlements/active', [ShiftSettlementController::class, 'active'])
             ->name('api.v1.shift-settlements.active');
@@ -193,6 +195,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/shift-settlements/{id}/returns', [ShiftSettlementController::class, 'addReturn'])
             ->name('api.v1.shift-settlements.returns');
         Route::post('/shift-settlements/{id}/complete', [ShiftSettlementController::class, 'complete'])
+            ->middleware('mde.permission:mde.shift-settlement.own')
             ->name('api.v1.shift-settlements.complete');
         Route::get('/shift-settlements/mine', [ShiftSettlementController::class, 'mine'])
             ->name('api.v1.shift-settlements.mine');
@@ -203,16 +206,21 @@ Route::prefix('v1')->group(function () {
 
         // --- Gutscheine (geschuetzt) ---
         Route::post('/vouchers/generate', [VoucherController::class, 'generate'])
+            ->middleware('mde.permission:mde.vouchers.issue')
             ->name('api.v1.vouchers.generate');
         Route::post('/vouchers/redeem', [VoucherController::class, 'redeem'])
+            ->middleware('mde.permission:mde.vouchers.redeem')
             ->name('api.v1.vouchers.redeem');
 
         // --- Kiosk: Bewegungen (geschuetzt) ---
         Route::post('/kiosk/deliveries/save', [KioskController::class, 'saveDelivery'])
+            ->middleware('mde.permission:mde.newspapers.delivery')
             ->name('api.v1.kiosk.deliveries.save');
         Route::post('/kiosk/remissions/save', [KioskController::class, 'saveRemission'])
+            ->middleware('mde.permission:mde.newspapers.remission')
             ->name('api.v1.kiosk.remissions.save');
         Route::post('/kiosk/inventory/save', [KioskController::class, 'saveInventory'])
+            ->middleware('mde.permission:mde.newspapers.inventory')
             ->name('api.v1.kiosk.inventory.save');
 
     });

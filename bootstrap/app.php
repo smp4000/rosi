@@ -24,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'subscription' => CheckSubscription::class,
             'consent' => EnsureConsent::class,
             'api.access' => CheckApiAccess::class,
+            'mde.permission' => \App\Http\Middleware\EnsureMdePermission::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

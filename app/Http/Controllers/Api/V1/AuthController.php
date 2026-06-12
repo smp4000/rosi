@@ -98,6 +98,9 @@ class AuthController extends ApiController
                 'email' => $user->email,
                 'type' => $user->type,
             ],
+            // Rechte fuer DIESE Station — App filtert Kacheln, Server erzwingt
+            'roles' => $user->rolesForStation($device->station_id)->pluck('name')->values(),
+            'permissions' => $user->permissionsForStation($device->station_id),
             'station' => [
                 'id' => $device->station->id,
                 'name' => $device->station->name,
@@ -274,6 +277,9 @@ class AuthController extends ApiController
                 'email' => $user->email,
                 'type' => $user->type,
             ],
+            // Rechte fuer DIESE Station — App filtert Kacheln, Server erzwingt
+            'roles' => $user->rolesForStation($device->station_id)->pluck('name')->values(),
+            'permissions' => $user->permissionsForStation($device->station_id),
             'station' => [
                 'id' => $device->station->id,
                 'name' => $device->station->name,

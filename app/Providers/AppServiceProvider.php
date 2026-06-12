@@ -148,5 +148,29 @@ class AppServiceProvider extends ServiceProvider
                 return $resource === null || $resource::canDeleteAny();
             });
         });
+
+        \Filament\Actions\RestoreAction::configureUsing(function ($action) use ($resourceOf) {
+            $action->visible(function () use ($action, $resourceOf) {
+                $resource = $resourceOf($action);
+
+                return $resource === null || $resource::canRestore($action->getRecord());
+            });
+        });
+
+        \Filament\Actions\ForceDeleteAction::configureUsing(function ($action) use ($resourceOf) {
+            $action->visible(function () use ($action, $resourceOf) {
+                $resource = $resourceOf($action);
+
+                return $resource === null || $resource::canForceDelete($action->getRecord());
+            });
+        });
+
+        \Filament\Actions\ReplicateAction::configureUsing(function ($action) use ($resourceOf) {
+            $action->visible(function () use ($action, $resourceOf) {
+                $resource = $resourceOf($action);
+
+                return $resource === null || $resource::canReplicate($action->getRecord());
+            });
+        });
     }
 }

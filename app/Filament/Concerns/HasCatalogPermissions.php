@@ -78,18 +78,43 @@ trait HasCatalogPermissions
         return static::katalogPermission('delete');
     }
 
+    /**
+     * Feine Aktionen (Shield-Schema): Wenn die Ressource die Aktion im
+     * Katalog definiert (z.B. 'delete-any', 'restore'), wird GENAU diese
+     * geprueft. Ohne Definition greift der Fallback auf die Basis-Aktion.
+     */
     public static function canDeleteAny(): bool
     {
-        return static::katalogPermission('delete');
+        return static::katalogPermission('delete-any', ['delete']);
     }
 
     public static function canForceDelete($record): bool
     {
-        return static::katalogPermission('delete');
+        return static::katalogPermission('force-delete', ['delete']);
+    }
+
+    public static function canForceDeleteAny(): bool
+    {
+        return static::katalogPermission('force-delete-any', ['force-delete', 'delete']);
     }
 
     public static function canRestore($record): bool
     {
-        return static::katalogPermission('delete');
+        return static::katalogPermission('restore', ['delete']);
+    }
+
+    public static function canRestoreAny(): bool
+    {
+        return static::katalogPermission('restore-any', ['restore', 'delete']);
+    }
+
+    public static function canReplicate($record): bool
+    {
+        return static::katalogPermission('replicate', ['create']);
+    }
+
+    public static function canReorder(): bool
+    {
+        return static::katalogPermission('reorder', ['edit']);
     }
 }

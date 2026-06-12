@@ -65,6 +65,7 @@ return [
             'aktionen' => [
                 'list' => 'Liste ansehen', 'view' => 'Details ansehen',
                 'create' => 'Anlegen', 'edit' => 'Bearbeiten', 'delete' => 'Loeschen',
+                'delete-any' => 'Mehrere loeschen (Auswahl)',
             ],
             'defaults' => [
                 'stationsleiter' => ['list', 'view'],
@@ -77,6 +78,7 @@ return [
             'aktionen' => [
                 'list' => 'Liste ansehen', 'view' => 'Details ansehen',
                 'create' => 'Anlegen', 'edit' => 'Bearbeiten', 'delete' => 'Loeschen / Archivieren',
+                'restore' => 'Wiederherstellen (aus Archiv)',
                 'invite' => 'Einladen (Onboarding)',
             ],
             'defaults' => [
@@ -88,6 +90,7 @@ return [
             'label' => 'Einladungen', 'bereich' => 'dashboard', 'emoji' => '✉️',
             'aktionen' => [
                 'list' => 'Liste ansehen', 'create' => 'Erstellen', 'delete' => 'Loeschen',
+                'delete-any' => 'Mehrere loeschen (Auswahl)',
             ],
             'defaults' => [
                 'stationsleiter' => ['list', 'create'],
@@ -124,6 +127,7 @@ return [
             'aktionen' => [
                 'list' => 'Liste ansehen', 'view' => 'Details ansehen',
                 'create' => 'Erstellen', 'edit' => 'Bearbeiten', 'delete' => 'Loeschen',
+                'delete-any' => 'Mehrere loeschen (Auswahl)',
             ],
             'defaults' => [
                 'stationsleiter' => ['list', 'view'],
@@ -135,7 +139,8 @@ return [
             'label' => 'Artikel & Gruppen', 'bereich' => 'dashboard', 'emoji' => '📦',
             'aktionen' => [
                 'list' => 'Liste ansehen', 'create' => 'Anlegen',
-                'edit' => 'Bearbeiten', 'delete' => 'Loeschen', 'import' => 'CSV-Import',
+                'edit' => 'Bearbeiten', 'delete' => 'Loeschen',
+                'delete-any' => 'Mehrere loeschen (Auswahl)', 'import' => 'CSV-Import',
             ],
             'defaults' => [
                 'stationsleiter' => ['list'],
@@ -148,6 +153,7 @@ return [
             'aktionen' => [
                 'list' => 'Liste ansehen', 'view' => 'Details ansehen',
                 'import' => 'Importieren (ZUGFeRD)', 'send' => 'Versenden',
+                'delete' => 'Loeschen', 'delete-any' => 'Mehrere loeschen (Auswahl)',
                 'settings' => 'Versand-Einstellungen',
             ],
             'defaults' => [
@@ -160,6 +166,7 @@ return [
             'aktionen' => [
                 'list' => 'Liste ansehen', 'view' => 'Details ansehen',
                 'create' => 'Anlegen', 'edit' => 'Bearbeiten', 'delete' => 'Loeschen',
+                'delete-any' => 'Mehrere loeschen (Auswahl)',
             ],
             'defaults' => [
                 'buero' => ['list', 'view', 'create', 'edit'],
@@ -183,6 +190,7 @@ return [
             'aktionen' => [
                 'list' => 'Liste ansehen', 'approve' => 'Freigeben / Ablehnen',
                 'edit' => 'Aktivieren / Deaktivieren', 'delete' => 'Loeschen',
+                'delete-any' => 'Mehrere loeschen (Auswahl)',
             ],
             'defaults' => [
                 'stationsleiter' => ['list', 'approve', 'edit'],

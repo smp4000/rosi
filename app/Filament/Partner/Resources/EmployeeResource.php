@@ -1592,7 +1592,7 @@ class EmployeeResource extends Resource
                             ->success()
                             ->send();
                     })
-                    ->visible(fn () => auth()->user()?->type === 'partner'),
+                    ->visible(fn ($record) => ! $record->trashed() && static::canDelete($record)),
                 Actions\Action::make('restore_employee')
                     ->label('Wiederherstellen')
                     ->icon('heroicon-o-arrow-uturn-left')
@@ -1610,7 +1610,7 @@ class EmployeeResource extends Resource
                             ->success()
                             ->send();
                     })
-                    ->visible(fn ($record) => $record->trashed() && auth()->user()?->type === 'partner'),
+                    ->visible(fn ($record) => $record->trashed() && static::canRestore($record)),
             ]);
     }
 

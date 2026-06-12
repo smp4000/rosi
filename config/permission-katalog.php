@@ -39,7 +39,7 @@ return [
         'schichtleiter' => 'Schichtleiter',
         'kassierer' => 'Kassierer',
         'buero' => 'Buero',
-        'mitarbeiter' => 'Mitarbeiter (Basis)',
+        'mitarbeiter' => 'Mitarbeiter (nur Web-Ansicht)',
     ],
 
     'ressourcen' => [

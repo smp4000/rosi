@@ -1295,13 +1295,15 @@ class EmployeeResource extends Resource
                                             Select::make('role_id')
                                                 ->label('Rolle')
                                                 ->options(function () {
+                                                    $labels = config('permission-katalog.system_rollen', []);
+
                                                     return \Spatie\Permission\Models\Role::where('tenant_id', session('tenant_id'))
                                                         ->where('name', '!=', 'partner') // Inhaber-Rolle nicht zuweisbar
                                                         ->orderByDesc('is_system')
                                                         ->orderBy('name')
                                                         ->get()
                                                         ->mapWithKeys(fn ($r) => [
-                                                            $r->id => ucfirst($r->name) . ($r->is_system ? ' 🔒' : ' ✏️'),
+                                                            $r->id => ($labels[$r->name] ?? ucfirst($r->name)) . ($r->is_system ? ' 🔒' : ' ✏️'),
                                                         ]);
                                                 })
                                                 ->required(),

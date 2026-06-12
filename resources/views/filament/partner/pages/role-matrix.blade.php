@@ -35,7 +35,7 @@
                             </th>
                             @foreach ($this->rollen as $rolle)
                                 <th style="padding:10px 6px;text-align:center;min-width:104px">
-                                    <div style="font-weight:600">{{ ucfirst($rolle->name) }}</div>
+                                    <div style="font-weight:600">{{ config('permission-katalog.system_rollen')[$rolle->name] ?? ucfirst($rolle->name) }}</div>
                                     <div style="font-weight:400;font-size:10.5px;color:#9ca3af;display:flex;align-items:center;justify-content:center;gap:4px">
                                         @if ($rolle->is_system)
                                             🔒 System

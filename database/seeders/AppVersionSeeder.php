@@ -349,6 +349,70 @@ class AppVersionSeeder extends Seeder
                     'Drei neue Tiles im HomeScreen (Gruppe Shop)',
                 ],
             ],
+            // --- v2.2.0 (12.05.2026) ---
+            [
+                'platform' => 'web',
+                'version' => '2.2.0',
+                'release_date' => '2026-05-12',
+                'changes' => [
+                    'Gutschein-Modul: Ausgabe in Gruppen (z.B. 4567.000-4567.499), Einloesung mit Teilbetraegen',
+                    'Gutscheinnummern eindeutig pro Tankstelle (statt global)',
+                    'Gutschein-Status: aktiv, teilweise eingeloest, eingeloest, abgelaufen, storniert',
+                    'Betrag in Worten auf dem Etikett (z.B. "fuenfzig Euro")',
+                    'DYMO Print-Queue: Druckauftraege von der App an den PC-Browser via Datenbank',
+                    'Label-Vorlagen-System mit Platzhaltern (LabelTemplate)',
+                    'Filament: Gutschein-Uebersicht mit Status-Badges, Gutschein-Ausgabe-Seite mit Web-Druck',
+                    'API: /api/v1/vouchers/* (lookup, check-group, generate, redeem)',
+                ],
+            ],
+            [
+                'platform' => 'android',
+                'version' => '2.2.0',
+                'release_date' => '2026-05-12',
+                'changes' => [
+                    'Gutschein-Modul: Einloesen per Scan (Teilbetraege moeglich)',
+                    'Gutscheine ausgeben: Gruppe + Anzahl mit Live-Pruefung auf Nummernkonflikte',
+                    'DYMO-Etikettendruck direkt aus der App (lokales Netzwerk)',
+                    'Druckauftraege alternativ an den PC-Browser senden (Print-Queue)',
+                    'Zwei neue Tiles im HomeScreen (Gruppe Shop)',
+                ],
+            ],
+            // --- v2.3.0 (13.06.2026) ---
+            [
+                'platform' => 'web',
+                'version' => '2.3.0',
+                'release_date' => '2026-06-13',
+                'changes' => [
+                    'Rollenbasiertes Sicherheitssystem: Permission-Katalog als einzige Quelle (103 Rechte)',
+                    'Rollen-Matrix mit Checkboxen unter Einstellungen -> Rollen & Rechte',
+                    'Eigene Rollen pro Partner anlegbar (z.B. Hausmeister), System-Rollen geschuetzt',
+                    'Rollen pro Tankstelle: gleicher Mitarbeiter kann Kassierer in A und Schichtleiter in B sein',
+                    'Fein granulare Aktionen: Liste/Details/Anlegen/Bearbeiten/Loeschen/Sammel-Loeschen/Wiederherstellen',
+                    'Buttons werden ohne Berechtigung automatisch ausgeblendet, URL-Aufruf liefert 403',
+                    'Dashboard fein granuliert: Statistik, Warnungen, Schnellaktionen einzeln schaltbar',
+                    'MDE-Stationsanmeldung: permanenter Stations-QR mit GPS-Pruefung und Freigabe-Warteschlange',
+                    'Geraete-Freigabe im Dashboard mit GPS-Abweichungs-Anzeige und Navigations-Badge',
+                    'Admin-API fuer NFC-Beschreibung: Mitarbeiter mit Adresse, Geburtsdatum, festem Zugangscode',
+                    'Sync-Befehle: rosi:permissions-sync und rosi:roles-migrate (idempotent)',
+                    'Doku: docs/ROLLENSYSTEM.md + Info-Box in der Rollen-Matrix',
+                ],
+            ],
+            [
+                'platform' => 'android',
+                'version' => '2.3.0',
+                'release_date' => '2026-06-13',
+                'changes' => [
+                    'Anmeldung an der Tankstelle per permanentem Stations-QR (Code an der Kasse)',
+                    'GPS-Pruefung bei der Anmeldung: vor Ort sofort aktiv, sonst Freigabe-Wartebildschirm',
+                    'Stationswechsel durch erneuten Scan an der neuen Tankstelle',
+                    'Rechte vom Server: Kacheln und Menue zeigen nur erlaubte Module (pro Station)',
+                    'Admin-Bereich: Stations-Icon 3 Sekunden halten + Tages-Sicherheitscode',
+                    'NFC-Chips beschreiben: Zugangscode, Name, Adresse, Geburtsdatum auf den Chip',
+                    'Neues Home-Design: weisse Kacheln mit farbigen Icons, Profil-Drawer mit Gruppen',
+                    'DYMO-Druck: automatischer Fallback PrintLabel2 -> PrintLabel bei aelteren Diensten',
+                    'Gutschein-Pruefung zeigt Fehler jetzt sichtbar an',
+                ],
+            ],
         ];
 
         $count = 0;

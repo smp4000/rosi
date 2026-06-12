@@ -79,5 +79,74 @@ class AppServiceProvider extends ServiceProvider
 
         // --- System-SMTP aus DB laden (ueberschreibt .env) ---
         $this->configureSystemMailer();
+
+        // --- Rollen-Matrix: Standard-Buttons automatisch ausblenden ---
+        // Filament blendet Create/Edit/Delete/View-Buttons NICHT selbst aus,
+        // wenn can*() der Resource false liefert — das holen wir hier global
+        // nach. Ohne Recht verschwindet der Button; der URL-Direktaufruf
+        // bleibt durch die can*-Methoden weiterhin 403.
+        $this->gateFilamentStandardActions();
+    }
+
+    /**
+     * Sichtbarkeit der Filament-Standard-Actions an die Rechte-Pruefung
+     * der jeweiligen Resource koppeln (Rollen-Matrix). Gilt fuer alle
+     * Panels und alle Resources — ohne Aenderung an den einzelnen Seiten.
+     */
+    private function gateFilamentStandardActions(): void
+    {
+        // Resource der Seite ermitteln, auf der die Action gerendert wird
+        $resourceOf = function ($action) {
+            $livewire = $action->getLivewire();
+
+            return (is_object($livewire) && method_exists($livewire, 'getResource'))
+                ? $livewire::getResource()
+                : null;
+        };
+
+        \Filament\Actions\CreateAction::configureUsing(function ($action) use ($resourceOf) {
+            $action->visible(function () use ($action, $resourceOf) {
+                $resource = $resourceOf($action);
+
+                return $resource === null || $resource::canCreate();
+            });
+        });
+
+        \Filament\Actions\EditAction::configureUsing(function ($action) use ($resourceOf) {
+            $action->visible(function () use ($action, $resourceOf) {
+                $resource = $resourceOf($action);
+
+                return $resource === null || $resource::canEdit($action->getRecord());
+            });
+        });
+
+        \Filament\Actions\ViewAction::configureUsing(function ($action) use ($resourceOf) {
+            $action->visible(function () use ($action, $resourceOf) {
+                $resource = $resourceOf($action);
+
+                return $resource === null || $resource::canView($action->getRecord());
+            });
+        });
+
+        \Filament\Actions\DeleteAction::configureUsing(function ($action) use ($resourceOf) {
+            $action->visible(function () use ($action, $resourceOf) {
+                $resource = $resourceOf($action);
+                if ($resource === null) {
+                    return true;
+                }
+
+                $record = $action->getRecord();
+
+                return $record ? $resource::canDelete($record) : $resource::canDeleteAny();
+            });
+        });
+
+        \Filament\Actions\DeleteBulkAction::configureUsing(function ($action) use ($resourceOf) {
+            $action->visible(function () use ($action, $resourceOf) {
+                $resource = $resourceOf($action);
+
+                return $resource === null || $resource::canDeleteAny();
+            });
+        });
     }
 }

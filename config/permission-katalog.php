@@ -52,7 +52,6 @@ return [
             'defaults' => [
                 'stationsleiter' => ['view'],
                 'buero' => ['view'],
-                'mitarbeiter' => ['view'],
             ],
         ],
 
@@ -65,7 +64,6 @@ return [
             'defaults' => [
                 'stationsleiter' => ['list', 'view'],
                 'buero' => ['list', 'view'],
-                'mitarbeiter' => ['list', 'view'],
             ],
         ],
 
@@ -100,7 +98,6 @@ return [
             'defaults' => [
                 'stationsleiter' => ['list', 'view', 'create', 'edit'],
                 'buero' => ['list', 'view', 'create', 'edit'],
-                'mitarbeiter' => ['list', 'view'],
             ],
         ],
 
@@ -114,7 +111,6 @@ return [
             'defaults' => [
                 'stationsleiter' => ['list', 'view', 'create', 'send'],
                 'buero' => ['list', 'view', 'create', 'edit', 'send'],
-                'mitarbeiter' => ['list', 'view'],
             ],
         ],
 
@@ -258,7 +254,6 @@ return [
             'defaults' => [
                 'stationsleiter' => ['use'],
                 'buero' => ['use'],
-                'mitarbeiter' => ['use'],
             ],
         ],
 

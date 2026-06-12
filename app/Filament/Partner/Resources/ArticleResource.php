@@ -67,10 +67,7 @@ class ArticleResource extends Resource
         }
     }
 
-    public static function canAccess(): bool
-    {
-        return true;
-    }
+    // Autorisierung laeuft ueber HasCatalogPermissions (Rollen-Matrix)
 
     // --- Query: Nur Artikel der eigenen Tankstellen ---
 

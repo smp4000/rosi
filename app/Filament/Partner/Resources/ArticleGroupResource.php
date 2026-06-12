@@ -64,26 +64,22 @@ class ArticleGroupResource extends Resource
         }
     }
 
-    public static function canAccess(): bool
-    {
-        return true;
-    }
-
-    public static function canCreate(): bool
-    {
-        return true;
-    }
+    // Sichtbarkeit/Anlegen laeuft ueber HasCatalogPermissions (Rollen-Matrix).
+    // Bearbeiten/Loeschen zusaetzlich nur fuer EIGENE Eintraege
+    // (System-Artikelgruppen ohne tenant_id sind tabu).
 
     public static function canEdit(Model $record): bool
     {
-        // Partner kann nur eigene Eintraege bearbeiten
-        return $record->tenant_id !== null && $record->tenant_id === auth()->user()?->tenant_id;
+        return static::katalogPermission('edit')
+            && $record->tenant_id !== null
+            && $record->tenant_id === auth()->user()?->tenant_id;
     }
 
     public static function canDelete(Model $record): bool
     {
-        // Partner kann nur eigene Eintraege loeschen
-        return $record->tenant_id !== null && $record->tenant_id === auth()->user()?->tenant_id;
+        return static::katalogPermission('delete')
+            && $record->tenant_id !== null
+            && $record->tenant_id === auth()->user()?->tenant_id;
     }
 
     // --- Query: System + eigene Tenant-Eintraege ---

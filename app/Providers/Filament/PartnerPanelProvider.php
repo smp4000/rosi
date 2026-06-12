@@ -58,7 +58,8 @@ class PartnerPanelProvider extends PanelProvider
             ->discoverResources(in: app_path('Filament/Partner/Resources'), for: 'App\\Filament\\Partner\\Resources')
             ->discoverPages(in: app_path('Filament/Partner/Pages'), for: 'App\\Filament\\Partner\\Pages')
             ->pages([
-                Dashboard::class,
+                // Eigenes Dashboard mit Rechte-Pruefung (partner.dashboard.view)
+                \App\Filament\Partner\Pages\PartnerDashboard::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Partner/Widgets'), for: 'App\\Filament\\Partner\\Widgets')
             ->widgets([

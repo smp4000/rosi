@@ -25,6 +25,11 @@ use Filament\Tables\Table;
 
 class PlaceholderSettingResource extends Resource
 {
+    use \App\Filament\Concerns\HasCatalogPermissions;
+
+    /** Katalog-Schluessel fuer die Rechte-Pruefung (Rollen-Matrix) */
+    protected static ?string $permissionKey = 'partner.templates';
+
     protected static ?string $model = PlaceholderSetting::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedAdjustmentsHorizontal;

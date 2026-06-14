@@ -38,6 +38,19 @@ class AppVersion extends Model
         ];
     }
 
+    // ── Boot ─────────────────────────────────────────
+
+    protected static function booted(): void
+    {
+        // APK-Groesse immer automatisch aus der Datei ableiten
+        // (gilt fuer Admin-Upload, rosi:publish-apk und Seeder gleichermassen)
+        static::saving(function (AppVersion $v) {
+            if ($v->apk_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($v->apk_path)) {
+                $v->apk_size = \Illuminate\Support\Facades\Storage::disk('public')->size($v->apk_path);
+            }
+        });
+    }
+
     // ── Scopes ───────────────────────────────────────
 
     /** Nur veroeffentlichte Versionen */

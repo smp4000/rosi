@@ -43,6 +43,12 @@ Route::prefix('v1')->group(function () {
     Route::get('/app-versions', [AppVersionController::class, 'index'])
         ->name('api.v1.app-versions');
 
+    // --- In-App-Updater: neueste Version + APK-Download ---
+    Route::get('/app-version/latest', [AppVersionController::class, 'latest'])
+        ->name('api.v1.app-version.latest');
+    Route::get('/app-version/download/{version}', [AppVersionController::class, 'download'])
+        ->name('api.v1.app-version.download');
+
     // --- Geraete-Registrierung ---
 
     // QR-Code: App scannt Setup-QR vom Admin

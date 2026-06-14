@@ -5,10 +5,12 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\AppVersionResource\Pages;
 use App\Models\AppVersion;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Actions;
@@ -70,6 +72,43 @@ class AppVersionResource extends Resource
                     ->helperText('Nur veroeffentlichte Versionen werden angezeigt.')
                     ->default(true),
 
+                // ── In-App-Updater (nur fuer die POS-App) ──
+                TextInput::make('version_code')
+                    ->label('Version-Code (technisch)')
+                    ->helperText('Muss dem versionCode der APK entsprechen und mit jeder Version STEIGEN (z.B. 12). Die App vergleicht damit.')
+                    ->numeric()
+                    ->minValue(1)
+                    ->visible(fn (Get $get) => $get('platform') === 'app')
+                    ->requiredWith('apk'),
+
+                FileUpload::make('apk_path')
+                    ->label('APK-Datei')
+                    ->helperText('Die signierte Release-APK. Die App laedt genau diese Datei herunter und installiert sie.')
+                    ->disk('public')
+                    ->directory('apks')
+                    ->visibility('public')
+                    ->acceptedFileTypes(['application/vnd.android.package-archive', 'application/octet-stream'])
+                    ->preserveFilenames()
+                    ->maxSize(204800) // 200 MB
+                    ->downloadable()
+                    ->visible(fn (Get $get) => $get('platform') === 'app')
+                    // APK-Groesse mitschreiben
+                    ->afterStateUpdated(function ($state, callable $set) {
+                        if ($state instanceof \Illuminate\Http\UploadedFile) {
+                            $set('apk_size', $state->getSize());
+                        }
+                    }),
+
+                TextInput::make('apk_size')
+                    ->hidden()
+                    ->dehydrated(),
+
+                Toggle::make('is_mandatory')
+                    ->label('Pflicht-Update')
+                    ->helperText('Wenn aktiv, MUSS der Nutzer aktualisieren (kein "Spaeter"-Button).')
+                    ->default(false)
+                    ->visible(fn (Get $get) => $get('platform') === 'app'),
+
                 Repeater::make('changes')
                     ->label('Aenderungen')
                     ->simple(
@@ -109,7 +148,14 @@ class AppVersionResource extends Resource
                     ->sortable()
                     ->searchable()
                     ->badge()
-                    ->color('gray'),
+                    ->color('gray')
+                    ->description(fn (AppVersion $record) => $record->version_code ? "Code {$record->version_code}" : null),
+
+                \Filament\Tables\Columns\IconColumn::make('apk_path')
+                    ->label('APK')
+                    ->boolean()
+                    ->state(fn (AppVersion $record) => ! empty($record->apk_path))
+                    ->tooltip(fn (AppVersion $record) => $record->is_mandatory ? 'APK vorhanden · Pflicht-Update' : ($record->apk_path ? 'APK vorhanden' : 'Keine APK')),
 
                 TextColumn::make('release_date')
                     ->label('Datum')

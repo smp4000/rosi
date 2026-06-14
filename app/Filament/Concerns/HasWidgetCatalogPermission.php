@@ -28,6 +28,11 @@ trait HasWidgetCatalogPermission
             return false;
         }
 
+        // Inhaber (Partner) sieht immer alle Widgets (Sicherheitsnetz)
+        if ($user->type === 'partner') {
+            return true;
+        }
+
         app(PermissionRegistrar::class)->setPermissionsTeamId($user->tenant_id);
 
         try {

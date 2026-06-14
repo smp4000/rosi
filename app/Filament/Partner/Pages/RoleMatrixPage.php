@@ -46,9 +46,18 @@ class RoleMatrixPage extends Page
             return false;
         }
 
+        // Inhaber (Partner) kann die Rollen-Matrix immer oeffnen
+        if ($user->type === 'partner') {
+            return true;
+        }
+
         app(PermissionRegistrar::class)->setPermissionsTeamId($user->tenant_id);
 
-        return $user->hasPermissionTo('partner.roles.manage');
+        try {
+            return $user->hasPermissionTo('partner.roles.manage');
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     public function mount(): void

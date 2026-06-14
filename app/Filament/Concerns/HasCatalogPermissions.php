@@ -32,6 +32,12 @@ trait HasCatalogPermissions
             return false;
         }
 
+        // Inhaber (Partner) hat IMMER vollen Zugriff — unabhaengig vom
+        // Permission-Sync. Sicherheitsnetz gegen Selbst-Aussperrung.
+        if ($user->type === 'partner') {
+            return true;
+        }
+
         // Achtung: Ressourcen-Keys enthalten Punkte (partner.gas-stations) —
         // deshalb NICHT per Dot-Notation in die Config greifen
         $ressource = config('permission-katalog.ressourcen', [])[$key] ?? [];

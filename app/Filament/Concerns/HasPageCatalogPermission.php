@@ -23,6 +23,11 @@ trait HasPageCatalogPermission
             return false;
         }
 
+        // Inhaber (Partner) hat immer Zugriff (Sicherheitsnetz)
+        if ($user->type === 'partner') {
+            return true;
+        }
+
         app(PermissionRegistrar::class)->setPermissionsTeamId($user->tenant_id);
 
         try {

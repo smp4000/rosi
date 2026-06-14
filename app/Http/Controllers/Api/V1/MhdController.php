@@ -183,13 +183,18 @@ class MhdController extends ApiController
     /**
      * POST /api/v1/mhd/{id}/dispose
      *
-     * Artikel abschreiben (goods_disposed = true).
+     * MHD-Artikel abschreiben.
+     * - Menge > 0: Abschrift in depreciation_entries (Grund: MHD-Ueberschreitung,
+     *   EK/VK aus dem Artikel) + Eintrag als erledigt markieren.
+     * - Menge = 0: Artikel war nicht mehr vorhanden -> nur als geprueft markieren,
+     *   KEINE Abschrift. In beiden Faellen verschwindet er aus der aktiven Liste.
      */
     public function dispose(Request $request, int $id): JsonResponse
     {
         $request->validate([
             'device_token' => 'required|string',
-            'disposed_quantity' => 'nullable|integer|min:1',
+            'disposed_quantity' => 'nullable|integer|min:0',
+            'depreciation_reason_id' => 'nullable|integer',
         ]);
 
         $device = $this->findDevice($request->device_token);
@@ -202,12 +207,72 @@ class MhdController extends ApiController
             return $this->error('MHD-Eintrag nicht gefunden.', 404);
         }
 
-        $mhd->update([
-            'goods_disposed' => true,
-            'disposed_quantity' => $request->disposed_quantity,
-        ]);
+        $quantity = (int) ($request->disposed_quantity ?? 0);
 
-        return $this->success(null, 'Artikel abgeschrieben.');
+        \Illuminate\Support\Facades\DB::transaction(function () use ($request, $device, $mhd, $quantity) {
+            // Menge > 0: Abschrift erfassen
+            if ($quantity > 0) {
+                $reasonId = $request->depreciation_reason_id
+                    ?? \App\Models\DepreciationReason::where('status', true)
+                        ->where('name', 'like', 'MHD-%')
+                        ->where(fn ($q) => $q->whereNull('tenant_id')->orWhere('tenant_id', $device->tenant_id))
+                        ->value('id');
+
+                [$ek, $vk, $articleId] = $this->priceForEan($mhd->ean, $device->station_id);
+
+                \App\Models\DepreciationEntry::create([
+                    'tenant_id' => $device->tenant_id,
+                    'station_id' => $device->station_id,
+                    'user_id' => $request->user()?->id,
+                    'ean' => $mhd->ean,
+                    'tms_no' => $mhd->tms_no,
+                    'article_description' => $mhd->article_description,
+                    'article_id' => $articleId,
+                    'quantity' => $quantity,
+                    'depreciation_reason_id' => $reasonId,
+                    'purchasing_price' => $ek,
+                    'selling_price' => $vk,
+                    'source' => 'mhd',
+                    'mhd_id' => $mhd->id,
+                    'recorded_at' => now(),
+                ]);
+            }
+
+            // In beiden Faellen: erledigt -> raus aus der aktiven Liste
+            $mhd->update([
+                'goods_disposed' => true,
+                'disposed_quantity' => $quantity,
+            ]);
+        });
+
+        return $this->success(
+            null,
+            $quantity > 0 ? 'Artikel abgeschrieben.' : 'Als geprueft markiert (nicht mehr vorhanden).'
+        );
+    }
+
+    /**
+     * EK/VK + article_id ueber EAN ermitteln (Snapshot fuer die Abschrift).
+     * @return array{0: float|null, 1: float|null, 2: string|null}
+     */
+    private function priceForEan(?string $ean, string $stationId): array
+    {
+        if (empty($ean)) {
+            return [null, null, null];
+        }
+
+        $eanRow = \App\Models\ArticleEan::where('gas_station_id', $stationId)->where('ean', $ean)->first();
+        if (! $eanRow) {
+            return [null, null, null];
+        }
+
+        $article = \App\Models\Article::where('gas_station_id', $stationId)
+            ->where('article_number', $eanRow->article_number)
+            ->first();
+
+        return $article
+            ? [$article->purchasing_price, $article->selling_price, $article->id]
+            : [null, null, null];
     }
 
     /**

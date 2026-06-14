@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AppVersionController;
 use App\Http\Controllers\Api\V1\ArticleController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\DepreciationController;
 use App\Http\Controllers\Api\V1\DeviceController;
 use App\Http\Controllers\Api\V1\FuelTheftController;
 use App\Http\Controllers\Api\V1\KioskController;
@@ -146,6 +147,10 @@ Route::prefix('v1')->group(function () {
     Route::get('/admin/station-employees', [NfcAdminController::class, 'stationEmployees'])
         ->name('api.v1.admin.station-employees');
 
+    // --- Abschriften (oeffentlich, nur device_token) ---
+    Route::get('/depreciation-reasons', [DepreciationController::class, 'reasons'])
+        ->name('api.v1.depreciation-reasons');
+
     // --- Gutscheine (oeffentlich, nur device_token) ---
     Route::get('/vouchers/lookup', [VoucherController::class, 'lookup'])
         ->name('api.v1.vouchers.lookup');
@@ -216,6 +221,11 @@ Route::prefix('v1')->group(function () {
             ->name('api.v1.shift-settlements.details');
         Route::post('/shift-settlements/{id}/comments', [ShiftSettlementController::class, 'addComment'])
             ->name('api.v1.shift-settlements.comments');
+
+        // --- Abschriften (geschuetzt) ---
+        Route::post('/depreciations', [DepreciationController::class, 'store'])
+            ->middleware('mde.permission:mde.writeoffs.record')
+            ->name('api.v1.depreciations.store');
 
         // --- Gutscheine (geschuetzt) ---
         Route::post('/vouchers/generate', [VoucherController::class, 'generate'])

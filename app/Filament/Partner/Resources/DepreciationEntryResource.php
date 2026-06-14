@@ -106,8 +106,7 @@ class DepreciationEntryResource extends Resource
                     ->label('Gesamt-EK')
                     ->getStateUsing(fn (DepreciationEntry $r) => $r->total_purchasing)
                     ->money('EUR')
-                    ->alignEnd()
-                    ->summarize(\Filament\Tables\Columns\Summarizers\Sum::make()->money('EUR')),
+                    ->alignEnd(),
 
                 TextColumn::make('total_selling')
                     ->label('Gesamt-VK')

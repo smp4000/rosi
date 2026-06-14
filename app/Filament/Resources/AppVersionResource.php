@@ -87,7 +87,10 @@ class AppVersionResource extends Resource
                     ->disk('public')
                     ->directory('apks')
                     ->visibility('public')
-                    ->acceptedFileTypes(['application/vnd.android.package-archive', 'application/octet-stream'])
+                    // Kein MIME-Filter: APKs werden je nach Server als
+                    // application/zip / java-archive / octet-stream erkannt
+                    // (eine APK ist technisch ein ZIP) — fuehrte zu
+                    // "validation.mimetypes". Endung wird unten geprueft.
                     ->preserveFilenames()
                     ->maxSize(204800) // 200 MB
                     ->downloadable()

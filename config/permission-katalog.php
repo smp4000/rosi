@@ -339,6 +339,32 @@ return [
             ],
         ],
 
+        'partner.depreciations' => [
+            'label' => 'Abschriften', 'bereich' => 'dashboard', 'emoji' => '📉',
+            'aktionen' => [
+                'list' => 'Liste ansehen',
+                'report' => 'Bericht erstellen',
+                'delete' => 'Loeschen',
+            ],
+            'defaults' => [
+                'stationsleiter' => ['list', 'report'],
+                'buero' => ['list'],
+            ],
+        ],
+
+        'partner.reports' => [
+            'label' => 'Berichte & Archiv', 'bereich' => 'dashboard', 'emoji' => '🗂️',
+            'aktionen' => [
+                'list' => 'Liste ansehen',
+                'download' => 'Herunterladen',
+                'delete' => 'Loeschen',
+            ],
+            'defaults' => [
+                'stationsleiter' => ['list', 'download'],
+                'buero' => ['list', 'download'],
+            ],
+        ],
+
         'partner.print' => [
             'label' => 'Drucken & Etiketten', 'bereich' => 'dashboard', 'emoji' => '🖨️',
             'aktionen' => [

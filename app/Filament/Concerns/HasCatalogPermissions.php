@@ -59,6 +59,15 @@ trait HasCatalogPermissions
         return false; // Aktion existiert fuer diese Ressource nicht
     }
 
+    /**
+     * Oeffentliche Pruefung einer beliebigen Katalog-Aktion (z.B. 'report',
+     * 'download') — fuer eigene Buttons/Header-Actions in Pages.
+     */
+    public static function userCan(string $aktion, array $fallbacks = []): bool
+    {
+        return static::katalogPermission($aktion, $fallbacks);
+    }
+
     public static function canViewAny(): bool
     {
         return static::katalogPermission('list', ['view', 'use', 'manage', 'logs']);

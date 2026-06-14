@@ -436,6 +436,19 @@ class AppVersionSeeder extends Seeder
                     'Installation ueber den Android-Paketinstaller, Pflicht-Updates moeglich',
                 ],
             ],
+            // --- v2.5.0 (14.06.2026) ---
+            [
+                'platform' => 'android',
+                'version' => '2.5.0',
+                'release_date' => '2026-06-14',
+                'changes' => [
+                    'NFC-Admin: persoenliche Anmeldung mit PIN + Protokoll (wer beschreibt Chips)',
+                    'Vollbild: obere Statusleiste wird ausgeblendet',
+                    'Warnungen faerben die betroffene Kachel (rot/gelb) und sortieren sie nach oben',
+                    'Setup-Screen scrollbar (VERBINDEN-Button immer erreichbar)',
+                    'Einstellungs-Passwort wie NFC: aktuelles Datum rueckwaerts',
+                ],
+            ],
         ];
 
         $count = 0;

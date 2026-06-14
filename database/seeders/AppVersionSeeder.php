@@ -413,6 +413,29 @@ class AppVersionSeeder extends Seeder
                     'Gutschein-Pruefung zeigt Fehler jetzt sichtbar an',
                 ],
             ],
+            // --- v2.4.0 (14.06.2026) ---
+            [
+                'platform' => 'web',
+                'version' => '2.4.0',
+                'release_date' => '2026-06-14',
+                'changes' => [
+                    'In-App-Updater Backend: APK-Upload im Admin-Panel (Versionshistorie)',
+                    'Felder version_code, APK-Datei, Groesse und Pflicht-Update pro Version',
+                    'API: /api/v1/app-version/latest liefert neueste installierbare Version',
+                    'API: /api/v1/app-version/download/{version} streamt die APK mit korrektem MIME',
+                ],
+            ],
+            [
+                'platform' => 'android',
+                'version' => '2.4.0',
+                'release_date' => '2026-06-14',
+                'changes' => [
+                    'In-App-Updater: automatische Update-Pruefung beim Start',
+                    '"Nach Updates suchen"-Button in den Einstellungen',
+                    'Update-Dialog mit Changelog, APK-Download mit Fortschrittsanzeige',
+                    'Installation ueber den Android-Paketinstaller, Pflicht-Updates moeglich',
+                ],
+            ],
         ];
 
         $count = 0;

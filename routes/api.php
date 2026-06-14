@@ -133,7 +133,14 @@ Route::prefix('v1')->group(function () {
     Route::get('/shift-settlements/last-values', [ShiftSettlementController::class, 'lastValues'])
         ->name('api.v1.shift-settlements.last-values');
 
-    // --- Admin-Bereich der App: NFC-Chips beschreiben (nur device_token) ---
+    // --- Admin-Bereich der App: NFC-Chips beschreiben ---
+    // Persoenliche Anmeldung (PIN + Permission mde.admin.nfc-write) + Audit
+    Route::get('/admin/authorized-users', [NfcAdminController::class, 'authorizedUsers'])
+        ->name('api.v1.admin.authorized-users');
+    Route::post('/admin/authenticate', [NfcAdminController::class, 'authenticate'])
+        ->name('api.v1.admin.authenticate');
+    Route::post('/admin/nfc-written', [NfcAdminController::class, 'logNfcWritten'])
+        ->name('api.v1.admin.nfc-written');
     Route::get('/admin/stations', [NfcAdminController::class, 'stations'])
         ->name('api.v1.admin.stations');
     Route::get('/admin/station-employees', [NfcAdminController::class, 'stationEmployees'])

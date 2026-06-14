@@ -42,11 +42,24 @@ class AppVersion extends Model
 
     protected static function booted(): void
     {
-        // APK-Groesse immer automatisch aus der Datei ableiten
-        // (gilt fuer Admin-Upload, rosi:publish-apk und Seeder gleichermassen)
+        // APK-Groesse + version_code IMMER automatisch aus der Datei ableiten
+        // (gilt fuer Admin-Upload, rosi:publish-apk und Seeder gleichermassen).
+        // Der echte versionCode aus der APK ist massgeblich und ueberschreibt das
+        // manuelle Feld — so kann nie ein falscher Code zur APK gespeichert werden
+        // (sonst Update-Endlosschleife im Updater).
         static::saving(function (AppVersion $v) {
-            if ($v->apk_path && \Illuminate\Support\Facades\Storage::disk('public')->exists($v->apk_path)) {
-                $v->apk_size = \Illuminate\Support\Facades\Storage::disk('public')->size($v->apk_path);
+            $disk = \Illuminate\Support\Facades\Storage::disk('public');
+            if ($v->apk_path && $disk->exists($v->apk_path)) {
+                $v->apk_size = $disk->size($v->apk_path);
+
+                $parsed = \App\Support\ApkParser::readVersion($disk->path($v->apk_path));
+                if ($parsed['versionCode'] !== null) {
+                    $v->version_code = $parsed['versionCode'];
+                }
+                // versionName uebernehmen, falls im Formular keiner gesetzt wurde
+                if (empty($v->version) && ! empty($parsed['versionName'])) {
+                    $v->version = $parsed['versionName'];
+                }
             }
         });
     }

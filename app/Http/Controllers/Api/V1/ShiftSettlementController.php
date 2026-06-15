@@ -444,10 +444,10 @@ class ShiftSettlementController extends ApiController
                     $station,
                     'tresor',
                     [[
-                        'station_name' => $station->name ?? 'Station',
-                        'employee_name' => $user->name,
+                        'station' => $station->name ?? 'Station',
+                        'mitarbeiter' => $user->name,
                         'datum' => now()->format('d.m.Y'),
-                        'uhrzeit' => now()->format('H:i'),
+                        'zeit' => now()->format('H:i'),
                         'betrag' => number_format((float) $validated['amount'], 2, ',', '.') . ' EUR',
                         'barcode' => $barcode,
                         '_number' => 1,

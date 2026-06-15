@@ -8,7 +8,7 @@ use App\Models\PrintAgent;
 use App\Services\PrintQueueService;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
-use Filament\Forms\Components\KeyValue;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
@@ -136,16 +136,39 @@ class PrintAgentResource extends Resource
                     ->modalHeading('Drucker-Zuordnung')
                     ->modalDescription(fn (PrintAgent $r) => 'Gemeldete Drucker: '
                         . (empty($r->printers) ? '— (Agent war noch nicht online)' : implode(', ', $r->printers)))
-                    ->fillForm(fn (PrintAgent $r) => ['printer_map' => $r->station?->printer_map ?? []])
-                    ->form([
-                        KeyValue::make('printer_map')
-                            ->label('Zuordnung')
-                            ->keyLabel('Job-Typ (z.B. voucher_labels oder *)')
-                            ->valueLabel('Drucker-Name (exakt)')
-                            ->addActionLabel('Zuordnung hinzufügen'),
+                    ->fillForm(fn (PrintAgent $r) => [
+                        'printer_map' => collect($r->station?->printer_map ?? [])
+                            ->map(fn ($printer, $jobType) => ['job_type' => $jobType, 'printer' => $printer])
+                            ->values()
+                            ->all(),
+                    ])
+                    ->form(fn (PrintAgent $r): array => [
+                        Repeater::make('printer_map')
+                            ->label('Zuordnung Job-Typ → Drucker')
+                            ->schema([
+                                Select::make('job_type')
+                                    ->label('Job-Typ')
+                                    ->options(static::jobTypes())
+                                    ->required()
+                                    ->distinct(),
+                                Select::make('printer')
+                                    ->label('Drucker')
+                                    ->options(static::printerOptions($r))
+                                    ->searchable()
+                                    ->required(),
+                            ])
+                            ->columns(2)
+                            ->addActionLabel('Zuordnung hinzufügen')
+                            ->default([]),
                     ])
                     ->action(function (PrintAgent $r, array $data) {
-                        $r->station?->update(['printer_map' => $data['printer_map'] ?: null]);
+                        $map = [];
+                        foreach ($data['printer_map'] ?? [] as $row) {
+                            if (! empty($row['job_type']) && ! empty($row['printer'])) {
+                                $map[$row['job_type']] = $row['printer'];
+                            }
+                        }
+                        $r->station?->update(['printer_map' => $map ?: null]);
                         Notification::make()->success()->title('Drucker-Zuordnung gespeichert')->send();
                     }),
 
@@ -196,6 +219,17 @@ class PrintAgentResource extends Resource
             ->emptyStateDescription('Lege einen Agenten an und trage den Token in die „ROSI Print"-App am Stations-PC ein.')
             ->emptyStateIcon('heroicon-o-computer-desktop')
             ->poll('30s');
+    }
+
+    /** Drucker-Optionen: vom Agent gemeldete + bereits zugeordnete Namen. */
+    protected static function printerOptions(PrintAgent $r): array
+    {
+        return collect($r->printers ?? [])
+            ->merge(array_values($r->station?->printer_map ?? []))
+            ->filter()
+            ->unique()
+            ->mapWithKeys(fn ($n) => [$n => $n])
+            ->all();
     }
 
     /** Token einmalig als persistente Notification anzeigen (kopierbar). */

@@ -43,14 +43,31 @@
     $statusLabels = ['active' => 'Offen', 'completed' => 'Abgeschlossen', 'cancelled' => 'Abgebrochen'];
     $statusBadges = ['active' => 'b-warning', 'completed' => 'b-success', 'cancelled' => 'b-gray'];
 
-    // Bilder als Base64 einbetten — robust gegen Pfad-Probleme auf Produktiv
+    // Bilder als Base64 einbetten — robust gegen Pfad-Probleme auf Produktiv.
+    // WICHTIG: dompdf kann nur jpeg/png/gif/bmp — WebP (haeufig bei Handy-Fotos)
+    // wird per GD nach JPEG konvertiert, sonst fehlt das Bild im PDF.
     $embedImage = function ($relativePath) {
         if (empty($relativePath)) return null;
         try {
             $disk = \Illuminate\Support\Facades\Storage::disk('public');
             if (! $disk->exists($relativePath)) return null;
+
             $contents = $disk->get($relativePath);
             $mime = $disk->mimeType($relativePath) ?: 'image/jpeg';
+
+            $supported = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/bmp'];
+            if (! in_array($mime, $supported, true) && function_exists('imagecreatefromstring')) {
+                $img = @imagecreatefromstring($contents);
+                if ($img === false) {
+                    return null; // nicht dekodierbar
+                }
+                ob_start();
+                imagejpeg($img, null, 85);
+                $contents = ob_get_clean();
+                imagedestroy($img);
+                $mime = 'image/jpeg';
+            }
+
             return 'data:' . $mime . ';base64,' . base64_encode($contents);
         } catch (\Throwable $e) {
             return null;

@@ -12,6 +12,9 @@ public class TrayApplicationContext : ApplicationContext
     /// <summary>Pause nach jedem Etikett, damit der DYMO nicht ueberlaeuft (leere Labels).</summary>
     private const int LabelDelayMs = 600;
 
+    /// <summary>Erst ab dieser Etikettenzahl wird gebremst (kleine Drucke bleiben sofort).</summary>
+    private const int PaceThreshold = 10;
+
     private readonly NotifyIcon _tray;
     private readonly ToolStripMenuItem _statusItem;
     private readonly ToolStripMenuItem _autostartItem;
@@ -123,6 +126,12 @@ public class TrayApplicationContext : ApplicationContext
             try
             {
                 var total = job.Labels.Count;
+
+                // Nur bei groesseren Mengen (z.B. Gutscheine) bremsen — sonst
+                // ueberlaeuft der DYMO-Spooler und es kommen leere Labels heraus.
+                // Einzel-/Kleindrucke laufen ohne Verzoegerung.
+                var pace = total > PaceThreshold;
+
                 for (int i = 0; i < total; i++)
                 {
                     SetStatus(
@@ -133,9 +142,10 @@ public class TrayApplicationContext : ApplicationContext
 
                     await _dymo.PrintAsync(job.PrinterName, job.Labels[i].Xml);
 
-                    // Dem DYMO Zeit zum Drucken geben -> sonst kommen bei vielen
-                    // Etiketten leere/weisse Labels heraus (Spooler-Ueberlauf).
-                    await Task.Delay(LabelDelayMs);
+                    if (pace)
+                    {
+                        await Task.Delay(LabelDelayMs);
+                    }
                 }
 
                 await _api.AckAsync(job.Id, true, null);

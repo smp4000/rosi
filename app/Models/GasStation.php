@@ -50,6 +50,7 @@ class GasStation extends Model
         'longitude',
         // MDE-Anmeldung
         'device_setup_token',
+        'printer_map',
         // Kontakt
         'academic_title',
         'contact_first_name',
@@ -124,6 +125,7 @@ class GasStation extends Model
             'prices_updated_at' => 'datetime',
             'is_active' => 'boolean',
             'settings' => 'array',
+            'printer_map' => 'array',
         ];
     }
 

@@ -20,3 +20,6 @@ Schedule::command('rosi:anonymize-audit-logs')->monthlyOn(1, '04:00');
 
 // DSGVO: KI-Chat-Verlaeufe nach 12 Monaten loeschen (monatlich, am 1.)
 Schedule::command('rosi:cleanup-ai-chats')->monthlyOn(1, '04:30');
+
+// Druck-Warteschlange aufraeumen (TTL/Expiry, haengende Jobs, alte loeschen)
+Schedule::command('print:cleanup')->everyFiveMinutes();

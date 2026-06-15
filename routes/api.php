@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\KioskController;
 use App\Http\Controllers\Api\V1\MhdController;
 use App\Http\Controllers\Api\V1\NfcAdminController;
 use App\Http\Controllers\Api\V1\PrintController;
+use App\Http\Controllers\Api\V1\PrintAgentController;
 use App\Http\Controllers\Api\V1\ShiftSettlementController;
 use App\Http\Controllers\Api\V1\VoucherController;
 use Illuminate\Http\Request;
@@ -121,6 +122,14 @@ Route::prefix('v1')->group(function () {
         ->name('api.v1.print.template');
     Route::post('/print/render', [PrintController::class, 'renderTemplate'])
         ->name('api.v1.print.render');
+
+    // --- Druck-Agent (Tray-App am Stations-PC, Auth per Agent-Token) ---
+    Route::post('/print/agent/heartbeat', [PrintAgentController::class, 'heartbeat'])
+        ->name('api.v1.print.agent.heartbeat');
+    Route::post('/print/agent/jobs/claim', [PrintAgentController::class, 'claim'])
+        ->name('api.v1.print.agent.claim');
+    Route::post('/print/agent/jobs/{id}/ack', [PrintAgentController::class, 'ack'])
+        ->name('api.v1.print.agent.ack');
 
     // Scan-Code fuer NFC-Tag-Beschriftung
     Route::get('/auth/employee-scan-code/{id}', [AuthController::class, 'employeeScanCode'])

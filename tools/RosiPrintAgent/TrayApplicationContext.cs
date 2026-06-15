@@ -46,7 +46,7 @@ public class TrayApplicationContext : ApplicationContext
 
         _tray = new NotifyIcon
         {
-            Icon = SystemIcons.Application,
+            Icon = IconFactory.Idle,
             Visible = true,
             Text = "ROSI Print",
             ContextMenuStrip = menu,
@@ -61,7 +61,7 @@ public class TrayApplicationContext : ApplicationContext
 
         if (!_config.IsComplete)
         {
-            SetStatus("Nicht konfiguriert — Einstellungen oeffnen", false);
+            SetStatus("Nicht konfiguriert — Einstellungen oeffnen", IconFactory.Error);
             OpenSettings();
         }
     }
@@ -94,7 +94,7 @@ public class TrayApplicationContext : ApplicationContext
         }
         catch (Exception ex)
         {
-            SetStatus($"Server-Fehler: {Short(ex.Message)}", false);
+            SetStatus($"Server-Fehler: {Short(ex.Message)}", IconFactory.Error);
         }
         finally
         {
@@ -109,7 +109,9 @@ public class TrayApplicationContext : ApplicationContext
         if (jobs.Count == 0)
         {
             var dymoOk = await _dymo.IsAvailableAsync();
-            SetStatus(dymoOk ? "Verbunden — bereit" : "Server ok · DYMO nicht gefunden", dymoOk);
+            SetStatus(
+                dymoOk ? "Verbunden — bereit" : "Server ok · DYMO nicht gefunden",
+                dymoOk ? IconFactory.Ready : IconFactory.Warning);
             return;
         }
 
@@ -117,18 +119,20 @@ public class TrayApplicationContext : ApplicationContext
         {
             try
             {
+                SetStatus($"Druckt: {job.Reference ?? job.JobType}…", IconFactory.Printing);
+
                 foreach (var label in job.Labels)
                 {
                     await _dymo.PrintAsync(job.PrinterName, label.Xml);
                 }
 
                 await _api.AckAsync(job.Id, true, null);
-                SetStatus($"Gedruckt: {job.Reference ?? job.JobType} ({job.Labels.Count})", true);
+                SetStatus($"Gedruckt: {job.Reference ?? job.JobType} ({job.Labels.Count})", IconFactory.Ready);
             }
             catch (Exception ex)
             {
                 await SafeAckFail(job.Id, ex.Message);
-                SetStatus($"Druckfehler: {Short(ex.Message)}", false);
+                SetStatus($"Druckfehler: {Short(ex.Message)}", IconFactory.Error);
             }
         }
     }
@@ -155,15 +159,15 @@ public class TrayApplicationContext : ApplicationContext
             _config.Save();
             ApplyConfig();
             _tick = 0; // erzwingt sofort Heartbeat beim naechsten Tick
-            SetStatus("Gespeichert — verbinde…", true);
+            SetStatus("Gespeichert — verbinde…", IconFactory.Idle);
         }
     }
 
-    private void SetStatus(string text, bool ok)
+    private void SetStatus(string text, Icon icon)
     {
         _status = text;
         _tray.Text = Short("ROSI Print — " + text, 63);
-        _tray.Icon = ok ? SystemIcons.Application : SystemIcons.Warning;
+        _tray.Icon = icon;
     }
 
     private void ExitApp()

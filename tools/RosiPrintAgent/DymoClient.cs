@@ -38,20 +38,28 @@ public class DymoClient
         }
     }
 
-    /// <summary>Namen aller lokal sichtbaren DYMO-Drucker.</summary>
-    public async Task<List<string>> GetPrinterNamesAsync()
+    /// <summary>Ein DYMO-Drucker mit Verbindungsstatus.</summary>
+    private sealed record DymoPrinter(string Name, bool Connected);
+
+    /// <summary>Drucker inkl. IsConnected aus GetPrinters parsen.</summary>
+    private async Task<List<DymoPrinter>> GetPrintersAsync()
     {
-        var names = new List<string>();
+        var list = new List<DymoPrinter>();
         try
         {
             var port = await FindPortAsync();
             var xml = await _http.GetStringAsync($"{Base(port)}/GetPrinters");
-            foreach (Match m in Regex.Matches(xml, "<Name>(.*?)</Name>", RegexOptions.Singleline))
+
+            // Pro <LabelWriterPrinter>-Block Name + IsConnected lesen
+            foreach (Match block in Regex.Matches(xml, "<LabelWriterPrinter>(.*?)</LabelWriterPrinter>", RegexOptions.Singleline))
             {
-                var name = WebUtility.HtmlDecode(m.Groups[1].Value).Trim();
+                var inner = block.Groups[1].Value;
+                var name = WebUtility.HtmlDecode(Match(inner, "<Name>(.*?)</Name>")).Trim();
+                var connected = Match(inner, "<IsConnected>(.*?)</IsConnected>")
+                    .Trim().Equals("True", StringComparison.OrdinalIgnoreCase);
                 if (name.Length > 0)
                 {
-                    names.Add(name);
+                    list.Add(new DymoPrinter(name, connected));
                 }
             }
         }
@@ -60,20 +68,50 @@ public class DymoClient
             // Service nicht erreichbar -> leere Liste
         }
 
-        return names;
+        return list;
     }
 
-    /// <summary>Ein Label drucken. Ohne printerName wird der erste Drucker genutzt.</summary>
+    /// <summary>Namen aller Drucker (verbundene zuerst) — fuer die Meldung ans Dashboard.</summary>
+    public async Task<List<string>> GetPrinterNamesAsync()
+    {
+        var printers = await GetPrintersAsync();
+        return printers
+            .OrderByDescending(p => p.Connected)
+            .Select(p => p.Name)
+            .Distinct()
+            .ToList();
+    }
+
+    /// <summary>
+    /// Ein Label drucken. Bevorzugt einen VERBUNDENEN Drucker; ist der gewuenschte
+    /// nicht verbunden, wird auf einen verbundenen ausgewichen (sonst nimmt der
+    /// DYMO-Service den Auftrag an, druckt aber nichts).
+    /// </summary>
     public async Task PrintAsync(string? printerName, string labelXml)
     {
         var port = await FindPortAsync();
+        var printers = await GetPrintersAsync();
 
-        var printer = printerName;
-        if (string.IsNullOrWhiteSpace(printer))
+        if (printers.Count == 0)
         {
-            var names = await GetPrinterNamesAsync();
-            printer = names.FirstOrDefault()
-                ?? throw new Exception("Kein DYMO-Drucker gefunden.");
+            throw new Exception("Kein DYMO-Drucker gefunden.");
+        }
+
+        var connected = printers.Where(p => p.Connected).ToList();
+        string printer;
+
+        if (! string.IsNullOrWhiteSpace(printerName))
+        {
+            var requested = printers.FirstOrDefault(p =>
+                p.Name.Equals(printerName, StringComparison.OrdinalIgnoreCase));
+            // Gewuenschter Drucker verbunden? -> nehmen. Sonst verbundenen Ersatz.
+            printer = (requested is { Connected: true })
+                ? requested.Name
+                : (connected.FirstOrDefault()?.Name ?? printerName);
+        }
+        else
+        {
+            printer = (connected.FirstOrDefault() ?? printers[0]).Name;
         }
 
         var form = new Dictionary<string, string>
@@ -85,10 +123,27 @@ public class DymoClient
         };
 
         var resp = await _http.PostAsync($"{Base(port)}/PrintLabel2", new FormUrlEncodedContent(form));
+        var body = (await resp.Content.ReadAsStringAsync()).Trim();
+
         if (!resp.IsSuccessStatusCode)
         {
-            throw new Exception($"DYMO PrintLabel2 -> HTTP {(int)resp.StatusCode}");
+            throw new Exception($"DYMO HTTP {(int)resp.StatusCode} ({printer})");
         }
+
+        // DYMO meldet Fehler teils mit HTTP 200 im Body -> auswerten
+        if (body.Equals("false", StringComparison.OrdinalIgnoreCase)
+            || body.Contains("error", StringComparison.OrdinalIgnoreCase)
+            || body.Contains("exception", StringComparison.OrdinalIgnoreCase))
+        {
+            var msg = body.Length > 180 ? body[..180] : body;
+            throw new Exception($"DYMO ({printer}): {msg}");
+        }
+    }
+
+    private static string Match(string input, string pattern)
+    {
+        var m = Regex.Match(input, pattern, RegexOptions.Singleline);
+        return m.Success ? m.Groups[1].Value : string.Empty;
     }
 
     // ── intern ───────────────────────────────────────

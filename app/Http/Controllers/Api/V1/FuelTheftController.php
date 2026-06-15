@@ -156,8 +156,36 @@ class FuelTheftController extends ApiController
             'payment_status' => 'open',
         ]);
 
-        // Etikett wird jetzt direkt aus der App gedruckt (DYMO Socket 9100)
-        // Server-seitiger Druck entfernt, da auf All-Inkl localhost:41951 nicht erreichbar
+        // Etikett in die Druck-Queue legen -> der Stations-Agent druckt es lokal.
+        // (Server-Direktdruck an localhost:41951 ist auf All-Inkl wirkungslos.)
+        try {
+            app(\App\Services\PrintQueueService::class)->enqueueFromTemplate(
+                $station,
+                'tankbetrug',
+                [[
+                    'id' => $fuelTheft->id,
+                    'datum' => Carbon::parse($validated['incident_at'])->format('d.m.Y H:i'),
+                    'kennzeichen' => $licensePlateAvailable
+                        ? strtoupper(trim($validated['license_plate'] ?? ''))
+                        : '—',
+                    'produkt' => $validated['product'],
+                    'zapfpunkt' => $validated['pump_number'],
+                    'menge' => number_format((float) $validated['quantity'], 2, ',', '.'),
+                    'betrag' => number_format((float) $validated['amount'], 2, ',', '.') . ' €',
+                    'station' => $station->name,
+                    'mitarbeiter' => $user->name,
+                    '_number' => 1,
+                ]],
+                [
+                    'job_type' => 'fuel_theft',
+                    'reference' => 'Tankbetrug',
+                    'reference_type' => 'fuel_theft',
+                    'created_by' => $user->name,
+                ],
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Tankbetrug-Etikett nicht in Queue: ' . $e->getMessage());
+        }
 
         // Bell-Notification an alle Partner/Inhaber des Mandanten senden
         $partners = User::where('tenant_id', $station->tenant_id)

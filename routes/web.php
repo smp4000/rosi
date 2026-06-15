@@ -70,8 +70,11 @@ Route::middleware('auth')->group(function () {
     // --- Print-Queue: Pending Jobs abrufen (Polling vom Browser) ---
     Route::get('/dymo/pending-jobs', function () {
         $tenantId = auth()->user()->tenant_id;
+        // Nur Legacy-Jobs ohne Station (Browser-Druck). Jobs mit station_id
+        // werden vom Stations-Agent (ROSI Print) geholt -> kein Doppeldruck.
         $jobs = \App\Models\PrintJob::where('tenant_id', $tenantId)
             ->where('status', 'pending')
+            ->whereNull('station_id')
             ->orderBy('created_at')
             ->get(['id', 'job_type', 'reference', 'payload', 'created_by', 'created_at']);
         return response()->json($jobs);

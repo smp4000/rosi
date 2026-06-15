@@ -436,6 +436,34 @@ class ShiftSettlementController extends ApiController
             FILTER_VALIDATE_BOOLEAN,
         );
 
+        // Tresor-Etikett in die Druck-Queue legen (nur wenn Vorlage vorhanden) ->
+        // der Stations-Agent druckt es lokal.
+        if ($autoPrint && \App\Models\LabelTemplate::findForTenant('tresor', $settlement->tenant_id)) {
+            try {
+                app(\App\Services\PrintQueueService::class)->enqueueFromTemplate(
+                    $station,
+                    'tresor',
+                    [[
+                        'station_name' => $station->name ?? 'Station',
+                        'employee_name' => $user->name,
+                        'datum' => now()->format('d.m.Y'),
+                        'uhrzeit' => now()->format('H:i'),
+                        'betrag' => number_format((float) $validated['amount'], 2, ',', '.') . ' EUR',
+                        'barcode' => $barcode,
+                        '_number' => 1,
+                    ]],
+                    [
+                        'job_type' => 'safe_deposit',
+                        'reference' => $barcode,
+                        'reference_type' => 'safe_deposit',
+                        'created_by' => $user->name,
+                    ],
+                );
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Tresor-Etikett nicht in Queue: ' . $e->getMessage());
+            }
+        }
+
         return $this->success([
             'id' => $deposit->id,
             'barcode' => $barcode,

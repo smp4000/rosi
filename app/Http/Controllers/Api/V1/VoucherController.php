@@ -184,8 +184,8 @@ class VoucherController extends ApiController
             $first = $vouchers->first();
             $last = $vouchers->last();
 
-            // Print-Job automatisch erstellen
-            $this->createPrintJob($vouchers, $tenantId, $user->name);
+            // Print-Job automatisch in die Queue legen (Agent druckt an der Station)
+            $this->createPrintJob($vouchers, $stationId, $user->name);
 
             return $this->success([
                 'count' => $vouchers->count(),
@@ -349,58 +349,65 @@ class VoucherController extends ApiController
     }
 
     /**
-     * Print-Job fuer Gutschein-Etiketten erstellen.
-     * Rendert Label-XMLs und speichert als Job in der DB.
-     * Das Web-Panel am PC pollt nach pending Jobs und druckt.
+     * Gutschein-Etiketten in die Druck-Queue legen.
+     * Rendert die Label-XMLs aus der 'gutschein'-Vorlage und uebergibt sie an
+     * den PrintQueueService (setzt station_id/printer/TTL) -> der Stations-Agent
+     * holt und druckt sie.
      */
-    private function createPrintJob($vouchers, string $tenantId, string $createdBy): void
+    private function createPrintJob($vouchers, ?string $stationId, string $createdBy): void
     {
         try {
-            $template = \App\Models\LabelTemplate::findForTenant('gutschein', $tenantId);
+            if (! $stationId) {
+                Log::warning('Print-Job: Keine Station fuer Gutschein-Druck ermittelbar');
+                return;
+            }
+
+            $station = \App\Models\GasStation::find($stationId);
+            if (! $station) {
+                return;
+            }
+
+            $template = \App\Models\LabelTemplate::findForTenant('gutschein', $station->tenant_id);
             if (! $template) {
-                Log::warning('Print-Job: Keine Gutschein-Druckvorlage fuer Tenant', ['tenant_id' => $tenantId]);
+                Log::warning('Print-Job: Keine Gutschein-Druckvorlage', ['tenant_id' => $station->tenant_id]);
                 return;
             }
 
-            $xmls = [];
+            $labels = [];
             foreach ($vouchers as $voucher) {
-                try {
-                    $labelData = [
-                        'betrag' => number_format($voucher->amount, 2, ',', '.') . ' €',
-                        'betrag_worte' => Voucher::amountToWords($voucher->amount),
-                        'datum' => $voucher->issued_at->format('d.m.Y'),
-                        'gueltig_bis' => $voucher->valid_until->format('d.m.Y'),
-                        'nummer' => $voucher->voucher_number,
-                        'barcode' => 'www.aral-welle.de',
-                    ];
-                    $xmls[] = [
-                        'number' => $voucher->voucher_number,
-                        'xml' => $template->render($labelData),
-                    ];
-                } catch (\Throwable $e) {
-                    Log::error('Print-Job: Label rendern fehlgeschlagen', [
-                        'voucher' => $voucher->voucher_number,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
+                $labelData = [
+                    'betrag' => number_format($voucher->amount, 2, ',', '.') . ' €',
+                    'betrag_worte' => Voucher::amountToWords($voucher->amount),
+                    'datum' => $voucher->issued_at->format('d.m.Y'),
+                    'gueltig_bis' => $voucher->valid_until->format('d.m.Y'),
+                    'nummer' => $voucher->voucher_number,
+                    'barcode' => 'www.aral-welle.de',
+                ];
+                $labels[] = [
+                    'number' => $voucher->voucher_number,
+                    'xml' => $template->render($labelData),
+                ];
             }
 
-            if (empty($xmls)) {
+            if (empty($labels)) {
                 return;
             }
 
-            \App\Models\PrintJob::create([
-                'tenant_id' => $tenantId,
-                'job_type' => 'voucher_labels',
-                'reference' => $vouchers->first()->voucher_group,
-                'payload' => $xmls,
-                'status' => \App\Models\PrintJob::STATUS_PENDING,
-                'created_by' => $createdBy,
-            ]);
+            app(\App\Services\PrintQueueService::class)->enqueue(
+                $station,
+                'voucher_labels',
+                $labels,
+                [
+                    'reference' => $vouchers->first()->voucher_group,
+                    'reference_type' => 'voucher',
+                    'created_by' => $createdBy,
+                ],
+            );
 
-            Log::info('Print-Job erstellt', [
+            Log::info('Gutschein-Druckjob in Queue', [
                 'group' => $vouchers->first()->voucher_group,
-                'labels' => count($xmls),
+                'labels' => count($labels),
+                'station_id' => $stationId,
             ]);
         } catch (\Throwable $e) {
             // Print-Job Fehler soll Generate nicht blockieren

@@ -9,6 +9,9 @@ namespace RosiPrintAgent;
 /// </summary>
 public class TrayApplicationContext : ApplicationContext
 {
+    /// <summary>Pause nach jedem Etikett, damit der DYMO nicht ueberlaeuft (leere Labels).</summary>
+    private const int LabelDelayMs = 600;
+
     private readonly NotifyIcon _tray;
     private readonly ToolStripMenuItem _statusItem;
     private readonly ToolStripMenuItem _autostartItem;
@@ -119,11 +122,20 @@ public class TrayApplicationContext : ApplicationContext
         {
             try
             {
-                SetStatus($"Druckt: {job.Reference ?? job.JobType}…", IconFactory.Printing);
-
-                foreach (var label in job.Labels)
+                var total = job.Labels.Count;
+                for (int i = 0; i < total; i++)
                 {
-                    await _dymo.PrintAsync(job.PrinterName, label.Xml);
+                    SetStatus(
+                        total > 1
+                            ? $"Druckt {i + 1}/{total}: {job.Reference ?? job.JobType}…"
+                            : $"Druckt: {job.Reference ?? job.JobType}…",
+                        IconFactory.Printing);
+
+                    await _dymo.PrintAsync(job.PrinterName, job.Labels[i].Xml);
+
+                    // Dem DYMO Zeit zum Drucken geben -> sonst kommen bei vielen
+                    // Etiketten leere/weisse Labels heraus (Spooler-Ueberlauf).
+                    await Task.Delay(LabelDelayMs);
                 }
 
                 await _api.AckAsync(job.Id, true, null);

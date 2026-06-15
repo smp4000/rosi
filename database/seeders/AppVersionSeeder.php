@@ -449,6 +449,74 @@ class AppVersionSeeder extends Seeder
                     'Einstellungs-Passwort wie NFC: aktuelles Datum rueckwaerts',
                 ],
             ],
+
+            // --- v2.6.0 (14.06.2026) ---
+            [
+                'platform' => 'web',
+                'version' => '2.6.0',
+                'release_date' => '2026-06-14',
+                'changes' => [
+                    'Abschriften-System: Warenverluste aus der POS-App erfassen und auswerten',
+                    'Dashboard-Liste aller Abschriften mit Filtern (Station, Grund, Quelle, Zeitraum)',
+                    'PDF-Tagesbericht gruppiert nach Grund mit EK/VK-Summen und Zusammenfassung',
+                    'Berichts-Archiv: erzeugte PDF-Berichte werden protokolliert und sind herunterladbar',
+                    'Neue Datenquelle depreciation_entries mit EK/VK-Snapshot zum Erfassungszeitpunkt',
+                ],
+            ],
+            [
+                'platform' => 'android',
+                'version' => '2.6.0',
+                'release_date' => '2026-06-14',
+                'changes' => [
+                    'Neues Modul "Abschriften": Warenverluste direkt am Geraet erfassen',
+                    'Einzel- und Sammel-Erfassung (Batch) per Scan',
+                    'Grund auswaehlen, Menge erfassen; Einkaufs-/Verkaufspreis automatisch',
+                    'MHD abschreiben mit Mengeneingabe (0 = nur als geprueft markiert, nicht abgeschrieben)',
+                ],
+            ],
+
+            // --- v2.6.5 (15.06.2026) ---
+            [
+                'platform' => 'web',
+                'version' => '2.6.5',
+                'release_date' => '2026-06-15',
+                'changes' => [
+                    'DYMO-Druck-Ueberarbeitung: EIN zuverlaessiger Druckweg ueber eine Warteschlange',
+                    'Neuer "ROSI Print"-Agent (Windows-Tray) druckt lokal am Stations-PC -> kein Firewall-/Netz-Thema',
+                    'Dashboard: Druck-Agenten verwalten (Token erzeugen, Online-Status, gemeldete Drucker)',
+                    'Drucker-Zuordnung pro Station als Auswahlfelder (Job-Typ -> Drucker)',
+                    'Dashboard: Druckauftraege-Liste mit Status, Fehlern und Wiederholung; Testdruck-Knopf',
+                    'Warteschlange mit Ablaufzeit (TTL), Retry und automatischem Aufraeumen haengender Jobs',
+                    'In-App-Updater abgesichert: version_code wird automatisch aus der APK gelesen',
+                ],
+            ],
+
+            // --- v2.6.9 (15.06.2026) ---
+            [
+                'platform' => 'web',
+                'version' => '2.6.9',
+                'release_date' => '2026-06-15',
+                'changes' => [
+                    'Gutschein-, Tankbetrug- und Tresor-Druck laufen ueber die Druck-Warteschlange (Stations-Agent)',
+                    'Schichtabrechnung-Detailansicht im modernen Karten-Layout aufgeraeumt',
+                    'Schichtabrechnung-PDF: Kassenbon-/Bon-Fotos (auch WebP) werden korrekt eingebettet',
+                    'Tresor-Etikett: Platzhalter Station/Mitarbeiter/Zeit werden korrekt gefuellt',
+                ],
+            ],
+            [
+                'platform' => 'android',
+                'version' => '2.6.9',
+                'release_date' => '2026-06-15',
+                'changes' => [
+                    'Etikettendruck laeuft jetzt ueber den Stations-Drucker (Gutschein, Tankbetrug, Tresor) - kein Tablet-Druck mehr',
+                    'Keine "Kein Drucker konfiguriert"-Meldung mehr nach dem Erfassen',
+                    'Hinweis in der App: "Etikett wird am Stations-Drucker gedruckt"',
+                    'Unterschrift-Vollbild (Tankbetrug): Buttons wieder sichtbar, Feld zentriert',
+                    'Abschriften-Scan: sofortige Suche ohne Enter, Feld leeren + Fokus zurueck ins Feld',
+                    'Batch-Abschriften: zuletzt gescannter Artikel oben, schnelles Scannen ohne verschmolzene EANs',
+                    'Standard-Abschreibgrund "MHD-Ueberschreitung" vorausgewaehlt (sonst Pflichtauswahl)',
+                ],
+            ],
         ];
 
         $count = 0;

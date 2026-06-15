@@ -1,0 +1,92 @@
+========================================================
+   ROSI Print - Einrichtung am Stations-PC (DYMO-Druck)
+========================================================
+
+Was macht das Programm?
+-----------------------
+"ROSI Print" laeuft unsichtbar im Hintergrund (Symbol unten rechts neben
+der Uhr) und druckt automatisch alle Etiketten der Station (Gutscheine,
+MHD, Tankbetrug ...) auf dem DYMO-Drucker, der an DIESEM PC haengt.
+Es muss KEIN Browser-Fenster mehr offen bleiben.
+
+
+Voraussetzung
+-------------
+- Der DYMO-Drucker ist angeschlossen und eingeschaltet.
+- "DYMO Connect" (oder DYMO Label Web Service) ist installiert und laeuft.
+  (Pruefen: DYMO-Software einmal oeffnen, ein Testetikett geht.)
+
+
+--------------------------------------------------------
+SCHRITT 1 - Programm an einen festen Ort kopieren
+--------------------------------------------------------
+1. Lege auf dem Laufwerk C: einen Ordner an:   C:\ROSI
+2. Kopiere die Datei  RosiPrintAgent.exe  in diesen Ordner.
+   (NICHT im Download-Ordner liegen lassen - der wird oft geleert.)
+
+
+--------------------------------------------------------
+SCHRITT 2 - Programm starten und anmelden
+--------------------------------------------------------
+1. Doppelklick auf  C:\ROSI\RosiPrintAgent.exe
+   (Falls Windows warnt "Computer geschuetzt": "Weitere Informationen"
+    -> "Trotzdem ausfuehren".)
+2. Es oeffnet sich das Fenster "Einstellungen". Trage ein:
+
+   Server-URL:    https://rosi.aral-welle.com
+   Agent-Token:   (den Code aus dem ROSI-Dashboard - siehe unten)
+
+3. Auf "Speichern" klicken.
+
+   --> Den Agent-Token bekommst du im ROSI-Dashboard:
+       Drucken  ->  Druck-Agenten  ->  "Neuer Agent"
+       Name vergeben (z.B. "Kasse 1"), Station waehlen, anlegen.
+       Der Token wird EINMALIG angezeigt - kopieren und hier einfuegen.
+
+   WICHTIG: Jeder PC bekommt einen EIGENEN Agenten / EIGENEN Token.
+   Nicht denselben Token auf mehreren Rechnern verwenden.
+
+
+--------------------------------------------------------
+SCHRITT 3 - Automatisch mit Windows starten
+--------------------------------------------------------
+1. Rechtsklick auf das Symbol unten rechts (ggf. auf den kleinen Pfeil "^"
+   klicken, um ausgeblendete Symbole zu sehen).
+2. Im Menue auf  "Mit Windows starten"  klicken (Haken erscheint).
+
+Fertig. Ab jetzt startet ROSI Print automatisch bei jedem Hochfahren.
+
+
+--------------------------------------------------------
+Das Symbol (Status auf einen Blick)
+--------------------------------------------------------
+Mit der Maus ueber das Symbol fahren zeigt den Status:
+
+  GRUEN   = Verbunden, alles bereit
+  BLAU    = Druckt gerade
+  ORANGE  = Server ok, aber kein DYMO gefunden
+            (DYMO Connect starten / Drucker einschalten)
+  ROT     = Fehler oder noch nicht eingerichtet
+  GRAU    = Startet / verbindet
+
+
+--------------------------------------------------------
+Drucker-Zuordnung (nur bei mehreren DYMOs noetig)
+--------------------------------------------------------
+Haengt nur EIN DYMO am PC, ist nichts weiter noetig.
+Bei mehreren Druckern im Dashboard unter
+  Drucken -> Druck-Agenten -> (Agent) -> "Drucker-Zuordnung"
+festlegen, welcher Druck-Typ auf welchen Drucker geht.
+
+
+--------------------------------------------------------
+Bei Problemen
+--------------------------------------------------------
+- Symbol ORANGE: DYMO Connect laeuft nicht oder Drucker aus.
+- Symbol ROT:    Rechtsklick -> "Einstellungen" -> URL/Token pruefen.
+- Nichts druckt: Im Dashboard unter "Druckauftraege" sehen, ob der
+  Auftrag ankommt (pending -> printing -> done). Bei "failed" steht
+  der Fehler dabei; ueber "Erneut" neu starten.
+- Test: Im Dashboard beim Agenten auf "Testdruck" klicken.
+
+========================================================

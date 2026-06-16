@@ -1,4 +1,24 @@
 <x-filament-panels::page>
+    {{-- Druckziel fuer Demo-Druck (Stations-Agent + Drucker) --}}
+    <div style="background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.1);border:1px solid #e5e7eb;padding:20px 24px;margin-bottom:20px">
+        <label style="display:block;font-size:13px;color:#6b7280;margin:0 0 6px">Drucker fuer Demo-Druck</label>
+        @if(count($destinations) > 0)
+            <select wire:model="printTarget"
+                style="width:100%;max-width:420px;border:1px solid #d1d5db;border-radius:8px;padding:8px 12px;font-size:14px;background:#fff">
+                @foreach($destinations as $key => $label)
+                    <option value="{{ $key }}">{{ $label }}</option>
+                @endforeach
+            </select>
+            <p style="margin:8px 0 0;font-size:12px;color:#9ca3af">
+                Der Demo-Druck geht in die Warteschlange — der Stations-Agent (ROSI Print) druckt lokal am DYMO.
+            </p>
+        @else
+            <p style="margin:0;font-size:13px;color:#b45309">
+                Kein Druck-Agent online. Bitte ROSI Print auf dem Stations-PC starten, dann lädt diese Seite neu.
+            </p>
+        @endif
+    </div>
+
     @foreach($categories as $category => $templates)
         <div style="background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.1);border:1px solid #e5e7eb;padding:24px;margin-bottom:20px">
             <h3 style="font-size:18px;font-weight:600;margin:0 0 16px">
@@ -10,25 +30,6 @@
                     @php
                         $isSelected = ($selections[$category] ?? null) === $template->slug;
                         $ph = is_string($template->placeholders) ? json_decode($template->placeholders, true) : $template->placeholders;
-                        // Beispieldaten fuer Demo-Druck generieren
-                        $demoData = [];
-                        if (is_array($ph)) {
-                            foreach ($ph as $p) {
-                                $demoData[$p['key']] = $p['example'] ?? $p['key'];
-                            }
-                        }
-                        $demoData['datum'] = now()->format('d.m.Y');
-                        if (isset($demoData['zeit'])) {
-                            $demoData['zeit'] = now()->format('H:i');
-                        } else {
-                            // Aeltere Templates mit kombiniertem datum+uhrzeit
-                            $demoData['datum'] = now()->format('d.m.Y H:i');
-                        }
-                        $demoXml = str_replace(
-                            array_map(fn($k) => '{{'.$k.'}}', array_keys($demoData)),
-                            array_values($demoData),
-                            $template->xml_template
-                        );
                     @endphp
                     <div style="border-radius:10px;padding:20px;border:2px solid {{ $isSelected ? '#22c55e' : '#e5e7eb' }};background:{{ $isSelected ? '#f0fdf4' : '#fafafa' }};position:relative">
                         @if($isSelected)
@@ -58,14 +59,13 @@
 
                         <div style="display:flex;gap:8px">
                             <button
-                                onclick="demoPrintDymo(this, '{{ $template->slug }}')"
+                                wire:click="demoPrint('{{ $template->slug }}')"
+                                wire:loading.attr="disabled"
+                                wire:target="demoPrint"
+                                @disabled(count($destinations) === 0)
                                 style="background:#f3f4f6;color:#374151;border:1px solid #d1d5db;border-radius:8px;padding:8px 16px;font-size:14px;font-weight:500;cursor:pointer">
                                 Demo drucken
                             </button>
-                            <script>
-                                if (!window._demoTemplates) window._demoTemplates = {};
-                                window._demoTemplates['{{ $template->slug }}'] = @json($demoXml);
-                            </script>
                             @if(!$isSelected)
                                 <button
                                     wire:click="selectTemplate('{{ $category }}', '{{ $template->slug }}')"
@@ -90,71 +90,4 @@
             <p>Keine Druckvorlagen verfuegbar. Bitte den Administrator kontaktieren.</p>
         </div>
     @endif
-
-    @push('scripts')
-    <script>
-    async function demoPrintDymo(btn, slug) {
-        var labelXml = window._demoTemplates[slug];
-        if (!labelXml) { alert('Template nicht gefunden'); return; }
-        var origText = btn.textContent;
-        btn.textContent = 'Druckt...';
-        btn.disabled = true;
-
-        try {
-            var port = await findDymoPort();
-            var printerName = await getDymoPrinterName(port);
-            var printParams = '<' + 'LabelWriterPrintParams><' + 'Copies>1<' + '/Copies><' + '/LabelWriterPrintParams>';
-            var body = 'printerName=' + encodeURIComponent(printerName)
-                + '&labelXml=' + encodeURIComponent(labelXml)
-                + '&printParamsXml=' + encodeURIComponent(printParams);
-
-            var response = await fetch('https://127.0.0.1:' + port + '/DYMO/DLS/Printing/PrintLabel2', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: body,
-                mode: 'cors',
-            });
-            var result = await response.text();
-
-            if (result === 'true') {
-                btn.textContent = 'Gedruckt!';
-                btn.style.background = '#dcfce7';
-                btn.style.color = '#16a34a';
-                setTimeout(function() { btn.textContent = origText; btn.style.background = ''; btn.style.color = ''; btn.disabled = false; }, 3000);
-            } else {
-                alert('Druckfehler: ' + result);
-                btn.textContent = origText;
-                btn.disabled = false;
-            }
-        } catch (e) {
-            alert('DYMO Service nicht erreichbar. Ist DYMO Connect auf diesem PC gestartet?');
-            btn.textContent = origText;
-            btn.disabled = false;
-        }
-    }
-
-    async function getDymoPrinterName(port) {
-        try {
-            var r = await fetch('https://127.0.0.1:' + port + '/DYMO/DLS/Printing/GetPrinters', { mode: 'cors' });
-            var xml = await r.text();
-            // Ersten <Name>...</Name> aus LabelWriterPrinter ziehen
-            var m = xml.match(/<Name>([^<]+)<\/Name>/);
-            if (m && m[1]) return m[1];
-        } catch (e) {}
-        return 'DYMO LabelWriter Wireless';
-    }
-
-    async function findDymoPort() {
-        var ports = [41951, 41952, 41953, 41954, 41955];
-        for (var i = 0; i < ports.length; i++) {
-            try {
-                var r = await fetch('https://127.0.0.1:' + ports[i] + '/DYMO/DLS/Printing/StatusConnected', { mode: 'cors' });
-                var t = await r.text();
-                if (t === 'true') return ports[i];
-            } catch (e) { continue; }
-        }
-        throw new Error('DYMO nicht gefunden');
-    }
-    </script>
-    @endpush
 </x-filament-panels::page>

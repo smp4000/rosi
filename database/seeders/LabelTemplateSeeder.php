@@ -203,21 +203,29 @@ XML;
 
     private static function wrapLabel(string $objects, string $desc, string $orientation, string $labelName, float $w, float $h): string
     {
+        // WICHTIG: DYMOLabel Version 4 + vollstaendiger Umschlag (HasFixedLength,
+        // LabelApplication, DataTable). Aeltere Version-3-Labels lehnt DYMO Connect
+        // beim Druck mit HTTP 400 ab. Struktur entspricht den DYMO-Connect-Exporten.
         return '<?xml version="1.0" encoding="utf-8"?>'
-            . '<DesktopLabel Version="1"><DYMOLabel Version="3">'
+            . '<DesktopLabel Version="1"><DYMOLabel Version="4">'
             . "<Description>{$desc}</Description>"
             . "<Orientation>{$orientation}</Orientation>"
             . "<LabelName>{$labelName}</LabelName>"
             . '<InitialLength>0</InitialLength>'
             . '<BorderStyle>SolidLine</BorderStyle>'
             . "<DYMORect><DYMOPoint><X>0</X><Y>0</Y></DYMOPoint><Size><Width>{$w}</Width><Height>{$h}</Height></Size></DYMORect>"
-            . '<BorderColor><SolidColorBrush><Color A="0" R="0" G="0" B="0" /></SolidColorBrush></BorderColor>'
+            . '<BorderColor><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></BorderColor>'
             . '<BorderThickness>1</BorderThickness>'
             . '<Show_Border>False</Show_Border>'
+            . '<HasFixedLength>False</HasFixedLength>'
+            . '<FixedLengthValue>0</FixedLengthValue>'
             . '<DynamicLayoutManager><RotationBehavior>ClearObjects</RotationBehavior><LabelObjects>'
             . $objects
             . '</LabelObjects></DynamicLayoutManager>'
-            . '</DYMOLabel></DesktopLabel>';
+            . '</DYMOLabel>'
+            . '<LabelApplication>Blank</LabelApplication>'
+            . '<DataTable><Columns></Columns><Rows></Rows></DataTable>'
+            . '</DesktopLabel>';
     }
 
     private static function tankbetrugXml(): string

@@ -48,6 +48,16 @@ class LabelTemplateSeeder extends Seeder
                 'xml_template' => self::tankbetrugKompaktXml(),
             ],
             [
+                'slug' => 'tankbetrug-detail',
+                'category' => 'tankbetrug',
+                'name' => 'Tankbetrug Detailliert',
+                'width' => 10.11,
+                'height' => 5.41,
+                'orientation' => 'Portrait',
+                'placeholders' => $tankbetrugPlaceholders,
+                'xml_template' => self::tankbetrugDetailXml(),
+            ],
+            [
                 'slug' => 'testdruck',
                 'category' => 'testdruck',
                 'name' => 'Testdruck-Etikett',
@@ -59,24 +69,10 @@ class LabelTemplateSeeder extends Seeder
                 ]),
                 'xml_template' => self::testdruckXml(),
             ],
-            [
-                'slug' => 'tresor',
-                'category' => 'tresor',
-                'name' => 'Tresor-Einlage',
-                'width' => 5.87,
-                'height' => 10.16,
-                'orientation' => 'Landscape',
-                'placeholders' => json_encode([
-                    ['key' => 'station', 'label' => 'Tankstellen-Name', 'example' => 'Aral Tankstelle Welle'],
-                    ['key' => 'mitarbeiter', 'label' => 'Mitarbeiter-Name', 'example' => 'Christian Welle'],
-                    ['key' => 'datum', 'label' => 'Datum', 'example' => '01.05.2026'],
-                    ['key' => 'zeit', 'label' => 'Uhrzeit', 'example' => '22:28'],
-                    ['key' => 'betrag', 'label' => 'Betrag', 'example' => '900,00 EUR'],
-                    ['key' => 'muenzen', 'label' => 'Mit Muenzen', 'example' => 'Nein'],
-                    ['key' => 'barcode', 'label' => 'QR-Code / Barcode', 'example' => 'SAFE-UHRBTWOA'],
-                ]),
-                'xml_template' => self::tresorXml(),
-            ],
+            // Hinweis: Die Tresor-Vorlagen (Modern + Klassisch) verwaltet der
+            // dedizierte TresorLabelTemplateSeeder (am Ende dieser run()-Methode
+            // aufgerufen) - hier NICHT seeden, sonst wuerde das moderne Design
+            // bei einem vollen db:seed mit dem alten ueberschrieben.
             [
                 'slug' => 'adresse',
                 'category' => 'adresse',
@@ -119,6 +115,9 @@ class LabelTemplateSeeder extends Seeder
         }
 
         $this->command->info('  ' . count($templates) . ' Label-Vorlagen erstellt/aktualisiert.');
+
+        // Tresor-Vorlagen (Modern + Klassisch) separat seeden.
+        $this->call(TresorLabelTemplateSeeder::class);
     }
 
     private static function textObject(
@@ -209,6 +208,21 @@ XML;
             . self::textObject('Footer', '{{station}} | {{mitarbeiter}}', 8, false, 0.10, 0.98, 3.7, 0.20);
 
         return self::wrapLabel($objects, 'ROSI Tankbetrug Kompakt', 'Portrait', 'Shipping', 3.98, 2.13);
+    }
+
+    private static function tankbetrugDetailXml(): string
+    {
+        // Vollstaendiges Protokoll-Layout: nutzt alle Felder inkl. Mitarbeiter + ID.
+        $objects = self::textObject('Header', 'TANKBETRUG-PROTOKOLL', 11, true, 0.10, 0.05, 3.7, 0.22)
+            . self::textObject('Datum', '{{datum}}', 9, false, 0.10, 0.27, 3.7, 0.18)
+            . self::textObject('Plate', '{{kennzeichen}}', 22, true, 0.10, 0.45, 3.7, 0.42)
+            . self::textObject('Product', '{{produkt}}  -  Zapfpunkt {{zapfpunkt}}', 10, false, 0.10, 0.88, 3.7, 0.22)
+            . self::textObject('Amount', '{{menge}} l  =  {{betrag}} EUR', 15, true, 0.10, 1.11, 3.7, 0.32)
+            . self::textObject('Station', '{{station}}', 9, false, 0.10, 1.46, 3.7, 0.20)
+            . self::textObject('Employee', 'Kassierer: {{mitarbeiter}}', 9, false, 0.10, 1.66, 3.7, 0.20)
+            . self::textObject('RefId', 'ID {{id}}', 6, false, 0.10, 1.88, 3.7, 0.18);
+
+        return self::wrapLabel($objects, 'ROSI Tankbetrug Detailliert', 'Portrait', 'Shipping', 3.98, 2.13);
     }
 
     private static function testdruckXml(): string

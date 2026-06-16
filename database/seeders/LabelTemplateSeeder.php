@@ -88,6 +88,21 @@ class LabelTemplateSeeder extends Seeder
                 ]),
                 'xml_template' => self::adresseXml(),
             ],
+            [
+                'slug' => 'adresse-brief',
+                'category' => 'adresse',
+                'name' => 'Adress-Etikett (Brief)',
+                'width' => 8.89,
+                'height' => 3.56,
+                'orientation' => 'Landscape',
+                'placeholders' => json_encode([
+                    ['key' => 'name', 'label' => 'Empfaenger-Name', 'example' => 'Max Mustermann'],
+                    ['key' => 'strasse', 'label' => 'Strasse + Hausnr.', 'example' => 'Musterstr. 1'],
+                    ['key' => 'ort', 'label' => 'PLZ + Ort', 'example' => '36100 Petersberg'],
+                    ['key' => 'absender', 'label' => 'Absender', 'example' => 'Aral Tankstelle Welle'],
+                ]),
+                'xml_template' => self::adresseBriefXml(),
+            ],
         ];
 
         $now = now();
@@ -390,5 +405,20 @@ XML;
             . self::textObject('Address', '{{strasse}}&#xD;&#xA;{{ort}}', 12, false, 0.35, 0.54, 3.1, 0.5);
 
         return self::wrapLabel($objects, 'ROSI Adressetikett', 'Landscape', 'Address', 3.5, 1.1);
+    }
+
+    /**
+     * Schoenes Brief-Adressetikett auf "Large Address" (89 x 36 mm):
+     * Absender klein als Zeile oben, Empfaenger gross und eingerueckt darunter.
+     */
+    private static function adresseBriefXml(): string
+    {
+        $objects = self::textObject('Sender', 'Absender: {{absender}}', 8, false, 0.20, 0.05, 3.1, 0.18)
+            . self::textObject('Line', '____________________________', 8, false, 0.20, 0.20, 3.1, 0.12)
+            . self::textObject('Name', '{{name}}', 16, true, 0.45, 0.50, 2.9, 0.34)
+            . self::textObject('Street', '{{strasse}}', 13, false, 0.45, 0.86, 2.9, 0.26)
+            . self::textObject('City', '{{ort}}', 13, false, 0.45, 1.12, 2.9, 0.26);
+
+        return self::wrapLabel($objects, 'ROSI Adressetikett Brief', 'Landscape', 'Large Address', 3.5, 1.4);
     }
 }

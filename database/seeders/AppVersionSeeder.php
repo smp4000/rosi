@@ -517,6 +517,30 @@ class AppVersionSeeder extends Seeder
                     'Standard-Abschreibgrund "MHD-Ueberschreitung" vorausgewaehlt (sonst Pflichtauswahl)',
                 ],
             ],
+
+            // --- v2.7.0 (Web) / v2.7.8 (App) — 17.06.2026 ---
+            [
+                'platform' => 'web',
+                'version' => '2.7.0',
+                'release_date' => '2026-06-17',
+                'changes' => [
+                    'Etiketten-Vorlagen erweitert: Tresor "Modern" + "Klassisch", Tankbetrug "Detailliert", Adress-Etikett "Brief", neues "Stationen/Monat"',
+                    'Fix: DYMO-Etiketten (Adresse/Tankbetrug) druckten nicht (HTTP 400) - Vorlagen auf DYMOLabel Version 4 umgestellt',
+                    'Druckvorlagen-Seite: "Demo drucken" laeuft ueber die Warteschlange (Stations-Agent) statt ueber den Browser; Drucker-Auswahl',
+                    'Adress-Etiketten: Backend fuer Speichern + Nachdrucken (eigene Station als Absender, Adress-Suche)',
+                ],
+            ],
+            [
+                'platform' => 'android',
+                'version' => '2.7.8',
+                'release_date' => '2026-06-17',
+                'changes' => [
+                    'Partner-Login: geschuetzter Bereich (Einstellungen) oeffnet sich fuer Partner/Inhaber ohne Passwort',
+                    'Neu: Adress-Etiketten drucken - eigene Tankstelle als Absender, Empfaengeradresse mit intelligenter Adress-Suche',
+                    'Adress-Etiketten werden gespeichert und koennen jederzeit erneut gedruckt werden (mit Druckzaehler)',
+                    'Adress-Etiketten als Startbildschirm-Kachel - nur fuer Partner/Inhaber sichtbar',
+                ],
+            ],
         ];
 
         $count = 0;

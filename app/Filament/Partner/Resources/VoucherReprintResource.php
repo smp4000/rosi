@@ -65,7 +65,6 @@ class VoucherReprintResource extends Resource
 
                 TextColumn::make('user.name')
                     ->label('Nachgedruckt von')
-                    ->searchable()
                     ->placeholder('—'),
 
                 TextColumn::make('targetAgent.name')
@@ -86,7 +85,10 @@ class VoucherReprintResource extends Resource
 
                 SelectFilter::make('user_id')
                     ->label('Mitarbeiter')
-                    ->relationship('user', 'name'),
+                    ->options(fn () => \App\Models\User::where('tenant_id', session('tenant_id'))
+                        ->get()
+                        ->pluck('name', 'id')
+                        ->toArray()),
             ])
             ->emptyStateHeading('Keine Nachdrucke')
             ->emptyStateDescription('Hier erscheint jeder nachgedruckte Gutschein (wer, wann, welche Nummer).')

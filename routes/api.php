@@ -172,6 +172,14 @@ Route::prefix('v1')->group(function () {
     Route::get('/vouchers/by-group', [VoucherController::class, 'byGroup'])
         ->name('api.v1.vouchers.by-group');
 
+    // --- Adress-Etiketten (oeffentlich, nur device_token: Lesen + Suche) ---
+    Route::get('/address-labels', [\App\Http\Controllers\Api\V1\AddressLabelController::class, 'index'])
+        ->name('api.v1.address-labels.index');
+    Route::get('/address-labels/stations', [\App\Http\Controllers\Api\V1\AddressLabelController::class, 'stations'])
+        ->name('api.v1.address-labels.stations');
+    Route::get('/address-labels/search', [\App\Http\Controllers\Api\V1\AddressLabelController::class, 'search'])
+        ->name('api.v1.address-labels.search');
+
     // --- Kiosk: Health + Artikel-Lookup (oeffentlich, nur device_token) ---
     Route::get('/kiosk/ping', [KioskController::class, 'ping'])
         ->name('api.v1.kiosk.ping');
@@ -252,6 +260,12 @@ Route::prefix('v1')->group(function () {
         Route::post('/vouchers/reprint', [VoucherController::class, 'reprint'])
             ->middleware('mde.permission:mde.vouchers.reprint')
             ->name('api.v1.vouchers.reprint');
+
+        // --- Adress-Etiketten (geschuetzt: anlegen + drucken) ---
+        Route::post('/address-labels', [\App\Http\Controllers\Api\V1\AddressLabelController::class, 'store'])
+            ->name('api.v1.address-labels.store');
+        Route::post('/address-labels/{id}/print', [\App\Http\Controllers\Api\V1\AddressLabelController::class, 'reprint'])
+            ->name('api.v1.address-labels.print');
 
         // --- Kiosk: Bewegungen (geschuetzt) ---
         Route::post('/kiosk/deliveries/save', [KioskController::class, 'saveDelivery'])

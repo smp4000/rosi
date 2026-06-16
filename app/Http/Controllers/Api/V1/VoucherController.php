@@ -489,6 +489,44 @@ class VoucherController extends ApiController
         ]);
     }
 
+    /**
+     * GET /api/v1/vouchers/by-group?device_token=...&group=4567
+     * Alle Gutscheine einer Gruppe (fuer den Nachdruck im gesicherten Bereich).
+     */
+    public function byGroup(Request $request): JsonResponse
+    {
+        $request->validate([
+            'device_token' => 'required|string',
+            'group' => 'required|string|max:20',
+        ]);
+
+        $device = $this->findDevice($request->device_token);
+        if (! $device) {
+            return $this->error('Geraet nicht erkannt.', 401);
+        }
+
+        $vouchers = Voucher::where('station_id', $device->station_id)
+            ->where('voucher_group', $request->group)
+            ->orderBy('voucher_number')
+            ->get(['voucher_number', 'amount', 'status']);
+
+        if ($vouchers->isEmpty()) {
+            return $this->error('Keine Gutscheine in dieser Gruppe.', 404);
+        }
+
+        $numbers = $vouchers->pluck('voucher_number')->all();
+
+        return $this->success([
+            'group' => $request->group,
+            'vouchers' => $vouchers->map(fn ($v) => [
+                'number' => $v->voucher_number,
+                'amount' => (float) $v->amount,
+                'status' => $v->status,
+            ])->values(),
+            'reprint_counts' => $this->reprintCountsFor($device->tenant_id, $numbers),
+        ]);
+    }
+
     /** Map voucher_number => Anzahl Nachdrucke. */
     private function reprintCountsFor(string $tenantId, array $numbers): array
     {

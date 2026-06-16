@@ -27,6 +27,7 @@ public class PrintJobDto
     public string? Reference { get; set; }
     public string? PrinterName { get; set; }
     public string? CreatedBy { get; set; }
+    public bool Pace { get; set; }
     public List<LabelDto> Labels { get; set; } = new();
 }
 

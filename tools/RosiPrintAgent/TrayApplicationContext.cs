@@ -127,10 +127,10 @@ public class TrayApplicationContext : ApplicationContext
             {
                 var total = job.Labels.Count;
 
-                // Nur bei groesseren Mengen (z.B. Gutscheine) bremsen — sonst
-                // ueberlaeuft der DYMO-Spooler und es kommen leere Labels heraus.
-                // Einzel-/Kleindrucke laufen ohne Verzoegerung.
-                var pace = total > PaceThreshold;
+                // Bremsen, wenn der Server es verlangt (Nachdrucke) ODER bei
+                // groesseren Mengen — sonst ueberlaeuft der DYMO-Spooler und es
+                // kommen leere Labels heraus. Einzel-/Kleindrucke laufen sofort.
+                var pace = job.Pace || total > PaceThreshold;
 
                 for (int i = 0; i < total; i++)
                 {

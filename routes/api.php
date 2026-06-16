@@ -169,6 +169,8 @@ Route::prefix('v1')->group(function () {
         ->name('api.v1.vouchers.check-group');
     Route::get('/vouchers/reprint-counts', [VoucherController::class, 'reprintCounts'])
         ->name('api.v1.vouchers.reprint-counts');
+    Route::get('/vouchers/by-group', [VoucherController::class, 'byGroup'])
+        ->name('api.v1.vouchers.by-group');
 
     // --- Kiosk: Health + Artikel-Lookup (oeffentlich, nur device_token) ---
     Route::get('/kiosk/ping', [KioskController::class, 'ping'])

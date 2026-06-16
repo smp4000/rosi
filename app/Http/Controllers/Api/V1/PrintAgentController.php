@@ -88,6 +88,9 @@ class PrintAgentController extends ApiController
             'printer_name' => $j->printer_name,
             'labels' => $j->payload,
             'created_by' => $j->created_by,
+            // Bei Nachdrucken ODER vielen Etiketten langsamer drucken
+            // (verhindert leere/verschluckte Labels durch Spooler-Ueberlauf).
+            'pace' => $j->reference_type === 'voucher_reprint' || count((array) $j->payload) > 10,
         ])->values();
 
         return $this->success(['jobs' => $data], $jobs->count() . ' Job(s)');

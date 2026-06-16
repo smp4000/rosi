@@ -139,8 +139,13 @@ class LabelTemplateSelection extends Page
                 $demoData[$p['key']] = $p['example'] ?? $p['key'];
             }
         }
-        // Datum/Zeit auf jetzt setzen (kombiniert oder getrennt)
-        if (array_key_exists('zeit', $demoData)) {
+        // Datum/Zeit auf jetzt setzen - Format am Platzhalter-Beispiel erkennen:
+        //  - "06/2026" (enthaelt "/") -> nur Monat/Jahr
+        //  - getrennte zeit-Spalte     -> Datum + Uhrzeit getrennt
+        //  - sonst                     -> komplettes Datum mit Uhrzeit
+        if (array_key_exists('datum', $demoData) && str_contains((string) $demoData['datum'], '/')) {
+            $demoData['datum'] = now()->format('m/Y');
+        } elseif (array_key_exists('zeit', $demoData)) {
             $demoData['datum'] = now()->format('d.m.Y');
             $demoData['zeit'] = now()->format('H:i');
         } elseif (array_key_exists('datum', $demoData)) {

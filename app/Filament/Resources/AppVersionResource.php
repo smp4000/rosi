@@ -75,9 +75,13 @@ class AppVersionResource extends Resource
                 // ── In-App-Updater (nur fuer die POS-App) ──
                 TextInput::make('version_code')
                     ->label('Version-Code (technisch)')
-                    ->helperText('Muss dem versionCode der APK entsprechen und mit jeder Version STEIGEN (z.B. 12). Die App vergleicht damit.')
+                    ->helperText(fn (string $operation) => $operation === 'create'
+                        ? 'Vorbelegt mit dem naechsten freien Code. Muss hoeher sein als der letzte ('
+                            . (static::nextVersionCode() - 1) . '). Wird beim Speichern automatisch aus der APK uebernommen.'
+                        : 'Muss dem versionCode der APK entsprechen. Wird beim Speichern automatisch aus der APK uebernommen.')
                     ->numeric()
-                    ->minValue(1)
+                    ->default(fn () => static::nextVersionCode())
+                    ->minValue(fn (string $operation) => $operation === 'create' ? static::nextVersionCode() : 1)
                     ->visible(fn (Get $get) => $get('platform') === 'app')
                     ->requiredWith('apk'),
 
@@ -209,5 +213,11 @@ class AppVersionResource extends Resource
             'create' => Pages\CreateAppVersion::route('/create'),
             'edit' => Pages\EditAppVersion::route('/{record}/edit'),
         ];
+    }
+
+    /** Naechster freier version_code = hoechster vorhandener + 1. */
+    public static function nextVersionCode(): int
+    {
+        return (int) (AppVersion::max('version_code') ?? 0) + 1;
     }
 }

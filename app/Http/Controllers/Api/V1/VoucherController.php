@@ -130,6 +130,7 @@ class VoucherController extends ApiController
             'amount' => 'required|numeric|min:0.01|max:9999.99',
             'device_token' => 'nullable|string',
             'target_agent_id' => 'nullable|uuid',
+            'printer_name' => 'nullable|string|max:255',
         ]);
 
         $user = $request->user();
@@ -186,7 +187,7 @@ class VoucherController extends ApiController
             $last = $vouchers->last();
 
             // Print-Job automatisch in die Queue legen (Agent druckt an der Station)
-            $this->createPrintJob($vouchers, $stationId, $user->name, $data['target_agent_id'] ?? null, $user->id);
+            $this->createPrintJob($vouchers, $stationId, $user->name, $data['target_agent_id'] ?? null, $user->id, $data['printer_name'] ?? null);
 
             return $this->success([
                 'count' => $vouchers->count(),
@@ -384,6 +385,7 @@ class VoucherController extends ApiController
             'numbers' => 'required|array|min:1|max:500',
             'numbers.*' => 'string|max:50',
             'target_agent_id' => 'nullable|uuid',
+            'printer_name' => 'nullable|string|max:255',
         ]);
 
         $user = $request->user();
@@ -438,6 +440,7 @@ class VoucherController extends ApiController
                 'created_by' => $user->name,
                 'user_id' => $user->id,
                 'target_agent_id' => $targetAgentId,
+                'printer_name' => $request->input('printer_name'),
             ],
         );
 
@@ -501,7 +504,7 @@ class VoucherController extends ApiController
             ->toArray();
     }
 
-    private function createPrintJob($vouchers, ?string $stationId, string $createdBy, ?string $targetAgentId = null, ?string $userId = null): void
+    private function createPrintJob($vouchers, ?string $stationId, string $createdBy, ?string $targetAgentId = null, ?string $userId = null, ?string $printerName = null): void
     {
         try {
             if (! $stationId) {
@@ -542,6 +545,7 @@ class VoucherController extends ApiController
                     'created_by' => $createdBy,
                     'target_agent_id' => $targetAgentId,
                     'user_id' => $userId,
+                    'printer_name' => $printerName,
                 ],
             );
 

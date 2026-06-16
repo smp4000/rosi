@@ -71,15 +71,19 @@ public class DymoClient
         return list;
     }
 
-    /// <summary>Namen aller Drucker (verbundene zuerst) — fuer die Meldung ans Dashboard.</summary>
+    /// <summary>
+    /// Namen der nutzbaren Drucker fuer die Meldung ans Dashboard.
+    /// Bevorzugt VERBUNDENE Drucker (sonst meldet DYMO denselben Drucker mehrfach
+    /// als "Name", "Name on HOST", "HOST"). Nur wenn keiner verbunden ist, werden
+    /// alle gemeldet, damit ueberhaupt etwas auswaehlbar ist.
+    /// </summary>
     public async Task<List<string>> GetPrinterNamesAsync()
     {
         var printers = await GetPrintersAsync();
-        return printers
-            .OrderByDescending(p => p.Connected)
-            .Select(p => p.Name)
-            .Distinct()
-            .ToList();
+        var connected = printers.Where(p => p.Connected).Select(p => p.Name).Distinct().ToList();
+        return connected.Count > 0
+            ? connected
+            : printers.Select(p => p.Name).Distinct().ToList();
     }
 
     /// <summary>

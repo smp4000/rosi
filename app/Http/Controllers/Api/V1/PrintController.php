@@ -298,16 +298,28 @@ class PrintController extends ApiController
             ->where('is_active', true)
             ->orderByDesc('is_default')
             ->orderBy('name')
-            ->get()
-            ->map(fn ($a) => [
-                'id' => $a->id,
-                'name' => $a->name,
-                'is_default' => (bool) $a->is_default,
-                'online' => $a->online(),
-            ])
-            ->values();
+            ->get();
 
-        return $this->success(['destinations' => $agents]);
+        $multiAgent = $agents->count() > 1;
+        $station = \App\Models\GasStation::find($device->station_id);
+        $defaultPrinter = $station?->printer_map['*'] ?? null;
+
+        // Ein Ziel je (Agent + Drucker). So koennen auch mehrere Drucker an
+        // EINEM PC einzeln gewaehlt werden.
+        $destinations = [];
+        foreach ($agents as $agent) {
+            foreach (($agent->printers ?? []) as $printer) {
+                $destinations[] = [
+                    'agent_id' => $agent->id,
+                    'printer_name' => $printer,
+                    'label' => $multiAgent ? ($agent->name . ' · ' . $printer) : $printer,
+                    'online' => $agent->online(),
+                    'is_default' => ($defaultPrinter !== null && $printer === $defaultPrinter),
+                ];
+            }
+        }
+
+        return $this->success(['destinations' => $destinations]);
     }
 
     /**

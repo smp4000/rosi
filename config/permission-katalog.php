@@ -489,11 +489,12 @@ return [
             'aktionen' => [
                 'redeem' => 'Einloesen',
                 'issue' => 'Ausgeben (drucken)',
+                'reprint' => 'Etikett nachdrucken',
             ],
             'defaults' => [
                 'kassierer' => ['redeem'],
-                'schichtleiter' => ['redeem', 'issue'],
-                'stationsleiter' => ['redeem', 'issue'],
+                'schichtleiter' => ['redeem', 'issue', 'reprint'],
+                'stationsleiter' => ['redeem', 'issue', 'reprint'],
             ],
         ],
 

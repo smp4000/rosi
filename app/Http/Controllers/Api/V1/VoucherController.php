@@ -355,6 +355,152 @@ class VoucherController extends ApiController
      * den PrintQueueService (setzt station_id/printer/TTL) -> der Stations-Agent
      * holt und druckt sie.
      */
+    /**
+     * Platzhalter-Daten fuer ein Gutschein-Etikett.
+     */
+    private function voucherLabelData(Voucher $voucher): array
+    {
+        return [
+            'betrag' => number_format($voucher->amount, 2, ',', '.') . ' €',
+            'betrag_worte' => Voucher::amountToWords($voucher->amount),
+            'datum' => $voucher->issued_at->format('d.m.Y'),
+            'gueltig_bis' => $voucher->valid_until->format('d.m.Y'),
+            'nummer' => $voucher->voucher_number,
+            'barcode' => 'www.aral-welle.de',
+        ];
+    }
+
+    /**
+     * POST /api/v1/vouchers/reprint
+     * Einzelne Gutschein-Etiketten nachdrucken (Liste von Nummern; Bereich wird
+     * von der App in Nummern aufgeloest). Protokolliert jeden Nachdruck.
+     *
+     * Body: device_token, numbers[], target_agent_id?
+     */
+    public function reprint(Request $request): JsonResponse
+    {
+        $request->validate([
+            'device_token' => 'required|string',
+            'numbers' => 'required|array|min:1|max:500',
+            'numbers.*' => 'string|max:50',
+            'target_agent_id' => 'nullable|uuid',
+        ]);
+
+        $user = $request->user();
+        if (! $user) {
+            return $this->error('Nicht angemeldet.', 401);
+        }
+
+        $device = $this->findDevice($request->device_token);
+        if (! $device) {
+            return $this->error('Geraet nicht erkannt.', 401);
+        }
+
+        $station = \App\Models\GasStation::find($device->station_id);
+        if (! $station) {
+            return $this->error('Tankstelle nicht gefunden.', 404);
+        }
+
+        $template = \App\Models\LabelTemplate::findForTenant('gutschein', $station->tenant_id);
+        if (! $template) {
+            return $this->error('Keine Gutschein-Druckvorlage vorhanden.', 422);
+        }
+
+        $numbers = array_values(array_unique($request->numbers));
+        $vouchers = Voucher::where('tenant_id', $user->tenant_id)
+            ->where('station_id', $station->id)
+            ->whereIn('voucher_number', $numbers)
+            ->orderBy('voucher_number')
+            ->get();
+
+        if ($vouchers->isEmpty()) {
+            return $this->error('Keine passenden Gutscheine gefunden.', 404);
+        }
+
+        $targetAgentId = $request->input('target_agent_id');
+
+        $labels = $vouchers->map(fn (Voucher $v) => [
+            'number' => $v->voucher_number,
+            'xml' => $template->render($this->voucherLabelData($v)),
+        ])->all();
+
+        $reference = $vouchers->count() === 1
+            ? 'Nachdruck ' . $vouchers->first()->voucher_number
+            : 'Nachdruck ' . $vouchers->first()->voucher_number . '–' . $vouchers->last()->voucher_number;
+
+        $job = app(\App\Services\PrintQueueService::class)->enqueue(
+            $station,
+            'voucher_labels',
+            $labels,
+            [
+                'reference' => $reference,
+                'reference_type' => 'voucher_reprint',
+                'created_by' => $user->name,
+                'user_id' => $user->id,
+                'target_agent_id' => $targetAgentId,
+            ],
+        );
+
+        // Audit: pro nachgedruckter Nummer ein Protokoll-Eintrag
+        foreach ($vouchers as $v) {
+            \App\Models\VoucherReprint::create([
+                'tenant_id' => $user->tenant_id,
+                'station_id' => $station->id,
+                'voucher_id' => $v->id,
+                'voucher_number' => $v->voucher_number,
+                'user_id' => $user->id,
+                'print_job_id' => $job->id,
+                'target_agent_id' => $targetAgentId,
+            ]);
+        }
+
+        return $this->success([
+            'count' => $vouchers->count(),
+            'reprint_counts' => $this->reprintCountsFor($user->tenant_id, $numbers),
+        ], $vouchers->count() . ' Etikett(en) zum Nachdruck gesendet.');
+    }
+
+    /**
+     * GET /api/v1/vouchers/reprint-counts?device_token=...&group=4567
+     * Liefert je Gutscheinnummer der Gruppe die Anzahl bisheriger Nachdrucke.
+     */
+    public function reprintCounts(Request $request): JsonResponse
+    {
+        $request->validate([
+            'device_token' => 'required|string',
+            'group' => 'required|string|max:20',
+        ]);
+
+        $device = $this->findDevice($request->device_token);
+        if (! $device) {
+            return $this->error('Geraet nicht erkannt.', 401);
+        }
+
+        $numbers = Voucher::where('station_id', $device->station_id)
+            ->where('voucher_group', $request->group)
+            ->pluck('voucher_number')
+            ->all();
+
+        return $this->success([
+            'reprint_counts' => $this->reprintCountsFor($device->tenant_id, $numbers),
+        ]);
+    }
+
+    /** Map voucher_number => Anzahl Nachdrucke. */
+    private function reprintCountsFor(string $tenantId, array $numbers): array
+    {
+        if (empty($numbers)) {
+            return [];
+        }
+
+        return \App\Models\VoucherReprint::where('tenant_id', $tenantId)
+            ->whereIn('voucher_number', $numbers)
+            ->selectRaw('voucher_number, COUNT(*) as c')
+            ->groupBy('voucher_number')
+            ->pluck('c', 'voucher_number')
+            ->toArray();
+    }
+
     private function createPrintJob($vouchers, ?string $stationId, string $createdBy, ?string $targetAgentId = null, ?string $userId = null): void
     {
         try {
@@ -376,17 +522,9 @@ class VoucherController extends ApiController
 
             $labels = [];
             foreach ($vouchers as $voucher) {
-                $labelData = [
-                    'betrag' => number_format($voucher->amount, 2, ',', '.') . ' €',
-                    'betrag_worte' => Voucher::amountToWords($voucher->amount),
-                    'datum' => $voucher->issued_at->format('d.m.Y'),
-                    'gueltig_bis' => $voucher->valid_until->format('d.m.Y'),
-                    'nummer' => $voucher->voucher_number,
-                    'barcode' => 'www.aral-welle.de',
-                ];
                 $labels[] = [
                     'number' => $voucher->voucher_number,
-                    'xml' => $template->render($labelData),
+                    'xml' => $template->render($this->voucherLabelData($voucher)),
                 ];
             }
 

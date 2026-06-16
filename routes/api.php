@@ -167,6 +167,8 @@ Route::prefix('v1')->group(function () {
         ->name('api.v1.vouchers.lookup');
     Route::post('/vouchers/check-group', [VoucherController::class, 'checkGroup'])
         ->name('api.v1.vouchers.check-group');
+    Route::get('/vouchers/reprint-counts', [VoucherController::class, 'reprintCounts'])
+        ->name('api.v1.vouchers.reprint-counts');
 
     // --- Kiosk: Health + Artikel-Lookup (oeffentlich, nur device_token) ---
     Route::get('/kiosk/ping', [KioskController::class, 'ping'])
@@ -245,6 +247,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/vouchers/redeem', [VoucherController::class, 'redeem'])
             ->middleware('mde.permission:mde.vouchers.redeem')
             ->name('api.v1.vouchers.redeem');
+        Route::post('/vouchers/reprint', [VoucherController::class, 'reprint'])
+            ->middleware('mde.permission:mde.vouchers.reprint')
+            ->name('api.v1.vouchers.reprint');
 
         // --- Kiosk: Bewegungen (geschuetzt) ---
         Route::post('/kiosk/deliveries/save', [KioskController::class, 'saveDelivery'])

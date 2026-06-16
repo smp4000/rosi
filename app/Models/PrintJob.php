@@ -91,12 +91,20 @@ class PrintJob extends Model
      */
     public function scopeQueuedForAgent(Builder $q, PrintAgent $agent): Builder
     {
+        // Gibt es ueberhaupt einen Standard-Agenten an der Station? Wenn NICHT,
+        // darf jeder Agent die ziellosen Jobs holen (sonst blieben Tresor-/
+        // Tankbetrug-Etiketten ohne ausdruecklichen Drucker fuer immer haengen).
+        $stationHasDefault = PrintAgent::where('station_id', $agent->station_id)
+            ->where('is_active', true)
+            ->where('is_default', true)
+            ->exists();
+
         return $q->where('station_id', $agent->station_id)
             ->where('status', self::STATUS_PENDING)
             ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
-            ->where(function ($q) use ($agent) {
+            ->where(function ($q) use ($agent, $stationHasDefault) {
                 $q->where('target_agent_id', $agent->id);
-                if ($agent->is_default) {
+                if ($agent->is_default || ! $stationHasDefault) {
                     $q->orWhereNull('target_agent_id');
                 }
             })

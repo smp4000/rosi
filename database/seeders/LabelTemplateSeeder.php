@@ -93,7 +93,7 @@ class LabelTemplateSeeder extends Seeder
                 'category' => 'adresse',
                 'name' => 'Adress-Etikett (Brief)',
                 'width' => 8.89,
-                'height' => 3.56,
+                'height' => 2.79,
                 'orientation' => 'Landscape',
                 'placeholders' => json_encode([
                     ['key' => 'name', 'label' => 'Empfaenger-Name', 'example' => 'Max Mustermann'],
@@ -578,17 +578,17 @@ XML;
     }
 
     /**
-     * Schoenes Brief-Adressetikett auf "Large Address" (89 x 36 mm):
-     * Absender klein als Zeile oben, Empfaenger gross und eingerueckt darunter.
+     * Brief-Adressetikett auf derselben (funktionierenden) "Address"-Rolle wie
+     * das Standard-Adressetikett (89 x 28 mm): Absender klein als Zeile oben,
+     * Empfaenger darunter Name fett + Strasse + Ort getrennt.
      */
     private static function adresseBriefXml(): string
     {
-        $objects = self::textObject('Sender', 'Absender: {{absender}}', 8, false, 0.20, 0.05, 3.1, 0.18)
-            . self::textObject('Line', '____________________________', 8, false, 0.20, 0.20, 3.1, 0.12)
-            . self::textObject('Name', '{{name}}', 16, true, 0.45, 0.50, 2.9, 0.34)
-            . self::textObject('Street', '{{strasse}}', 13, false, 0.45, 0.86, 2.9, 0.26)
-            . self::textObject('City', '{{ort}}', 13, false, 0.45, 1.12, 2.9, 0.26);
+        $objects = self::textObject('Sender', 'Absender: {{absender}}', 7, false, 0.20, 0.03, 3.1, 0.14)
+            . self::textObject('Name', '{{name}}', 13, true, 0.30, 0.30, 3.0, 0.26)
+            . self::textObject('Street', '{{strasse}}', 11, false, 0.30, 0.58, 3.0, 0.22)
+            . self::textObject('City', '{{ort}}', 11, false, 0.30, 0.80, 3.0, 0.22);
 
-        return self::wrapLabel($objects, 'ROSI Adressetikett Brief', 'Landscape', 'Large Address', 3.5, 1.4);
+        return self::wrapLabel($objects, 'ROSI Adressetikett Brief', 'Landscape', 'Address', 3.5, 1.1);
     }
 }

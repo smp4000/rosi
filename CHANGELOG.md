@@ -1,5 +1,29 @@
 # ROSI Server - Changelog
 
+## 17.06.2026 — Etiketten & Adress-Druck
+
+### Adress-Etiketten (App-Partnerbereich)
+- Neue Tabelle `address_labels` + Model + `AddressLabelController`
+- Endpunkte: eigene Stationen als Absender, Nominatim-Adresssuche,
+  Etikett anlegen+drucken, gespeichertes Etikett erneut drucken
+- Druck ueber die Print-Queue (Adress-Vorlage), Speicherung zum Nachdrucken
+  mit Druckzaehler
+
+### Etiketten-Vorlagen
+- Tresor-Etikett: neues Design "Modern" + altes "Klassisch" (beide auswaehlbar)
+- Tankbetrug: viertes Design "Detailliert" (alle Felder inkl. Mitarbeiter+ID)
+- Adress-Etikett "Brief"-Variante; auf die funktionierende Address-Rolle
+  (89x28mm) umgestellt
+- Neues Etikett "Stationen/Monat": grosses Datum + bis zu 4 Tankstellen
+- **Fix DYMO HTTP 400**: DesktopLabel-Vorlagen jetzt `DYMOLabel Version 4`
+  (HasFixedLength/LabelApplication/DataTable) — V3 wurde abgelehnt
+
+### Druck-Queue
+- Demo-Druck der Druckvorlagen-Seite laeuft ueber die Queue statt Browser-DYMO
+  (Druckziel-Auswahl Agent+Drucker)
+- Claim-Fallback: ziellose Jobs (Tresor/Tankbetrug) werden auch ohne
+  Standard-Agent abgeholt
+
 ## v2.1.0-dev — 10.05.2026
 
 ### Zeitungen-Modul (Newspaper)

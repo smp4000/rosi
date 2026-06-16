@@ -112,6 +112,8 @@ Route::prefix('v1')->group(function () {
     // --- Drucker (oeffentlich, da DYMO nur lokal erreichbar) ---
     Route::get('/print/printers', [PrintController::class, 'printers'])
         ->name('api.v1.print.printers');
+    Route::get('/print/destinations', [PrintController::class, 'destinations'])
+        ->name('api.v1.print.destinations');
     Route::get('/print/status', [PrintController::class, 'status'])
         ->name('api.v1.print.status');
     Route::post('/print/test', [PrintController::class, 'testPrint'])

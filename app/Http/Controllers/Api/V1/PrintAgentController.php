@@ -46,7 +46,7 @@ class PrintAgentController extends ApiController
         return $this->success([
             'agent' => $agent->name,
             'station' => $agent->station?->name,
-            'pending' => PrintJob::queuedForStation($agent->station_id)->count(),
+            'pending' => PrintJob::queuedForAgent($agent)->count(),
         ], 'OK');
     }
 
@@ -65,7 +65,7 @@ class PrintAgentController extends ApiController
         $agent->update(['last_seen_at' => now()]);
 
         $jobs = DB::transaction(function () use ($agent) {
-            $pending = PrintJob::queuedForStation($agent->station_id)
+            $pending = PrintJob::queuedForAgent($agent)
                 ->lockForUpdate()
                 ->limit(self::CLAIM_LIMIT)
                 ->get();

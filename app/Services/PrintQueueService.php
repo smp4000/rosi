@@ -17,7 +17,8 @@ class PrintQueueService
      * Fertig gerenderte Labels in die Queue legen.
      *
      * @param  array  $labels  Liste aus XML-Strings ODER ['number' => ?, 'xml' => '...']
-     * @param  array  $opts    reference, reference_type, printer_name, created_by, ttl_minutes
+     * @param  array  $opts    reference, reference_type, printer_name, created_by, ttl_minutes,
+     *                         target_agent_id (Ziel-Agent/Standort), user_id (Audit)
      */
     public function enqueue(GasStation $station, string $jobType, array $labels, array $opts = []): PrintJob
     {
@@ -32,10 +33,12 @@ class PrintQueueService
             'reference' => $opts['reference'] ?? null,
             'reference_type' => $opts['reference_type'] ?? null,
             'printer_name' => $printer,
+            'target_agent_id' => $opts['target_agent_id'] ?? null,
             'payload' => $payload,
             'status' => PrintJob::STATUS_PENDING,
             'expires_at' => $ttl ? now()->addMinutes($ttl) : null,
             'created_by' => $opts['created_by'] ?? null,
+            'user_id' => $opts['user_id'] ?? null,
         ]);
     }
 

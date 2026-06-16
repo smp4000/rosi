@@ -19,12 +19,14 @@ class PrintJob extends Model
         'reference_type',
         'printer_name',
         'agent_id',
+        'target_agent_id',
         'payload',
         'status',
         'expires_at',
         'error_message',
         'attempts',
         'created_by',
+        'user_id',
         'printed_at',
     ];
 
@@ -57,6 +59,16 @@ class PrintJob extends Model
         return $this->belongsTo(PrintAgent::class, 'agent_id');
     }
 
+    public function targetAgent(): BelongsTo
+    {
+        return $this->belongsTo(PrintAgent::class, 'target_agent_id');
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
     // ── Scopes ───────────────────────────────────────
 
     public function scopePending(Builder $q): Builder
@@ -70,6 +82,24 @@ class PrintJob extends Model
         return $q->where('station_id', $stationId)
             ->where('status', self::STATUS_PENDING)
             ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->orderBy('created_at');
+    }
+
+    /**
+     * Offene Jobs, die DIESER Agent drucken soll: entweder gezielt an ihn
+     * adressiert ODER ohne Ziel, wenn er der Default-Agent der Station ist.
+     */
+    public function scopeQueuedForAgent(Builder $q, PrintAgent $agent): Builder
+    {
+        return $q->where('station_id', $agent->station_id)
+            ->where('status', self::STATUS_PENDING)
+            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->where(function ($q) use ($agent) {
+                $q->where('target_agent_id', $agent->id);
+                if ($agent->is_default) {
+                    $q->orWhereNull('target_agent_id');
+                }
+            })
             ->orderBy('created_at');
     }
 

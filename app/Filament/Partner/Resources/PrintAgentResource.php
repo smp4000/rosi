@@ -78,6 +78,13 @@ class PrintAgentResource extends Resource
                     ->getStateUsing(fn (PrintAgent $r) => $r->online() ? 'Online' : 'Offline')
                     ->color(fn (PrintAgent $r) => $r->online() ? 'success' : 'gray'),
 
+                TextColumn::make('is_default')
+                    ->label('Standard')
+                    ->badge()
+                    ->getStateUsing(fn (PrintAgent $r) => $r->is_default ? 'Standard-Drucker' : '')
+                    ->color('info')
+                    ->placeholder('—'),
+
                 TextColumn::make('printers')
                     ->label('Gemeldete Drucker')
                     ->badge()
@@ -116,11 +123,15 @@ class PrintAgentResource extends Resource
                             ->required(),
                     ])
                     ->action(function (array $data) {
+                        // Erster Agent der Station wird automatisch Standard
+                        $isFirst = ! PrintAgent::where('station_id', $data['station_id'])->exists();
+
                         $agent = new PrintAgent([
                             'tenant_id' => session('tenant_id'),
                             'station_id' => $data['station_id'],
                             'name' => $data['name'],
                             'is_active' => true,
+                            'is_default' => $isFirst,
                         ]);
                         $token = $agent->generateToken();
                         $agent->save();
@@ -198,6 +209,20 @@ class PrintAgentResource extends Resource
                                 ->body($e->getMessage())
                                 ->send();
                         }
+                    }),
+
+                Action::make('setDefault')
+                    ->label('Als Standard')
+                    ->icon('heroicon-o-star')
+                    ->color('gray')
+                    ->visible(fn (PrintAgent $r) => ! $r->is_default)
+                    ->requiresConfirmation()
+                    ->modalHeading('Standard-Drucker festlegen?')
+                    ->modalDescription('Dieser Agent druckt kuenftig alle Auftraege ohne ausdrueckliches Ziel (z.B. Kasse).')
+                    ->action(function (PrintAgent $r) {
+                        PrintAgent::where('station_id', $r->station_id)->update(['is_default' => false]);
+                        $r->update(['is_default' => true]);
+                        Notification::make()->success()->title($r->name . ' ist jetzt Standard-Drucker')->send();
                     }),
 
                 Action::make('regenerateToken')

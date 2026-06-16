@@ -25,6 +25,7 @@ class PrintAgent extends Model
         'app_version',
         'last_seen_at',
         'is_active',
+        'is_default',
     ];
 
     protected function casts(): array
@@ -33,6 +34,7 @@ class PrintAgent extends Model
             'printers' => 'array',
             'last_seen_at' => 'datetime',
             'is_active' => 'boolean',
+            'is_default' => 'boolean',
         ];
     }
 

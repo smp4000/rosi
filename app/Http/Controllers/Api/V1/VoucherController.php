@@ -129,6 +129,7 @@ class VoucherController extends ApiController
             'quantity' => 'required|integer|min:1|max:500',
             'amount' => 'required|numeric|min:0.01|max:9999.99',
             'device_token' => 'nullable|string',
+            'target_agent_id' => 'nullable|uuid',
         ]);
 
         $user = $request->user();
@@ -185,7 +186,7 @@ class VoucherController extends ApiController
             $last = $vouchers->last();
 
             // Print-Job automatisch in die Queue legen (Agent druckt an der Station)
-            $this->createPrintJob($vouchers, $stationId, $user->name);
+            $this->createPrintJob($vouchers, $stationId, $user->name, $data['target_agent_id'] ?? null, $user->id);
 
             return $this->success([
                 'count' => $vouchers->count(),
@@ -354,7 +355,7 @@ class VoucherController extends ApiController
      * den PrintQueueService (setzt station_id/printer/TTL) -> der Stations-Agent
      * holt und druckt sie.
      */
-    private function createPrintJob($vouchers, ?string $stationId, string $createdBy): void
+    private function createPrintJob($vouchers, ?string $stationId, string $createdBy, ?string $targetAgentId = null, ?string $userId = null): void
     {
         try {
             if (! $stationId) {
@@ -401,6 +402,8 @@ class VoucherController extends ApiController
                     'reference' => $vouchers->first()->voucher_group,
                     'reference_type' => 'voucher',
                     'created_by' => $createdBy,
+                    'target_agent_id' => $targetAgentId,
+                    'user_id' => $userId,
                 ],
             );
 

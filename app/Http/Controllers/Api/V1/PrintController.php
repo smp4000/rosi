@@ -283,6 +283,34 @@ class PrintController extends ApiController
     }
 
     /**
+     * GET /api/v1/print/destinations?device_token=...
+     * Druck-Standorte (Agenten) der Station des Geraets — fuer die Drucker-
+     * Auswahl in der App (z.B. "Kasse" / "Buero").
+     */
+    public function destinations(Request $request)
+    {
+        $device = \App\Models\Device::findByPlainToken($request->query('device_token', ''));
+        if (! $device) {
+            return $this->error('Geraet nicht erkannt.', 401);
+        }
+
+        $agents = \App\Models\PrintAgent::where('station_id', $device->station_id)
+            ->where('is_active', true)
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get()
+            ->map(fn ($a) => [
+                'id' => $a->id,
+                'name' => $a->name,
+                'is_default' => (bool) $a->is_default,
+                'online' => $a->online(),
+            ])
+            ->values();
+
+        return $this->success(['destinations' => $agents]);
+    }
+
+    /**
      * Druckt ein Tankbetrug-Etikett ueber DYMO.
      * Wird automatisch aus FuelTheftController aufgerufen.
      */

@@ -111,11 +111,15 @@ class LabelTemplateSeeder extends Seeder
                 'height' => 9.39,
                 'orientation' => 'Portrait',
                 'placeholders' => json_encode([
-                    ['key' => 'datum', 'label' => 'Datum (oben gross)', 'example' => '06/2026'],
+                    ['key' => 'datum', 'label' => 'Monat/Jahr (oben gross)', 'example' => '06/2026'],
                     ['key' => 'tankstelle1', 'label' => 'Tankstelle 1', 'example' => 'ATS Welle'],
                     ['key' => 'adresse1', 'label' => 'Adresse 1', 'example' => 'Schlitzer Str. 105'],
                     ['key' => 'tankstelle2', 'label' => 'Tankstelle 2', 'example' => 'ATS Welle'],
                     ['key' => 'adresse2', 'label' => 'Adresse 2', 'example' => 'Petersbergerstr. 101'],
+                    ['key' => 'tankstelle3', 'label' => 'Tankstelle 3 (optional)', 'example' => ''],
+                    ['key' => 'adresse3', 'label' => 'Adresse 3 (optional)', 'example' => ''],
+                    ['key' => 'tankstelle4', 'label' => 'Tankstelle 4 (optional)', 'example' => ''],
+                    ['key' => 'adresse4', 'label' => 'Adresse 4 (optional)', 'example' => ''],
                 ]),
                 'xml_template' => self::stationenMonatXml(),
             ],
@@ -272,9 +276,9 @@ XML;
     }
 
     /**
-     * Stationen-/Monats-Etikett (vom Kunden vorgegebenes DYMO-Layout V4):
-     * grosses Datum oben, Trennlinie, darunter zwei Tankstellen-Adressbloecke.
-     * Datum + Stationen sind Platzhalter.
+     * Stationen-/Monats-Etikett (DYMO-Layout V4): Monat/Jahr oben gross + fett +
+     * zentriert, Trennlinie, darunter bis zu VIER Tankstellen-Adressbloecke.
+     * Nicht belegte Stationen (3/4) bleiben einfach leer. Alle Felder Platzhalter.
      */
     private static function stationenMonatXml(): string
     {
@@ -326,18 +330,18 @@ XML;
                 <Text>{{datum}}</Text>
                 <FontInfo>
                   <FontName>Arial</FontName>
-                  <FontSize>35</FontSize>
-                  <IsBold>False</IsBold>
+                  <FontSize>72</FontSize>
+                  <IsBold>True</IsBold>
                   <IsItalic>False</IsItalic>
                   <IsUnderline>False</IsUnderline>
-                  <FontBrush><SolidColorBrush><Color A="1" R="0.137" G="0.137" B="0.137"></Color></SolidColorBrush></FontBrush>
+                  <FontBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></FontBrush>
                 </FontInfo>
               </TextSpan>
             </LineTextSpan>
           </FormattedText>
           <ObjectLayout>
-            <DYMOPoint><X>0.2152778</X><Y>0.2133333</Y></DYMOPoint>
-            <Size><Width>1.763889</Width><Height>0.5833334</Height></Size>
+            <DYMOPoint><X>0.0433337</X><Y>0.2133333</Y></DYMOPoint>
+            <Size><Width>2.026667</Width><Height>0.78</Height></Size>
           </ObjectLayout>
         </TextObject>
         <LineObject>
@@ -357,7 +361,7 @@ XML;
           <DashPattern>SolidLine</DashPattern>
           <LineType>Horizontal</LineType>
           <ObjectLayout>
-            <DYMOPoint><X>0.2152778</X><Y>0.8041667</Y></DYMOPoint>
+            <DYMOPoint><X>0.2152778</X><Y>1.02</Y></DYMOPoint>
             <Size><Width>1.763889</Width><Height>0.1</Height></Size>
           </ObjectLayout>
         </LineObject>
@@ -390,10 +394,15 @@ XML;
             <LineTextSpan><TextSpan><Text>{{tankstelle2}}</Text><FontInfo><FontName>Arial</FontName><FontSize>16.3</FontSize><IsBold>False</IsBold><IsItalic>False</IsItalic><IsUnderline>False</IsUnderline><FontBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></FontBrush></FontInfo></TextSpan></LineTextSpan>
             <LineTextSpan><TextSpan><Text>{{adresse2}}</Text><FontInfo><FontName>Arial</FontName><FontSize>16.3</FontSize><IsBold>False</IsBold><IsItalic>False</IsItalic><IsUnderline>False</IsUnderline><FontBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></FontBrush></FontInfo></TextSpan></LineTextSpan>
             <LineTextSpan><TextSpan><Text /><FontInfo><FontName>Arial</FontName><FontSize>16.3</FontSize><IsBold>False</IsBold><IsItalic>False</IsItalic><IsUnderline>False</IsUnderline><FontBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></FontBrush></FontInfo></TextSpan></LineTextSpan>
+            <LineTextSpan><TextSpan><Text>{{tankstelle3}}</Text><FontInfo><FontName>Arial</FontName><FontSize>16.3</FontSize><IsBold>False</IsBold><IsItalic>False</IsItalic><IsUnderline>False</IsUnderline><FontBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></FontBrush></FontInfo></TextSpan></LineTextSpan>
+            <LineTextSpan><TextSpan><Text>{{adresse3}}</Text><FontInfo><FontName>Arial</FontName><FontSize>16.3</FontSize><IsBold>False</IsBold><IsItalic>False</IsItalic><IsUnderline>False</IsUnderline><FontBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></FontBrush></FontInfo></TextSpan></LineTextSpan>
+            <LineTextSpan><TextSpan><Text /><FontInfo><FontName>Arial</FontName><FontSize>16.3</FontSize><IsBold>False</IsBold><IsItalic>False</IsItalic><IsUnderline>False</IsUnderline><FontBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></FontBrush></FontInfo></TextSpan></LineTextSpan>
+            <LineTextSpan><TextSpan><Text>{{tankstelle4}}</Text><FontInfo><FontName>Arial</FontName><FontSize>16.3</FontSize><IsBold>False</IsBold><IsItalic>False</IsItalic><IsUnderline>False</IsUnderline><FontBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></FontBrush></FontInfo></TextSpan></LineTextSpan>
+            <LineTextSpan><TextSpan><Text>{{adresse4}}</Text><FontInfo><FontName>Arial</FontName><FontSize>16.3</FontSize><IsBold>False</IsBold><IsItalic>False</IsItalic><IsUnderline>False</IsUnderline><FontBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></FontBrush></FontInfo></TextSpan></LineTextSpan>
           </FormattedText>
           <ObjectLayout>
-            <DYMOPoint><X>0.04333337</X><Y>1.002086</Y></DYMOPoint>
-            <Size><Width>2.026667</Width><Height>2.795146</Height></Size>
+            <DYMOPoint><X>0.04333337</X><Y>1.16</Y></DYMOPoint>
+            <Size><Width>2.026667</Width><Height>2.5</Height></Size>
           </ObjectLayout>
         </TextObject>
       </LabelObjects>

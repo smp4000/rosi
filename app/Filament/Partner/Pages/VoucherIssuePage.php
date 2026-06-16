@@ -2,8 +2,12 @@
 
 namespace App\Filament\Partner\Pages;
 
+use App\Models\GasStation;
 use App\Models\LabelTemplate;
+use App\Models\PrintAgent;
 use App\Models\Voucher;
+use App\Services\PrintQueueService;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -107,7 +111,63 @@ class VoucherIssuePage extends Page implements HasForms
                             ->helperText('Wert jedes einzelnen Gutscheins in Euro'),
                     ])
                     ->columns(3),
+
+                Section::make('Drucker')
+                    ->icon('heroicon-o-printer')
+                    ->description('An welchem Stations-Drucker sollen die Etiketten gedruckt werden?')
+                    ->schema([
+                        Select::make('print_target')
+                            ->label('Drucker / Standort')
+                            ->options(fn () => static::destinationOptions())
+                            ->default(fn () => static::defaultDestinationKey())
+                            ->native(false)
+                            ->helperText('Leer = kein Agent eingerichtet. Agenten unter Drucken > Druck-Agenten anlegen.'),
+                    ])
+                    ->visible(fn () => count(static::destinationOptions()) > 0),
             ]);
+    }
+
+    /** Map "agentId|printer" => Anzeigename (alle verbundenen Drucker der Station). */
+    protected static function destinationOptions(): array
+    {
+        $tenantId = auth()->user()->tenant_id;
+        $stationId = session('station_id')
+            ?? GasStation::where('tenant_id', $tenantId)->first()?->id;
+
+        $agents = PrintAgent::where('station_id', $stationId)->where('is_active', true)->get();
+        $multi = $agents->count() > 1;
+
+        $opts = [];
+        foreach ($agents as $agent) {
+            foreach (($agent->printers ?? []) as $printer) {
+                $opts[$agent->id . '|' . $printer] = $multi ? ($agent->name . ' · ' . $printer) : $printer;
+            }
+        }
+
+        return $opts;
+    }
+
+    /** Vorauswahl: Standard-Drucker der Station (printer_map['*']) oder erster. */
+    protected static function defaultDestinationKey(): ?string
+    {
+        $options = static::destinationOptions();
+        if (empty($options)) {
+            return null;
+        }
+
+        $tenantId = auth()->user()->tenant_id;
+        $stationId = session('station_id') ?? GasStation::where('tenant_id', $tenantId)->first()?->id;
+        $defaultPrinter = GasStation::find($stationId)?->printer_map['*'] ?? null;
+
+        if ($defaultPrinter) {
+            foreach (array_keys($options) as $key) {
+                if (str_ends_with($key, '|' . $defaultPrinter)) {
+                    return $key;
+                }
+            }
+        }
+
+        return array_key_first($options);
     }
 
     /**
@@ -307,13 +367,43 @@ class VoucherIssuePage extends Page implements HasForms
             }
         }
 
-        $this->totalToPrint = count($xmls);
+        if (empty($xmls)) {
+            Notification::make()->title('Keine Etiketten zu drucken')->danger()->send();
+            return;
+        }
 
-        // XMLs in Session speichern — zu gross fuer Livewire-Event
-        session()->put('dymo_print_labels', $xmls);
+        // Ziel-Drucker aufloesen (agentId|printer)
+        $target = $this->data['print_target'] ?? null;
+        $agentId = null;
+        $printer = null;
+        if ($target && str_contains($target, '|')) {
+            [$agentId, $printer] = explode('|', $target, 2);
+        }
 
-        // Leeres Event feuern — JS holt Daten per fetch vom Server
-        $this->dispatch('start-dymo-print');
+        $stationId = session('station_id')
+            ?? GasStation::where('tenant_id', $tenantId)->first()?->id;
+        $station = GasStation::find($stationId);
+
+        if (! $station) {
+            Notification::make()->title('Tankstelle nicht gefunden')->danger()->send();
+            return;
+        }
+
+        // In die Druck-Queue legen -> der Stations-Agent druckt
+        app(PrintQueueService::class)->enqueue($station, 'voucher_labels', $xmls, [
+            'reference' => $group,
+            'reference_type' => 'voucher',
+            'created_by' => auth()->user()->name,
+            'user_id' => auth()->id(),
+            'target_agent_id' => $agentId,
+            'printer_name' => $printer,
+        ]);
+
+        Notification::make()
+            ->title(count($xmls) . ' Etiketten an den Drucker gesendet')
+            ->body($printer ? ('Drucker: ' . $printer) : 'Standard-Drucker der Station')
+            ->success()
+            ->send();
     }
 
     /**

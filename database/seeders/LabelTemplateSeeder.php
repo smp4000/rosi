@@ -103,6 +103,22 @@ class LabelTemplateSeeder extends Seeder
                 ]),
                 'xml_template' => self::adresseBriefXml(),
             ],
+            [
+                'slug' => 'stationen-monat',
+                'category' => 'stationen',
+                'name' => 'Stationen / Monat',
+                'width' => 5.15,
+                'height' => 9.39,
+                'orientation' => 'Portrait',
+                'placeholders' => json_encode([
+                    ['key' => 'datum', 'label' => 'Datum (oben gross)', 'example' => '06/2026'],
+                    ['key' => 'tankstelle1', 'label' => 'Tankstelle 1', 'example' => 'ATS Welle'],
+                    ['key' => 'adresse1', 'label' => 'Adresse 1', 'example' => 'Schlitzer Str. 105'],
+                    ['key' => 'tankstelle2', 'label' => 'Tankstelle 2', 'example' => 'ATS Welle'],
+                    ['key' => 'adresse2', 'label' => 'Adresse 2', 'example' => 'Petersbergerstr. 101'],
+                ]),
+                'xml_template' => self::stationenMonatXml(),
+            ],
         ];
 
         $now = now();
@@ -245,6 +261,143 @@ XML;
         $objects = self::textObject('Text', 'ROSI Testdruck  {{datum}}', 12, true, 0.10, 0.20, 3.7, 0.7);
 
         return self::wrapLabel($objects, 'ROSI Testdruck', 'Portrait', 'Shipping', 3.98, 2.13);
+    }
+
+    /**
+     * Stationen-/Monats-Etikett (vom Kunden vorgegebenes DYMO-Layout V4):
+     * grosses Datum oben, Trennlinie, darunter zwei Tankstellen-Adressbloecke.
+     * Datum + Stationen sind Platzhalter.
+     */
+    private static function stationenMonatXml(): string
+    {
+        return <<<'XML'
+<?xml version="1.0" encoding="utf-8"?>
+<DesktopLabel Version="1">
+  <DYMOLabel Version="4">
+    <Description>ROSI Stationen/Monat</Description>
+    <Orientation>Portrait</Orientation>
+    <LabelName>Shipping S0722430</LabelName>
+    <InitialLength>0</InitialLength>
+    <BorderStyle>SolidLine</BorderStyle>
+    <DYMORect>
+      <DYMOPoint><X>0.043333367</X><Y>0.21333334</Y></DYMOPoint>
+      <Size><Width>2.0266666</Width><Height>3.6966667</Height></Size>
+    </DYMORect>
+    <BorderColor><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></BorderColor>
+    <BorderThickness>1</BorderThickness>
+    <Show_Border>False</Show_Border>
+    <HasFixedLength>False</HasFixedLength>
+    <FixedLengthValue>0</FixedLengthValue>
+    <DynamicLayoutManager>
+      <RotationBehavior>ClearObjects</RotationBehavior>
+      <LabelObjects>
+        <TextObject>
+          <Name>Datum</Name>
+          <Brushes>
+            <BackgroundBrush><SolidColorBrush><Color A="0" R="1" G="1" B="1"></Color></SolidColorBrush></BackgroundBrush>
+            <BorderBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></BorderBrush>
+            <StrokeBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></StrokeBrush>
+            <FillBrush><SolidColorBrush><Color A="0" R="0" G="0" B="0"></Color></SolidColorBrush></FillBrush>
+          </Brushes>
+          <Rotation>Rotation0</Rotation>
+          <OutlineThickness>1</OutlineThickness>
+          <IsOutlined>False</IsOutlined>
+          <BorderStyle>SolidLine</BorderStyle>
+          <Margin><DYMOThickness Left="0" Top="0" Right="0" Bottom="0" /></Margin>
+          <HorizontalAlignment>Center</HorizontalAlignment>
+          <VerticalAlignment>Middle</VerticalAlignment>
+          <FitMode>AlwaysFit</FitMode>
+          <IsVertical>False</IsVertical>
+          <FormattedText>
+            <FitMode>AlwaysFit</FitMode>
+            <HorizontalAlignment>Center</HorizontalAlignment>
+            <VerticalAlignment>Middle</VerticalAlignment>
+            <IsVertical>False</IsVertical>
+            <LineTextSpan>
+              <TextSpan>
+                <Text>{{datum}}</Text>
+                <FontInfo>
+                  <FontName>Arial</FontName>
+                  <FontSize>35</FontSize>
+                  <IsBold>False</IsBold>
+                  <IsItalic>False</IsItalic>
+                  <IsUnderline>False</IsUnderline>
+                  <FontBrush><SolidColorBrush><Color A="1" R="0.137" G="0.137" B="0.137"></Color></SolidColorBrush></FontBrush>
+                </FontInfo>
+              </TextSpan>
+            </LineTextSpan>
+          </FormattedText>
+          <ObjectLayout>
+            <DYMOPoint><X>0.2152778</X><Y>0.2133333</Y></DYMOPoint>
+            <Size><Width>1.763889</Width><Height>0.5833334</Height></Size>
+          </ObjectLayout>
+        </TextObject>
+        <LineObject>
+          <Name>Linie</Name>
+          <Brushes>
+            <BackgroundBrush><SolidColorBrush><Color A="0" R="1" G="1" B="1"></Color></SolidColorBrush></BackgroundBrush>
+            <BorderBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></BorderBrush>
+            <StrokeBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></StrokeBrush>
+            <FillBrush><SolidColorBrush><Color A="0" R="1" G="1" B="1"></Color></SolidColorBrush></FillBrush>
+          </Brushes>
+          <Rotation>Rotation0</Rotation>
+          <OutlineThickness>1</OutlineThickness>
+          <IsOutlined>False</IsOutlined>
+          <BorderStyle>SolidLine</BorderStyle>
+          <Margin><DYMOThickness Left="0" Top="0" Right="0" Bottom="0" /></Margin>
+          <StrokeWidth>1.5</StrokeWidth>
+          <DashPattern>SolidLine</DashPattern>
+          <LineType>Horizontal</LineType>
+          <ObjectLayout>
+            <DYMOPoint><X>0.2152778</X><Y>0.8041667</Y></DYMOPoint>
+            <Size><Width>1.763889</Width><Height>0.1</Height></Size>
+          </ObjectLayout>
+        </LineObject>
+        <TextObject>
+          <Name>Stationen</Name>
+          <Brushes>
+            <BackgroundBrush><SolidColorBrush><Color A="0" R="1" G="1" B="1"></Color></SolidColorBrush></BackgroundBrush>
+            <BorderBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></BorderBrush>
+            <StrokeBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></StrokeBrush>
+            <FillBrush><SolidColorBrush><Color A="0" R="0" G="0" B="0"></Color></SolidColorBrush></FillBrush>
+          </Brushes>
+          <Rotation>Rotation0</Rotation>
+          <OutlineThickness>1</OutlineThickness>
+          <IsOutlined>False</IsOutlined>
+          <BorderStyle>SolidLine</BorderStyle>
+          <Margin><DYMOThickness Left="0" Top="0" Right="0" Bottom="0" /></Margin>
+          <HorizontalAlignment>Center</HorizontalAlignment>
+          <VerticalAlignment>Middle</VerticalAlignment>
+          <FitMode>AlwaysFit</FitMode>
+          <IsVertical>False</IsVertical>
+          <FormattedText>
+            <FitMode>AlwaysFit</FitMode>
+            <HorizontalAlignment>Center</HorizontalAlignment>
+            <VerticalAlignment>Middle</VerticalAlignment>
+            <IsVertical>False</IsVertical>
+            <LineTextSpan><TextSpan><Text /><FontInfo><FontName>Arial</FontName><FontSize>16.3</FontSize><IsBold>False</IsBold><IsItalic>False</IsItalic><IsUnderline>False</IsUnderline><FontBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></FontBrush></FontInfo></TextSpan></LineTextSpan>
+            <LineTextSpan><TextSpan><Text>{{tankstelle1}}</Text><FontInfo><FontName>Arial</FontName><FontSize>16.3</FontSize><IsBold>False</IsBold><IsItalic>False</IsItalic><IsUnderline>False</IsUnderline><FontBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></FontBrush></FontInfo></TextSpan></LineTextSpan>
+            <LineTextSpan><TextSpan><Text>{{adresse1}}</Text><FontInfo><FontName>Arial</FontName><FontSize>16.3</FontSize><IsBold>False</IsBold><IsItalic>False</IsItalic><IsUnderline>False</IsUnderline><FontBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></FontBrush></FontInfo></TextSpan></LineTextSpan>
+            <LineTextSpan><TextSpan><Text /><FontInfo><FontName>Arial</FontName><FontSize>16.3</FontSize><IsBold>False</IsBold><IsItalic>False</IsItalic><IsUnderline>False</IsUnderline><FontBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></FontBrush></FontInfo></TextSpan></LineTextSpan>
+            <LineTextSpan><TextSpan><Text>{{tankstelle2}}</Text><FontInfo><FontName>Arial</FontName><FontSize>16.3</FontSize><IsBold>False</IsBold><IsItalic>False</IsItalic><IsUnderline>False</IsUnderline><FontBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></FontBrush></FontInfo></TextSpan></LineTextSpan>
+            <LineTextSpan><TextSpan><Text>{{adresse2}}</Text><FontInfo><FontName>Arial</FontName><FontSize>16.3</FontSize><IsBold>False</IsBold><IsItalic>False</IsItalic><IsUnderline>False</IsUnderline><FontBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></FontBrush></FontInfo></TextSpan></LineTextSpan>
+            <LineTextSpan><TextSpan><Text /><FontInfo><FontName>Arial</FontName><FontSize>16.3</FontSize><IsBold>False</IsBold><IsItalic>False</IsItalic><IsUnderline>False</IsUnderline><FontBrush><SolidColorBrush><Color A="1" R="0" G="0" B="0"></Color></SolidColorBrush></FontBrush></FontInfo></TextSpan></LineTextSpan>
+          </FormattedText>
+          <ObjectLayout>
+            <DYMOPoint><X>0.04333337</X><Y>1.002086</Y></DYMOPoint>
+            <Size><Width>2.026667</Width><Height>2.795146</Height></Size>
+          </ObjectLayout>
+        </TextObject>
+      </LabelObjects>
+    </DynamicLayoutManager>
+  </DYMOLabel>
+  <LabelApplication>Blank</LabelApplication>
+  <DataTable>
+    <Columns></Columns>
+    <Rows></Rows>
+  </DataTable>
+</DesktopLabel>
+XML;
     }
 
     private static function tresorXml(): string

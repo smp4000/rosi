@@ -289,7 +289,16 @@ public class TrayApplicationContext : ApplicationContext
                     }
 
                     SetStatus($"Druckt Testseite: {target}…", IconFactory.Printing);
-                    WindowsPrinting.PrintTestPage(target!, BuildTestLines(target!));
+                    if (TscPrinting.IsTsc(target))
+                    {
+                        // TSC-Thermodrucker: TSPL-Etikett (Datum/Uhrzeit), Groesse wie DYMO.
+                        TscPrinting.PrintTestLabel(target!);
+                    }
+                    else
+                    {
+                        // Sonstige (Brother): Testseite ueber den Windows-Spooler.
+                        WindowsPrinting.PrintTestPage(target!, BuildTestLines(target!));
+                    }
                     await _api.AckAsync(job.Id, true, null);
                     SetStatus($"Testseite gedruckt: {target}", IconFactory.Ready);
                     continue;

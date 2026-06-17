@@ -82,10 +82,10 @@ class AppVersionResource extends Resource
                             . (static::nextVersionCode() - 1) . '). Wird beim Speichern automatisch aus der APK uebernommen.'
                         : 'Muss dem versionCode der APK entsprechen. Wird beim Speichern automatisch aus der APK uebernommen.')
                     ->numeric()
-                    ->default(fn () => static::nextVersionCode())
-                    ->minValue(fn (string $operation, Get $get) => ($operation === 'create' && $get('platform') === 'app')
-                        ? static::nextVersionCode()
-                        : 1)
+                    ->default(fn (Get $get) => $get('platform') === 'print-agent' ? 1 : static::nextVersionCode())
+                    // Mindestwert 1: print-agent zaehlt eigenstaendig (1,2,3…), bei der
+                    // App wird der echte version_code beim Speichern aus der APK uebernommen.
+                    ->minValue(1)
                     ->helperText(fn (Get $get) => $get('platform') === 'print-agent'
                         ? 'Fortlaufende Nummer des Agents (1, 2, 3 …). Muss hoeher sein als die installierte.'
                         : 'Wird beim Speichern automatisch aus der APK uebernommen.')

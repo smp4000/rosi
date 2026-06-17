@@ -361,11 +361,9 @@ class VoucherController extends ApiController
      */
     private function voucherLabelData(Voucher $voucher, bool $isTsc = false): array
     {
-        // TSC-Thermodrucker kennen das €-Zeichen nicht -> "EUR".
-        $betrag = number_format($voucher->amount, 2, ',', '.') . ($isTsc ? ' EUR' : ' €');
-
+        // € geht auch auf dem TSC (Agent mappt es ueber CODEPAGE 1252 auf 0x80).
         return [
-            'betrag' => $betrag,
+            'betrag' => number_format($voucher->amount, 2, ',', '.') . ' €',
             'betrag_worte' => Voucher::amountToWords($voucher->amount),
             'datum' => $voucher->issued_at->format('d.m.Y'),
             'gueltig_bis' => $voucher->valid_until->format('d.m.Y'),

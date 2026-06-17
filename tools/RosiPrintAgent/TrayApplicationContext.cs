@@ -308,8 +308,10 @@ public class TrayApplicationContext : ApplicationContext
                             {
                                 sb.Append(label.Xml);
                             }
+                            // € (U+20AC) -> Byte 0x80, damit es ueber CODEPAGE 1252 als € kommt.
+                            var tspl = sb.ToString().Replace(((char)0x20AC).ToString(), ((char)0x80).ToString());
                             RawPrinterHelper.SendBytesToPrinter(
-                                target!, System.Text.Encoding.Latin1.GetBytes(sb.ToString()));
+                                target!, System.Text.Encoding.Latin1.GetBytes(tspl));
                         }
                         await _api.AckAsync(job.Id, true, null);
                         SetStatus($"Gedruckt: {job.Reference ?? job.JobType}", IconFactory.Ready);

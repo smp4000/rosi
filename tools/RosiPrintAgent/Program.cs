@@ -5,10 +5,10 @@ namespace RosiPrintAgent;
 internal static class Program
 {
     /// <summary>Anzeige-Version.</summary>
-    public const string Version = "1.1.0";
+    public const string Version = "1.1.1";
 
     /// <summary>Technische Versionsnummer fuer das Auto-Update (immer hochzaehlen).</summary>
-    public const int VersionCode = 2;
+    public const int VersionCode = 3;
 
     /// <summary>Fest eingebaute Server-URL (ueberschreibbar via config/enroll.json).</summary>
     public const string DefaultServerUrl = "https://rosi.aral-welle.com";

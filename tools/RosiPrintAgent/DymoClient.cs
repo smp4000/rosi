@@ -72,18 +72,24 @@ public class DymoClient
     }
 
     /// <summary>
-    /// Namen der nutzbaren Drucker fuer die Meldung ans Dashboard.
-    /// Bevorzugt VERBUNDENE Drucker (sonst meldet DYMO denselben Drucker mehrfach
-    /// als "Name", "Name on HOST", "HOST"). Nur wenn keiner verbunden ist, werden
-    /// alle gemeldet, damit ueberhaupt etwas auswaehlbar ist.
+    /// Namen der nutzbaren DYMO-Drucker fuer die Meldung ans Dashboard.
+    /// Meldet ALLE lokalen DYMO-Drucker (auch Standby/nicht verbunden, z.B. die
+    /// Wireless im Ruhezustand) und filtert nur die Netzwerk-Alias-Duplikate
+    /// raus, die DYMO zusaetzlich liefert ("Name on HOST").
     /// </summary>
     public async Task<List<string>> GetPrinterNamesAsync()
     {
         var printers = await GetPrintersAsync();
-        var connected = printers.Where(p => p.Connected).Select(p => p.Name).Distinct().ToList();
-        return connected.Count > 0
-            ? connected
-            : printers.Select(p => p.Name).Distinct().ToList();
+
+        var names = printers.Select(p => p.Name)
+            .Where(n => !n.Contains(" on ", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        // Falls dadurch nichts uebrig bleibt: alle (deduped) melden.
+        return names.Count > 0
+            ? names
+            : printers.Select(p => p.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     /// <summary>

@@ -13,6 +13,28 @@ public class HeartbeatData
     public string? Agent { get; set; }
     public string? Station { get; set; }
     public int Pending { get; set; }
+    public UpdateInfo? Update { get; set; }
+}
+
+/// <summary>Neueste verfuegbare Agent-Version (vom Heartbeat geliefert).</summary>
+public class UpdateInfo
+{
+    public string? Version { get; set; }
+    public int VersionCode { get; set; }
+    public bool Mandatory { get; set; }
+    public List<string> Changes { get; set; } = new();
+    public string? DownloadUrl { get; set; }
+}
+
+/// <summary>Antwort von enroll / claim-token: enthaelt das Agent-Token.</summary>
+public class ConnectData
+{
+    public string? Status { get; set; }
+    public string? Token { get; set; }
+    public string? AgentId { get; set; }
+    public string? AgentName { get; set; }
+    public string? Station { get; set; }
+    public string? ClaimSecret { get; set; }
 }
 
 public class ClaimData

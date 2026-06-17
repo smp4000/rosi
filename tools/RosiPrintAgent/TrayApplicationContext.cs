@@ -3,9 +3,10 @@ using System.Windows.Forms;
 namespace RosiPrintAgent;
 
 /// <summary>
-/// Hintergrund-App mit Tray-Icon. Pollt im Sekundentakt die Druck-Queue der
-/// Station, druckt die Jobs lokal am DYMO und quittiert sie. Heartbeat (mit
-/// Druckerliste) alle 30 s.
+/// Hintergrund-App mit Tray-Icon. Verbindet sich vollautomatisch mit dem Web
+/// (enroll.json oder Self-Register + Freigabe), pollt die Druck-Queue, druckt
+/// lokal am DYMO und quittiert. Heartbeat alle 30 s liefert auch Update-Infos
+/// fuer das stille Auto-Update.
 /// </summary>
 public class TrayApplicationContext : ApplicationContext
 {
@@ -23,8 +24,10 @@ public class TrayApplicationContext : ApplicationContext
 
     private AppConfig _config;
     private RosiApiClient? _api;
+    private AgentConnector? _connector;
     private bool _busy;
     private int _tick;
+    private int _connectTick;
     private string _status = "Start…";
 
     public TrayApplicationContext()
@@ -40,10 +43,14 @@ public class TrayApplicationContext : ApplicationContext
             _autostartItem.Checked = on;
         };
 
+        var versionItem = new ToolStripMenuItem($"ROSI Print {Program.Version}") { Enabled = false };
+
         var menu = new ContextMenuStrip();
+        menu.Items.Add(versionItem);
         menu.Items.Add(_statusItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Jetzt pruefen", null, async (_, _) => await TickOnce());
+        menu.Items.Add("Nach Updates suchen", null, async (_, _) => await CheckUpdateNow());
         menu.Items.Add("Einstellungen…", null, (_, _) => OpenSettings());
         menu.Items.Add(_autostartItem);
         menu.Items.Add(new ToolStripSeparator());
@@ -60,26 +67,23 @@ public class TrayApplicationContext : ApplicationContext
         _tray.DoubleClick += (_, _) => OpenSettings();
 
         ApplyConfig();
+        SetStatus(_config.HasToken ? "Verbinde…" : "Verbinde automatisch…", IconFactory.Idle);
 
         _timer = new System.Windows.Forms.Timer { Interval = 1000 };
         _timer.Tick += async (_, _) => await TickOnce();
         _timer.Start();
-
-        if (!_config.IsComplete)
-        {
-            SetStatus("Nicht konfiguriert — Einstellungen oeffnen", IconFactory.Error);
-            OpenSettings();
-        }
     }
 
     private void ApplyConfig()
     {
-        _api = _config.IsComplete ? new RosiApiClient(_config.ServerUrl!, _config.Token!) : null;
+        var url = _config.EffectiveServerUrl;
+        _connector = new AgentConnector(url);
+        _api = _config.HasToken ? new RosiApiClient(url, _config.Token!) : null;
     }
 
     private async Task TickOnce()
     {
-        if (_busy || _api == null)
+        if (_busy)
         {
             return;
         }
@@ -87,13 +91,25 @@ public class TrayApplicationContext : ApplicationContext
         _busy = true;
         try
         {
+            // Noch kein Token? -> automatisch verbinden.
+            if (_api == null)
+            {
+                await TryConnectOnce();
+                return;
+            }
+
             _tick++;
 
-            // Heartbeat (mit Druckerliste) alle 30 Ticks
+            // Heartbeat (mit Druckerliste) alle 30 Ticks -> auch Update-Check.
             if (_tick % 30 == 1)
             {
                 var printers = await _dymo.GetPrinterNamesAsync();
-                await _api.HeartbeatAsync(printers);
+                var hb = await _api.HeartbeatAsync(printers);
+                if (hb?.Update != null && await UpdateService.ApplyIfNewerAsync(hb.Update))
+                {
+                    _tray.ShowBalloonTip(3000, "ROSI Print", "Update wird installiert…", ToolTipIcon.Info);
+                    return; // App beendet sich gleich (Neustart via Batch)
+                }
             }
 
             await PollAndPrint();
@@ -105,6 +121,108 @@ public class TrayApplicationContext : ApplicationContext
         finally
         {
             _busy = false;
+        }
+    }
+
+    /// <summary>Automatischer Verbindungsaufbau (alle ~5 s), solange kein Token da ist.</summary>
+    private async Task TryConnectOnce()
+    {
+        _connectTick++;
+        if (_connectTick % 5 != 1 || _connector == null)
+        {
+            return;
+        }
+
+        var installId = _config.InstallId ?? "";
+        var hostname = Environment.MachineName;
+        List<string> printers;
+        try { printers = await _dymo.GetPrinterNamesAsync(); }
+        catch { printers = new List<string>(); }
+
+        try
+        {
+            // 1) Stations-Installer: enroll.json mit Token -> sofort verbinden.
+            var enroll = EnrollFile.Load();
+            if (!string.IsNullOrWhiteSpace(enroll?.EnrollToken))
+            {
+                var data = await _connector.EnrollAsync(enroll!.EnrollToken!, installId, hostname, printers);
+                if (!string.IsNullOrWhiteSpace(data?.Token))
+                {
+                    SaveToken(data!.Token!);
+                    SetStatus($"Verbunden mit {data.Station}", IconFactory.Ready);
+                    return;
+                }
+            }
+
+            // 2) Self-Register: nach Freigabe das Token abholen.
+            if (!string.IsNullOrWhiteSpace(_config.ClaimSecret))
+            {
+                var data = await _connector.ClaimTokenAsync(installId, _config.ClaimSecret!);
+                if (!string.IsNullOrWhiteSpace(data?.Token))
+                {
+                    SaveToken(data!.Token!);
+                    _config.ClaimSecret = null;
+                    _config.Save();
+                    SetStatus("Freigegeben — verbunden", IconFactory.Ready);
+                    return;
+                }
+
+                SetStatus("Wartet auf Freigabe im Dashboard…", IconFactory.Warning);
+                return;
+            }
+
+            // 3) Erstmals registrieren -> wartet danach auf Freigabe.
+            var reg = await _connector.RegisterAsync(installId, hostname, printers);
+            if (!string.IsNullOrWhiteSpace(reg?.ClaimSecret))
+            {
+                _config.ClaimSecret = reg!.ClaimSecret;
+                _config.Save();
+            }
+            SetStatus("Wartet auf Freigabe im Dashboard…", IconFactory.Warning);
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Verbinde…: {Short(ex.Message)}", IconFactory.Idle);
+        }
+    }
+
+    private void SaveToken(string token)
+    {
+        _config.Token = token;
+        if (string.IsNullOrWhiteSpace(_config.ServerUrl))
+        {
+            _config.ServerUrl = _config.EffectiveServerUrl;
+        }
+        _config.Save();
+        ApplyConfig();
+        _tick = 0; // erzwingt sofort Heartbeat
+    }
+
+    private async Task CheckUpdateNow()
+    {
+        if (_api == null)
+        {
+            _tray.ShowBalloonTip(3000, "ROSI Print", "Noch nicht verbunden.", ToolTipIcon.Warning);
+            return;
+        }
+
+        try
+        {
+            var printers = await _dymo.GetPrinterNamesAsync();
+            var hb = await _api.HeartbeatAsync(printers);
+            if (hb?.Update != null && hb.Update.VersionCode > Program.VersionCode)
+            {
+                _tray.ShowBalloonTip(3000, "ROSI Print", $"Update {hb.Update.Version} wird installiert…", ToolTipIcon.Info);
+                await UpdateService.ApplyIfNewerAsync(hb.Update);
+            }
+            else
+            {
+                _tray.ShowBalloonTip(3000, "ROSI Print", "Aktuell – kein Update verfuegbar.", ToolTipIcon.Info);
+            }
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Update-Check: {Short(ex.Message)}", IconFactory.Error);
         }
     }
 

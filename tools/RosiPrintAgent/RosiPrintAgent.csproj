@@ -8,7 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>RosiPrintAgent</AssemblyName>
     <RootNamespace>RosiPrintAgent</RootNamespace>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <Product>ROSI Print Agent</Product>
     <Company>ROSI</Company>
 

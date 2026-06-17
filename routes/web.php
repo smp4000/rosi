@@ -101,15 +101,30 @@ $ErrorActionPreference = 'Stop'
 try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     Add-Type -AssemblyName System.Windows.Forms
+    Add-Type -AssemblyName Microsoft.VisualBasic
     if ('{{EXE_URL}}' -eq '') {
         [System.Windows.Forms.MessageBox]::Show('Es wurde noch keine Agent-Version veroeffentlicht. Bitte zuerst im Admin hochladen.', 'ROSI Print') | Out-Null
         return
     }
     $default = Join-Path $env:LOCALAPPDATA 'RosiPrintAgent'
-    $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
-    $dlg.Description = 'Installationsordner fuer ROSI Print waehlen (Abbrechen = Standard)'
-    $dlg.SelectedPath = $default
-    if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { $path = $dlg.SelectedPath } else { $path = $default }
+    $path = $null
+    try {
+        # Owner-Fenster TopMost, damit der Ordner-Dialog VOR der Konsole erscheint.
+        $owner = New-Object System.Windows.Forms.Form
+        $owner.TopMost = $true; $owner.ShowInTaskbar = $false; $owner.Opacity = 0
+        $owner.Show(); $owner.Activate()
+        $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
+        $dlg.Description = 'Installationsordner fuer ROSI Print waehlen'
+        $dlg.ShowNewFolderButton = $true
+        $dlg.SelectedPath = $default
+        if ($dlg.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { $path = $dlg.SelectedPath }
+        $owner.Close()
+    } catch { }
+    # Fallback / Bestaetigung: Pfad eingeben (vorbelegt). Leer = Standard.
+    if ([string]::IsNullOrWhiteSpace($path)) {
+        $path = [Microsoft.VisualBasic.Interaction]::InputBox('Installationsordner eingeben oder bestaetigen:', 'ROSI Print Setup', $default)
+        if ([string]::IsNullOrWhiteSpace($path)) { $path = $default }
+    }
     New-Item -ItemType Directory -Force -Path $path | Out-Null
 
     Get-Process 'RosiPrintAgent' -ErrorAction SilentlyContinue | Stop-Process -Force

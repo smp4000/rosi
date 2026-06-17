@@ -59,6 +59,44 @@ class PrintController extends ApiController
     }
 
     /**
+     * Testdruck ueber die Druck-Queue an einen bestimmten Agenten/Drucker.
+     * POST /api/v1/print/agent-test  (device_token + target_agent_id? + printer_name?)
+     */
+    public function queueTest(Request $request)
+    {
+        $validated = $request->validate([
+            'device_token' => 'required|string',
+            'target_agent_id' => 'nullable|uuid',
+            'printer_name' => 'nullable|string|max:255',
+        ]);
+
+        $device = Device::findByPlainToken($validated['device_token']);
+        $station = $device ? \App\Models\GasStation::find($device->station_id) : null;
+        if (! $station) {
+            return $this->error('Tankstelle nicht gefunden.', 404);
+        }
+
+        try {
+            app(\App\Services\PrintQueueService::class)->enqueueFromTemplate(
+                $station,
+                'testdruck',
+                [['datum' => now()->format('d.m.Y H:i'), '_number' => 1]],
+                [
+                    'reference' => 'TESTDRUCK',
+                    'reference_type' => 'test',
+                    'created_by' => 'App-Einstellungen',
+                    'target_agent_id' => $validated['target_agent_id'] ?? null,
+                    'printer_name' => $validated['printer_name'] ?? null,
+                ],
+            );
+        } catch (\Throwable $e) {
+            return $this->error('Testdruck fehlgeschlagen: ' . $e->getMessage(), 422);
+        }
+
+        return $this->success(null, 'Testdruck an den Drucker gesendet.');
+    }
+
+    /**
      * POST /api/v1/print/test
      * Testdruck — nutzt das "testdruck" Template aus der DB.
      */

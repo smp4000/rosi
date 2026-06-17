@@ -61,6 +61,23 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
 
+    // --- ROSI-Print: enroll.json der Station (fuer Stations-Installer) ---
+    // Liefert { server_url, enroll_token } als Datei (attachment). Der Browser
+    // speichert sie per "Speichern unter" in den Ordner der EXE.
+    Route::get('/print-agent-enroll/{station}', function (\App\Models\GasStation $station) {
+        abort_unless($station->tenant_id === auth()->user()->tenant_id, 403);
+
+        $json = json_encode([
+            'server_url' => rtrim(config('app.url'), '/'),
+            'enroll_token' => $station->ensureEnrollmentToken(),
+        ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+
+        return response($json, 200, [
+            'Content-Type' => 'application/json',
+            'Content-Disposition' => 'attachment; filename="enroll.json"',
+        ]);
+    })->name('print-agent.enroll');
+
     // --- DYMO Druck-Labels aus Session holen (fuer Browser-JS) ---
     Route::get('/dymo/print-labels', function () {
         $labels = session()->pull('dymo_print_labels', []);

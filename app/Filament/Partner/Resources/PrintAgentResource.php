@@ -125,37 +125,13 @@ class PrintAgentResource extends Resource
                     ->label('Stations-Installer')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('success')
-                    ->modalHeading('ROSI Print automatisch verbinden')
-                    ->modalDescription('Station waehlen — du bekommst den Enrollment-Token + die enroll.json. '
-                        . 'Lege die enroll.json neben RosiPrintAgent.exe; der Agent verbindet sich beim Start von selbst.')
-                    ->form([
-                        Select::make('station_id')
-                            ->label('Station')
-                            ->options(fn () => GasStation::where('tenant_id', session('tenant_id'))->pluck('name', 'id'))
-                            ->searchable()
-                            ->required(),
-                    ])
-                    ->action(function (array $data) {
-                        $station = GasStation::where('tenant_id', session('tenant_id'))->find($data['station_id']);
-                        if (! $station) {
-                            Notification::make()->danger()->title('Station nicht gefunden')->send();
-                            return;
-                        }
-
-                        $token = static::ensureEnrollToken($station);
-                        $serverUrl = rtrim(config('app.url'), '/');
-                        $json = json_encode(
-                            ['server_url' => $serverUrl, 'enroll_token' => $token],
-                            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES,
-                        );
-
-                        Notification::make()
-                            ->success()
-                            ->title('enroll.json fuer ' . $station->name)
-                            ->body($json)
-                            ->persistent()
-                            ->send();
-                    }),
+                    ->modalHeading('ROSI Print verbinden')
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Schliessen')
+                    ->modalContent(fn () => view('filament.partner.print-agent-installer', [
+                        'stations' => GasStation::where('tenant_id', session('tenant_id'))
+                            ->orderBy('name')->pluck('name', 'id'),
+                    ])),
 
                 Action::make('createAgent')
                     ->label('Neuer Agent')
@@ -337,17 +313,6 @@ class PrintAgentResource extends Resource
             ->unique()
             ->mapWithKeys(fn ($n) => [$n => $n])
             ->all();
-    }
-
-    /** Enrollment-Token der Station sicherstellen (erzeugen, falls nicht vorhanden). */
-    protected static function ensureEnrollToken(GasStation $station): string
-    {
-        if (empty($station->enrollment_token)) {
-            $station->enrollment_token = 'enr_' . \Illuminate\Support\Str::random(44);
-            $station->save();
-        }
-
-        return $station->enrollment_token;
     }
 
     /** Token einmalig als persistente Notification anzeigen (kopierbar). */

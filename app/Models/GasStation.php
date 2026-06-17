@@ -132,6 +132,20 @@ class GasStation extends Model
     // --- Beziehungen ---
 
     /**
+     * Enrollment-Token fuer den ROSI-Print-Stations-Installer sicherstellen
+     * (einmalig erzeugen) und zurueckgeben.
+     */
+    public function ensureEnrollmentToken(): string
+    {
+        if (empty($this->enrollment_token)) {
+            $this->enrollment_token = 'enr_' . \Illuminate\Support\Str::random(44);
+            $this->save();
+        }
+
+        return $this->enrollment_token;
+    }
+
+    /**
      * Marke der Tankstelle (Aral, Shell, etc.).
      */
     public function brand(): BelongsTo

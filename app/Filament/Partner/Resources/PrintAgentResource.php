@@ -304,11 +304,18 @@ class PrintAgentResource extends Resource
             ->poll('30s');
     }
 
-    /** Drucker-Optionen: vom Agent gemeldete + bereits zugeordnete Namen. */
+    /**
+     * Drucker-Optionen: nur TATSAECHLICH gemeldete Drucker der Station
+     * (von allen aktiven Agenten). Keine Alt-Eintraege aus printer_map mehr,
+     * sonst tauchen laengst entfernte Drucker als "Geister" auf.
+     */
     protected static function printerOptions(PrintAgent $r): array
     {
-        return collect($r->printers ?? [])
-            ->merge(array_values($r->station?->printer_map ?? []))
+        return PrintAgent::where('station_id', $r->station_id)
+            ->where('is_active', true)
+            ->get()
+            ->flatMap(fn (PrintAgent $a) => $a->printers ?? [])
+            ->merge($r->printers ?? [])
             ->filter()
             ->unique()
             ->mapWithKeys(fn ($n) => [$n => $n])

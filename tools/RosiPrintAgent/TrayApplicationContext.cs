@@ -297,15 +297,19 @@ public class TrayApplicationContext : ApplicationContext
                         }
                         else
                         {
-                            // TSC ist ein schneller Thermodrucker -> keine DYMO-Bremse.
-                            for (int i = 0; i < total; i++)
+                            // ALLE Etiketten in EINEM Druckjob buendeln — viele einzelne
+                            // Roh-Jobs ueberfordern den TSC-Spooler (einzelne schlagen fehl).
+                            SetStatus(
+                                total > 1 ? $"Druckt {total} Etiketten: {job.Reference}…" : $"Druckt: {job.Reference}…",
+                                IconFactory.Printing);
+
+                            var sb = new System.Text.StringBuilder();
+                            foreach (var label in job.Labels)
                             {
-                                SetStatus(
-                                    total > 1 ? $"Druckt {i + 1}/{total}: {job.Reference}…" : $"Druckt: {job.Reference}…",
-                                    IconFactory.Printing);
-                                RawPrinterHelper.SendBytesToPrinter(
-                                    target!, System.Text.Encoding.Latin1.GetBytes(job.Labels[i].Xml));
+                                sb.Append(label.Xml);
                             }
+                            RawPrinterHelper.SendBytesToPrinter(
+                                target!, System.Text.Encoding.Latin1.GetBytes(sb.ToString()));
                         }
                         await _api.AckAsync(job.Id, true, null);
                         SetStatus($"Gedruckt: {job.Reference ?? job.JobType}", IconFactory.Ready);

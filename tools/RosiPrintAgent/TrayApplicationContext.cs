@@ -50,6 +50,7 @@ public class TrayApplicationContext : ApplicationContext
         menu.Items.Add(_statusItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Jetzt pruefen", null, async (_, _) => await TickOnce());
+        menu.Items.Add("Neu verbinden", null, (_, _) => Reconnect());
         menu.Items.Add("Nach Updates suchen", null, async (_, _) => await CheckUpdateNow());
         menu.Items.Add("Einstellungen…", null, (_, _) => OpenSettings());
         menu.Items.Add(_autostartItem);
@@ -194,6 +195,22 @@ public class TrayApplicationContext : ApplicationContext
         {
             SetStatus($"Verbinde…: {Short(ex.Message)}", IconFactory.Idle);
         }
+    }
+
+    /// <summary>
+    /// Token + Anmeldedaten verwerfen und sofort neu verbinden (liest die
+    /// enroll.json frisch). Loest haengende 401-Zustaende ohne Datei-Loeschen.
+    /// </summary>
+    private void Reconnect()
+    {
+        _config.Token = null;
+        _config.ClaimSecret = null;
+        _config.Save();
+        ApplyConfig();      // _api wird null -> naechster Tick verbindet neu
+        _connectTick = 0;
+        _tick = 0;
+        SetStatus("Verbinde neu…", IconFactory.Idle);
+        _tray.ShowBalloonTip(2000, "ROSI Print", "Token verworfen — verbinde neu…", ToolTipIcon.Info);
     }
 
     private void SaveToken(string token)

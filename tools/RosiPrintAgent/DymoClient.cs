@@ -114,10 +114,19 @@ public class DymoClient
         {
             var requested = printers.FirstOrDefault(p =>
                 p.Name.Equals(printerName, StringComparison.OrdinalIgnoreCase));
+
+            // Kein DYMO-Drucker mit diesem Namen (z.B. Brother gewaehlt)? -> klarer
+            // Fehler statt still auf einem DYMO zu drucken. DYMO-Etiketten koennen
+            // technisch nur auf DYMO-Druckern ausgegeben werden.
+            if (requested is null)
+            {
+                throw new Exception($"'{printerName}' ist kein DYMO-Drucker — DYMO-Etiketten koennen nur auf DYMO-Druckern gedruckt werden.");
+            }
+
             // Gewuenschter Drucker verbunden? -> nehmen. Sonst verbundenen Ersatz.
-            printer = (requested is { Connected: true })
+            printer = requested.Connected
                 ? requested.Name
-                : (connected.FirstOrDefault()?.Name ?? printerName);
+                : (connected.FirstOrDefault()?.Name ?? requested.Name);
         }
         else
         {

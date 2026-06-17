@@ -103,7 +103,7 @@ public class TrayApplicationContext : ApplicationContext
             // Heartbeat (mit Druckerliste) alle 30 Ticks -> auch Update-Check.
             if (_tick % 30 == 1)
             {
-                var printers = await _dymo.GetPrinterNamesAsync();
+                var printers = await PrinterInventory.AllAsync(_dymo);
                 var hb = await _api.HeartbeatAsync(printers);
                 if (hb?.Update != null && await UpdateService.ApplyIfNewerAsync(hb.Update))
                 {
@@ -146,7 +146,7 @@ public class TrayApplicationContext : ApplicationContext
         var installId = _config.InstallId ?? "";
         var hostname = Environment.MachineName;
         List<string> printers;
-        try { printers = await _dymo.GetPrinterNamesAsync(); }
+        try { printers = await PrinterInventory.AllAsync(_dymo); }
         catch { printers = new List<string>(); }
 
         try
@@ -218,7 +218,7 @@ public class TrayApplicationContext : ApplicationContext
 
         try
         {
-            var printers = await _dymo.GetPrinterNamesAsync();
+            var printers = await PrinterInventory.AllAsync(_dymo);
             var hb = await _api.HeartbeatAsync(printers);
             if (hb?.Update != null && hb.Update.VersionCode > Program.VersionCode)
             {

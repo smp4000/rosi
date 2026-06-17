@@ -29,7 +29,9 @@ public class AppConfig
         !string.IsNullOrWhiteSpace(ServerUrl) ? ServerUrl!
             : (EnrollFile.Load()?.ServerUrl ?? Program.DefaultServerUrl);
 
-    private static string Dir =>
+    /// <summary>Config-Ordner: %APPDATA%\RosiPrintAgent (Roaming). Hier liegt config.json
+    /// und alternativ die enroll.json (fester, vorhersehbarer Ablageort).</summary>
+    public static string Dir =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "RosiPrintAgent");
 
     private static string FilePath => Path.Combine(Dir, "config.json");
@@ -67,8 +69,10 @@ public class AppConfig
 }
 
 /// <summary>
-/// Optionale enroll.json NEBEN der EXE (vom Stations-Installer mitgeliefert):
-/// { "server_url": "...", "enroll_token": "..." }.
+/// Optionale enroll.json: { "server_url": "...", "enroll_token": "..." }.
+/// Wird an mehreren Orten gesucht, damit die genaue Ablage egal ist:
+///   1) neben der EXE,  2) Config-Ordner (%APPDATA%\RosiPrintAgent),
+///   3) Downloads-Ordner.
 /// </summary>
 public class EnrollFile
 {
@@ -77,19 +81,37 @@ public class EnrollFile
 
     public static EnrollFile? Load()
     {
-        try
+        foreach (var dir in SearchDirs())
         {
-            var path = Path.Combine(AppContext.BaseDirectory, "enroll.json");
-            if (File.Exists(path))
+            try
             {
-                return JsonSerializer.Deserialize<EnrollFile>(File.ReadAllText(path));
+                var path = Path.Combine(dir, "enroll.json");
+                if (File.Exists(path))
+                {
+                    var f = JsonSerializer.Deserialize<EnrollFile>(File.ReadAllText(path));
+                    if (f != null && !string.IsNullOrWhiteSpace(f.EnrollToken))
+                    {
+                        return f;
+                    }
+                }
             }
-        }
-        catch
-        {
-            // ignorieren
+            catch
+            {
+                // naechsten Ort versuchen
+            }
         }
 
         return null;
+    }
+
+    private static IEnumerable<string> SearchDirs()
+    {
+        yield return AppContext.BaseDirectory;                 // neben der EXE
+        yield return AppConfig.Dir;                            // %APPDATA%\RosiPrintAgent
+        var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (!string.IsNullOrEmpty(profile))
+        {
+            yield return Path.Combine(profile, "Downloads");   // Downloads-Ordner
+        }
     }
 }

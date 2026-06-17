@@ -133,6 +133,17 @@ Route::prefix('v1')->group(function () {
     Route::post('/print/agent/jobs/{id}/ack', [PrintAgentController::class, 'ack'])
         ->name('api.v1.print.agent.ack');
 
+    // Auto-Connect: Stations-Installer (enroll) + Self-Register (register/claim)
+    Route::post('/print/agent/enroll', [PrintAgentController::class, 'enroll'])
+        ->name('api.v1.print.agent.enroll');
+    Route::post('/print/agent/register', [PrintAgentController::class, 'register'])
+        ->name('api.v1.print.agent.register');
+    Route::post('/print/agent/claim-token', [PrintAgentController::class, 'claimToken'])
+        ->name('api.v1.print.agent.claim-token');
+    // Stilles Auto-Update: EXE-Download der neuesten Agent-Version
+    Route::get('/print/agent/version/download/{version}', [AppVersionController::class, 'agentDownload'])
+        ->name('api.v1.print.agent.version.download');
+
     // Scan-Code fuer NFC-Tag-Beschriftung
     Route::get('/auth/employee-scan-code/{id}', [AuthController::class, 'employeeScanCode'])
         ->name('api.v1.auth.employee-scan-code');

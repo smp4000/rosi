@@ -19,14 +19,22 @@ class PrintAgent extends Model
     protected $fillable = [
         'tenant_id',
         'station_id',
+        'install_id',
         'name',
+        'hostname',
         'token_hash',
         'printers',
         'app_version',
         'last_seen_at',
         'is_active',
         'is_default',
+        'status',
+        'claim_secret',
     ];
+
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_ACTIVE = 'active';
+    public const STATUS_BLOCKED = 'blocked';
 
     protected function casts(): array
     {
@@ -38,7 +46,13 @@ class PrintAgent extends Model
         ];
     }
 
-    protected $hidden = ['token_hash'];
+    protected $hidden = ['token_hash', 'claim_secret'];
+
+    /** Agent anhand der Maschinen-GUID finden (ein PC = ein Agent). */
+    public static function findByInstallId(?string $installId): ?self
+    {
+        return empty($installId) ? null : static::where('install_id', $installId)->first();
+    }
 
     public function station(): BelongsTo
     {

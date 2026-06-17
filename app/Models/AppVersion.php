@@ -52,6 +52,12 @@ class AppVersion extends Model
             if ($v->apk_path && $disk->exists($v->apk_path)) {
                 $v->apk_size = $disk->size($v->apk_path);
 
+                // Nur echte APKs parsen; Print-Agent-EXE behaelt den manuell
+                // gesetzten version_code (ApkParser wuerde auf .exe fehlschlagen).
+                if (! str_ends_with(strtolower($v->apk_path), '.apk')) {
+                    return;
+                }
+
                 $parsed = \App\Support\ApkParser::readVersion($disk->path($v->apk_path));
                 if ($parsed['versionCode'] !== null) {
                     $v->version_code = $parsed['versionCode'];

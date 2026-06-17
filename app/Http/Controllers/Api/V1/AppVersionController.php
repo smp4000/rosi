@@ -113,4 +113,29 @@ class AppVersionController extends ApiController
             ['Content-Type' => 'application/vnd.android.package-archive'],
         );
     }
+
+    /**
+     * Download der ROSI-Print-Agent-EXE (Plattform print-agent).
+     * GET /api/v1/print/agent/version/download/{version}
+     */
+    public function agentDownload(string $version): StreamedResponse|JsonResponse
+    {
+        $entry = AppVersion::published()
+            ->where('platform', 'print-agent')
+            ->where('version', $version)
+            ->whereNotNull('apk_path')
+            ->orderByDesc('version_code')
+            ->get()
+            ->first(fn (AppVersion $v) => $v->hasApk());
+
+        if (! $entry) {
+            return $this->error('Diese Agent-Version steht nicht zum Download bereit.', 404);
+        }
+
+        return Storage::disk('public')->download(
+            $entry->apk_path,
+            "RosiPrintAgent-{$entry->version}.exe",
+            ['Content-Type' => 'application/octet-stream'],
+        );
+    }
 }

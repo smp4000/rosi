@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Models\AppVersion;
+use App\Models\GasStation;
 use App\Models\PrintAgent;
 use App\Models\PrintJob;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Schnittstelle fuer den "ROSI Print"-Agent (Tray-App am Stations-PC).
@@ -18,6 +21,129 @@ use Illuminate\Support\Facades\DB;
 class PrintAgentController extends ApiController
 {
     private const CLAIM_LIMIT = 20;
+
+    /**
+     * POST /api/v1/print/agent/enroll
+     * Stations-Installer: bindet den Agent ueber den Enrollment-Token der
+     * Station automatisch ein und gibt ein Agent-Token zurueck.
+     * Body: enroll_token, install_id, hostname?, printers[]?
+     */
+    public function enroll(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'enroll_token' => 'required|string',
+            'install_id' => 'required|string|max:191',
+            'hostname' => 'nullable|string|max:191',
+            'printers' => 'nullable|array',
+            'printers.*' => 'string',
+        ]);
+
+        $station = GasStation::where('enrollment_token', $validated['enroll_token'])->first();
+        if (! $station) {
+            return $this->error('Ungueltiger Enrollment-Token.', 401);
+        }
+
+        // Ein PC = ein Agent (per install_id). Vorhandenen wiederverwenden.
+        $agent = PrintAgent::findByInstallId($validated['install_id'])
+            ?? new PrintAgent(['install_id' => $validated['install_id']]);
+
+        $agent->tenant_id = $station->tenant_id;
+        $agent->station_id = $station->id;
+        $agent->hostname = $validated['hostname'] ?? $agent->hostname;
+        $agent->name = $agent->name ?: ($validated['hostname'] ?? 'Stations-PC');
+        $agent->printers = $validated['printers'] ?? $agent->printers;
+        $agent->status = PrintAgent::STATUS_ACTIVE;
+        $agent->is_active = true;
+        $agent->claim_secret = null;
+        $token = $agent->generateToken();
+        $agent->last_seen_at = now();
+        $agent->save();
+
+        return $this->success([
+            'token' => $token,
+            'agent_id' => $agent->id,
+            'agent_name' => $agent->name,
+            'station' => $station->name,
+        ], 'Agent verbunden.');
+    }
+
+    /**
+     * POST /api/v1/print/agent/register
+     * Self-Register (generische EXE ohne Enrollment-Token): legt den Agent als
+     * "pending" an. Freigabe + Stationszuweisung erfolgt im Dashboard.
+     * Body: install_id, hostname?, printers[]?
+     */
+    public function register(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'install_id' => 'required|string|max:191',
+            'hostname' => 'nullable|string|max:191',
+            'printers' => 'nullable|array',
+            'printers.*' => 'string',
+        ]);
+
+        $agent = PrintAgent::findByInstallId($validated['install_id']);
+
+        // Bereits freigegeben? -> Agent soll Token abholen.
+        if ($agent && $agent->status === PrintAgent::STATUS_ACTIVE && $agent->station_id) {
+            return $this->success(['status' => PrintAgent::STATUS_ACTIVE], 'Bereits freigegeben.');
+        }
+
+        if (! $agent) {
+            $agent = new PrintAgent(['install_id' => $validated['install_id']]);
+            $agent->claim_secret = Str::random(48);
+            $agent->name = $validated['hostname'] ?? 'Neuer PC';
+        }
+
+        $agent->hostname = $validated['hostname'] ?? $agent->hostname;
+        $agent->printers = $validated['printers'] ?? $agent->printers;
+        $agent->status = PrintAgent::STATUS_PENDING;
+        $agent->is_active = false;
+        $agent->last_seen_at = now();
+        $agent->save();
+
+        return $this->success([
+            'status' => PrintAgent::STATUS_PENDING,
+            'claim_secret' => $agent->claim_secret,
+        ], 'Wartet auf Freigabe.');
+    }
+
+    /**
+     * POST /api/v1/print/agent/claim-token
+     * Self-Register: holt nach der Dashboard-Freigabe das Agent-Token ab.
+     * Body: install_id, claim_secret
+     */
+    public function claimToken(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'install_id' => 'required|string|max:191',
+            'claim_secret' => 'required|string',
+        ]);
+
+        $agent = PrintAgent::where('install_id', $validated['install_id'])
+            ->where('claim_secret', $validated['claim_secret'])
+            ->first();
+
+        if (! $agent) {
+            return $this->error('Unbekannter Agent.', 404);
+        }
+
+        if ($agent->status !== PrintAgent::STATUS_ACTIVE || ! $agent->station_id) {
+            return $this->success(['status' => PrintAgent::STATUS_PENDING], 'Noch nicht freigegeben.');
+        }
+
+        $token = $agent->generateToken();
+        $agent->claim_secret = null;
+        $agent->is_active = true;
+        $agent->save();
+
+        return $this->success([
+            'status' => PrintAgent::STATUS_ACTIVE,
+            'token' => $token,
+            'agent_id' => $agent->id,
+            'station' => $agent->station?->name,
+        ], 'Freigegeben.');
+    }
 
     /**
      * POST /api/v1/print/agent/heartbeat
@@ -47,7 +173,35 @@ class PrintAgentController extends ApiController
             'agent' => $agent->name,
             'station' => $agent->station?->name,
             'pending' => PrintJob::queuedForAgent($agent)->count(),
+            'update' => $this->agentUpdatePayload(),
         ], 'OK');
+    }
+
+    /**
+     * Neueste installierbare Agent-Version (Plattform print-agent) als
+     * Update-Info fuer das stille Auto-Update. null = kein Update verfuegbar.
+     */
+    private function agentUpdatePayload(): ?array
+    {
+        $latest = AppVersion::published()
+            ->where('platform', 'print-agent')
+            ->whereNotNull('version_code')
+            ->whereNotNull('apk_path')
+            ->orderByDesc('version_code')
+            ->get()
+            ->first(fn (AppVersion $v) => $v->hasApk());
+
+        if (! $latest) {
+            return null;
+        }
+
+        return [
+            'version' => $latest->version,
+            'version_code' => $latest->version_code,
+            'mandatory' => $latest->is_mandatory,
+            'changes' => $latest->changes ?? [],
+            'download_url' => route('api.v1.print.agent.version.download', ['version' => $latest->version]),
+        ];
     }
 
     /**

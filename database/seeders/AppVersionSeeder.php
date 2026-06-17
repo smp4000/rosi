@@ -532,7 +532,7 @@ class AppVersionSeeder extends Seeder
             ],
             [
                 'platform' => 'android',
-                'version' => '2.7.8',
+                'version' => '2.8.0',
                 'release_date' => '2026-06-17',
                 'changes' => [
                     'Partner-Login: geschuetzter Bereich (Einstellungen) oeffnet sich fuer Partner/Inhaber ohne Passwort',

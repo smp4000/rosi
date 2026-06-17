@@ -45,8 +45,10 @@ class AppVersionResource extends Resource
                     ->options([
                         'app' => 'POS-App (Android)',
                         'web' => 'Web-Dashboard',
+                        'print-agent' => 'Druck-Agent (Windows)',
                     ])
                     ->required()
+                    ->live()
                     ->default('app'),
 
                 TextInput::make('version')
@@ -81,25 +83,32 @@ class AppVersionResource extends Resource
                         : 'Muss dem versionCode der APK entsprechen. Wird beim Speichern automatisch aus der APK uebernommen.')
                     ->numeric()
                     ->default(fn () => static::nextVersionCode())
-                    ->minValue(fn (string $operation) => $operation === 'create' ? static::nextVersionCode() : 1)
-                    ->visible(fn (Get $get) => $get('platform') === 'app')
+                    ->minValue(fn (string $operation, Get $get) => ($operation === 'create' && $get('platform') === 'app')
+                        ? static::nextVersionCode()
+                        : 1)
+                    ->helperText(fn (Get $get) => $get('platform') === 'print-agent'
+                        ? 'Fortlaufende Nummer des Agents (1, 2, 3 …). Muss hoeher sein als die installierte.'
+                        : 'Wird beim Speichern automatisch aus der APK uebernommen.')
+                    ->visible(fn (Get $get) => in_array($get('platform'), ['app', 'print-agent'], true))
                     ->requiredWith('apk'),
 
                 FileUpload::make('apk_path')
-                    ->label('APK-Datei')
-                    ->helperText('Die signierte Release-APK. Die App laedt genau diese Datei herunter und installiert sie.')
+                    ->label(fn (Get $get) => $get('platform') === 'print-agent' ? 'Agent-EXE (RosiPrintAgent.exe)' : 'APK-Datei')
+                    ->helperText(fn (Get $get) => $get('platform') === 'print-agent'
+                        ? 'Die RosiPrintAgent.exe. Der Agent laedt genau diese Datei und ersetzt sich selbst.'
+                        : 'Die signierte Release-APK. Die App laedt genau diese Datei herunter und installiert sie.')
                     ->disk('public')
-                    ->directory('apks')
+                    ->directory(fn (Get $get) => $get('platform') === 'print-agent' ? 'agents' : 'apks')
                     ->visibility('public')
                     // Kein MIME-Filter: APKs werden je nach Server als
                     // application/zip / java-archive / octet-stream erkannt
                     // (eine APK ist technisch ein ZIP) — fuehrte zu
-                    // "validation.mimetypes". Endung wird unten geprueft.
+                    // "validation.mimetypes".
                     ->preserveFilenames()
                     ->maxSize(204800) // 200 MB
                     ->downloadable()
-                    ->visible(fn (Get $get) => $get('platform') === 'app')
-                    // APK-Groesse mitschreiben
+                    ->visible(fn (Get $get) => in_array($get('platform'), ['app', 'print-agent'], true))
+                    // Datei-Groesse mitschreiben
                     ->afterStateUpdated(function ($state, callable $set) {
                         if ($state instanceof \Illuminate\Http\UploadedFile) {
                             $set('apk_size', $state->getSize());
@@ -114,7 +123,7 @@ class AppVersionResource extends Resource
                     ->label('Pflicht-Update')
                     ->helperText('Wenn aktiv, MUSS der Nutzer aktualisieren (kein "Spaeter"-Button).')
                     ->default(false)
-                    ->visible(fn (Get $get) => $get('platform') === 'app'),
+                    ->visible(fn (Get $get) => in_array($get('platform'), ['app', 'print-agent'], true)),
 
                 Repeater::make('changes')
                     ->label('Aenderungen')
@@ -141,11 +150,13 @@ class AppVersionResource extends Resource
                     ->formatStateUsing(fn (string $state) => match ($state) {
                         'app' => 'App',
                         'web' => 'Web',
+                        'print-agent' => 'Druck-Agent',
                         default => $state,
                     })
                     ->color(fn (string $state) => match ($state) {
                         'app' => 'success',
                         'web' => 'info',
+                        'print-agent' => 'warning',
                         default => 'gray',
                     })
                     ->sortable(),
@@ -195,6 +206,7 @@ class AppVersionResource extends Resource
                     ->options([
                         'app' => 'POS-App',
                         'web' => 'Web-Dashboard',
+                        'print-agent' => 'Druck-Agent',
                     ]),
             ])
             ->actions([

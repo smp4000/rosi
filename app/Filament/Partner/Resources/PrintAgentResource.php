@@ -72,6 +72,20 @@ class PrintAgentResource extends Resource
                     ->searchable()
                     ->sortable(),
 
+                TextColumn::make('status')
+                    ->label('Freigabe')
+                    ->badge()
+                    ->getStateUsing(fn (PrintAgent $r) => match ($r->status) {
+                        PrintAgent::STATUS_PENDING => 'Wartet auf Freigabe',
+                        PrintAgent::STATUS_BLOCKED => 'Gesperrt',
+                        default => 'Freigegeben',
+                    })
+                    ->color(fn (PrintAgent $r) => match ($r->status) {
+                        PrintAgent::STATUS_PENDING => 'warning',
+                        PrintAgent::STATUS_BLOCKED => 'danger',
+                        default => 'success',
+                    }),
+
                 TextColumn::make('online')
                     ->label('Status')
                     ->badge()
@@ -107,6 +121,42 @@ class PrintAgentResource extends Resource
                     ->options(fn () => GasStation::where('tenant_id', session('tenant_id'))->pluck('name', 'id')),
             ])
             ->headerActions([
+                Action::make('stationInstaller')
+                    ->label('Stations-Installer')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('success')
+                    ->modalHeading('ROSI Print automatisch verbinden')
+                    ->modalDescription('Station waehlen — du bekommst den Enrollment-Token + die enroll.json. '
+                        . 'Lege die enroll.json neben RosiPrintAgent.exe; der Agent verbindet sich beim Start von selbst.')
+                    ->form([
+                        Select::make('station_id')
+                            ->label('Station')
+                            ->options(fn () => GasStation::where('tenant_id', session('tenant_id'))->pluck('name', 'id'))
+                            ->searchable()
+                            ->required(),
+                    ])
+                    ->action(function (array $data) {
+                        $station = GasStation::where('tenant_id', session('tenant_id'))->find($data['station_id']);
+                        if (! $station) {
+                            Notification::make()->danger()->title('Station nicht gefunden')->send();
+                            return;
+                        }
+
+                        $token = static::ensureEnrollToken($station);
+                        $serverUrl = rtrim(config('app.url'), '/');
+                        $json = json_encode(
+                            ['server_url' => $serverUrl, 'enroll_token' => $token],
+                            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES,
+                        );
+
+                        Notification::make()
+                            ->success()
+                            ->title('enroll.json fuer ' . $station->name)
+                            ->body($json)
+                            ->persistent()
+                            ->send();
+                    }),
+
                 Action::make('createAgent')
                     ->label('Neuer Agent')
                     ->icon('heroicon-o-plus')
@@ -140,6 +190,38 @@ class PrintAgentResource extends Resource
                     }),
             ])
             ->actions([
+                // Wartenden Self-Register-Agenten freigeben + Station zuweisen
+                Action::make('approve')
+                    ->label('Freigeben')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->visible(fn (PrintAgent $r) => $r->status === PrintAgent::STATUS_PENDING)
+                    ->modalHeading('Agent freigeben')
+                    ->modalDescription(fn (PrintAgent $r) => 'PC: ' . ($r->hostname ?: $r->name)
+                        . ' — Station zuweisen. Der Agent verbindet sich danach automatisch.')
+                    ->form([
+                        Select::make('station_id')
+                            ->label('Station')
+                            ->options(fn () => GasStation::where('tenant_id', session('tenant_id'))->pluck('name', 'id'))
+                            ->searchable()
+                            ->required(),
+                    ])
+                    ->action(function (PrintAgent $r, array $data) {
+                        $isFirst = ! PrintAgent::where('station_id', $data['station_id'])
+                            ->where('status', PrintAgent::STATUS_ACTIVE)->exists();
+
+                        $r->update([
+                            'tenant_id' => session('tenant_id'),
+                            'station_id' => $data['station_id'],
+                            'status' => PrintAgent::STATUS_ACTIVE,
+                            'is_default' => $isFirst,
+                        ]);
+                        Notification::make()->success()
+                            ->title('Agent freigegeben')
+                            ->body('„' . $r->name . '" verbindet sich in Kuerze automatisch.')
+                            ->send();
+                    }),
+
                 // Drucker-Zuordnung der Station (job_type -> Druckername)
                 Action::make('printerMap')
                     ->label('Drucker-Zuordnung')
@@ -255,6 +337,17 @@ class PrintAgentResource extends Resource
             ->unique()
             ->mapWithKeys(fn ($n) => [$n => $n])
             ->all();
+    }
+
+    /** Enrollment-Token der Station sicherstellen (erzeugen, falls nicht vorhanden). */
+    protected static function ensureEnrollToken(GasStation $station): string
+    {
+        if (empty($station->enrollment_token)) {
+            $station->enrollment_token = 'enr_' . \Illuminate\Support\Str::random(44);
+            $station->save();
+        }
+
+        return $station->enrollment_token;
     }
 
     /** Token einmalig als persistente Notification anzeigen (kopierbar). */

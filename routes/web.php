@@ -96,62 +96,60 @@ Route::middleware('auth')->group(function () {
             ? route('api.v1.print.agent.version.download', ['version' => $latest->version])
             : '';
 
-        $ps = <<<'PS'
-$ErrorActionPreference = 'Stop'
-try {
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    Add-Type -AssemblyName System.Windows.Forms
-    Add-Type -AssemblyName Microsoft.VisualBasic
-    if ('{{EXE_URL}}' -eq '') {
-        [System.Windows.Forms.MessageBox]::Show('Es wurde noch keine Agent-Version veroeffentlicht. Bitte zuerst im Admin hochladen.', 'ROSI Print') | Out-Null
-        return
-    }
-    $default = Join-Path $env:LOCALAPPDATA 'RosiPrintAgent'
-    $path = $null
-    try {
-        # Owner-Fenster TopMost, damit der Ordner-Dialog VOR der Konsole erscheint.
-        $owner = New-Object System.Windows.Forms.Form
-        $owner.TopMost = $true; $owner.ShowInTaskbar = $false; $owner.Opacity = 0
-        $owner.Show(); $owner.Activate()
-        $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
-        $dlg.Description = 'Installationsordner fuer ROSI Print waehlen'
-        $dlg.ShowNewFolderButton = $true
-        $dlg.SelectedPath = $default
-        if ($dlg.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) { $path = $dlg.SelectedPath }
-        $owner.Close()
-    } catch { }
-    # Fallback / Bestaetigung: Pfad eingeben (vorbelegt). Leer = Standard.
-    if ([string]::IsNullOrWhiteSpace($path)) {
-        $path = [Microsoft.VisualBasic.Interaction]::InputBox('Installationsordner eingeben oder bestaetigen:', 'ROSI Print Setup', $default)
-        if ([string]::IsNullOrWhiteSpace($path)) { $path = $default }
-    }
-    New-Item -ItemType Directory -Force -Path $path | Out-Null
+        // Reines Batch (kein PowerShell/Base64) — wird nicht vom Virenscanner als
+        // verschleiertes Skript geflaggt. Download via curl (in Win10/11 enthalten).
+        $tpl = <<<'CMD'
+@echo off
+title ROSI Print Setup
+setlocal enabledelayedexpansion
+echo(
+echo  ============================================
+echo    ROSI Print  -  Installation
+echo  ============================================
+echo(
 
-    Get-Process 'RosiPrintAgent' -ErrorAction SilentlyContinue | Stop-Process -Force
-    Start-Sleep -Milliseconds 600
+if "{{EXE_URL}}"=="" (
+  echo  Es wurde noch keine Agent-Version veroeffentlicht.
+  echo  Bitte zuerst im Admin hochladen.
+  echo(
+  pause
+  exit /b 1
+)
 
-    $exe = Join-Path $path 'RosiPrintAgent.exe'
-    Write-Host 'Lade ROSI Print herunter (kann etwas dauern)...'
-    Invoke-WebRequest -Uri '{{EXE_URL}}' -OutFile $exe
+set "DEST=%LOCALAPPDATA%\RosiPrintAgent"
+set /p "DEST=Installationsordner [!DEST!]: "
+if "!DEST!"=="" set "DEST=%LOCALAPPDATA%\RosiPrintAgent"
 
-    $run = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
-    Set-ItemProperty -Path $run -Name 'RosiPrintAgent' -Value ('"' + $exe + '"')
+echo(
+echo  Installiere nach: !DEST!
+if not exist "!DEST!" mkdir "!DEST!"
 
-    Start-Process $exe
-    [System.Windows.Forms.MessageBox]::Show('ROSI Print wurde installiert in:' + [Environment]::NewLine + $path + [Environment]::NewLine + [Environment]::NewLine + 'Naechster Schritt: im Dashboard freigeben ODER die enroll.json in diesen Ordner legen.', 'ROSI Print') | Out-Null
-    Start-Process $path
-} catch {
-    [System.Windows.Forms.MessageBox]::Show('Fehler bei der Installation:' + [Environment]::NewLine + $_.Exception.Message, 'ROSI Print') | Out-Null
-}
-PS;
+taskkill /im RosiPrintAgent.exe /f >nul 2>&1
 
-        $ps = strtr($ps, ['{{EXE_URL}}' => $exeUrl]);
+echo  Lade ROSI Print herunter (kann etwas dauern)...
+curl -L -s -o "!DEST!\RosiPrintAgent.exe" "{{EXE_URL}}"
 
-        $encoded = base64_encode(mb_convert_encoding($ps, 'UTF-16LE', 'UTF-8'));
-        $cmd = "@echo off\r\n"
-            . "title ROSI Print Setup\r\n"
-            . "echo ROSI Print wird installiert...\r\n"
-            . "powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand {$encoded}\r\n";
+if not exist "!DEST!\RosiPrintAgent.exe" (
+  echo  FEHLER: Download fehlgeschlagen. Internetverbindung pruefen.
+  echo(
+  pause
+  exit /b 1
+)
+
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v RosiPrintAgent /t REG_SZ /d "\"!DEST!\RosiPrintAgent.exe\"" /f >nul
+
+start "" "!DEST!\RosiPrintAgent.exe"
+start "" "!DEST!"
+
+echo(
+echo  Fertig. ROSI Print laeuft und startet kuenftig automatisch mit.
+echo  Naechster Schritt: im Dashboard freigeben ODER enroll.json
+echo  in den Ordner legen.
+echo(
+pause
+CMD;
+
+        $cmd = str_replace(["\n", '{{EXE_URL}}'], ["\r\n", $exeUrl], $tpl);
 
         return response($cmd, 200, [
             'Content-Type' => 'application/octet-stream',

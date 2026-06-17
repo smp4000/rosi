@@ -291,28 +291,28 @@ XML;
      */
     private static function gutscheinTsplTspl(): string
     {
-        // Querformat 101 x 54 mm (wie DYMO 30323 Landscape). 203 dpi = 8 dots/mm
-        // -> 808 x 432 dots. Layout 1:1 nach DYMO-Gutschein.
-        return "SIZE 101 mm,54 mm\r\n"
+        // Querformat 100 x 50 mm. 203 dpi = 8 dots/mm -> 800 x 400 dots.
+        // Layout 1:1 nach DYMO-Gutschein.
+        return "SIZE 100 mm,50 mm\r\n"
             . "GAP 3 mm,0 mm\r\n"
             . "DIRECTION 1\r\n"
             . "CLS\r\n"
             // obere Zeile: Betrag (links) + Ausgabedatum (rechts)
-            . "TEXT 56,40,\"4\",0,1,1,\"{{betrag}}\"\r\n"
-            . "TEXT 504,40,\"4\",0,1,1,\"{{datum}}\"\r\n"
-            . "TEXT 60,112,\"1\",0,1,1,\"Betrag in Euro\"\r\n"
-            . "TEXT 523,112,\"1\",0,1,1,\"Ausgabedatum\"\r\n"
-            . "BAR 43,140,720,2\r\n"
+            . "TEXT 50,30,\"4\",0,1,1,\"{{betrag}}\"\r\n"
+            . "TEXT 500,30,\"4\",0,1,1,\"{{datum}}\"\r\n"
+            . "TEXT 52,95,\"1\",0,1,1,\"Betrag in Euro\"\r\n"
+            . "TEXT 502,95,\"1\",0,1,1,\"Ausgabedatum\"\r\n"
+            . "BAR 40,118,720,2\r\n"
             // Mitte: Betrag in Worten
-            . "TEXT 56,168,\"4\",0,1,1,\"{{betrag_worte}}\"\r\n"
-            . "TEXT 60,240,\"1\",0,1,1,\"Betrag in Worten\"\r\n"
-            . "BAR 43,262,720,2\r\n"
+            . "TEXT 50,145,\"4\",0,1,1,\"{{betrag_worte}}\"\r\n"
+            . "TEXT 52,210,\"1\",0,1,1,\"Betrag in Worten\"\r\n"
+            . "BAR 40,232,720,2\r\n"
             // untere Zeile: Gutscheinnr. + Einloesen bis + QR
-            . "TEXT 60,295,\"3\",0,1,1,\"Gutscheinnr.:\"\r\n"
-            . "TEXT 360,288,\"4\",0,1,1,\"{{nummer}}\"\r\n"
-            . "TEXT 60,360,\"2\",0,1,1,\"Einzuloesen bis zum:\"\r\n"
-            . "TEXT 320,355,\"3\",0,1,1,\"{{gueltig_bis}}\"\r\n"
-            . "QRCODE 600,300,L,4,A,0,\"{{barcode}}\"\r\n"
+            . "TEXT 52,262,\"3\",0,1,1,\"Gutscheinnr.:\"\r\n"
+            . "TEXT 340,256,\"4\",0,1,1,\"{{nummer}}\"\r\n"
+            . "TEXT 52,325,\"2\",0,1,1,\"Einzuloesen bis zum:\"\r\n"
+            . "TEXT 320,322,\"3\",0,1,1,\"{{gueltig_bis}}\"\r\n"
+            . "QRCODE 600,250,L,4,A,0,\"{{barcode}}\"\r\n"
             . "PRINT 1,1\r\n";
     }
 

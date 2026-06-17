@@ -32,14 +32,18 @@
     <div>
         <h3 style="font-size:15px;font-weight:700;margin:0 0 8px">1. Geruest installieren</h3>
         <p style="font-size:13px;color:#374151;margin:0 0 10px;line-height:1.5">
-            Lade den Installer herunter und führe ihn am Stations-PC aus. Er fragt nach dem
-            <b>Ordner</b> (Standard <code>%LOCALAPPDATA%\RosiPrintAgent</code>, frei wählbar),
-            lädt ROSI Print dorthin, richtet den Autostart ein und startet den Agent.
+            Lade den Installer herunter und führe ihn am Stations-PC aus. Im Setup wählst du den
+            <b>Installationsordner</b> (Standard <code>%LOCALAPPDATA%\RosiPrintAgent</code>),
+            der Agent wird installiert, in den Autostart gelegt und gestartet.
         </p>
-        <a href="{{ route('print-agent.setup') }}"
+        <a href="{{ url('downloads/ROSI-Print-Setup.exe') }}"
             style="display:inline-flex;align-items:center;gap:10px;background:#2563eb;color:#fff;text-decoration:none;border-radius:10px;padding:12px 18px;font-size:14px;font-weight:600">
-            <span style="font-size:18px">⬇️</span> Installer herunterladen (ROSI-Print-Setup.cmd)
+            <span style="font-size:18px">⬇️</span> Installer herunterladen (ROSI-Print-Setup.exe)
         </a>
+        <p style="font-size:11px;color:#9ca3af;margin:8px 0 0">
+            Beim ersten Start meldet Windows evtl. „Unbekannter Herausgeber" → „Weitere Informationen"
+            → „Trotzdem ausführen".
+        </p>
     </div>
 
     <hr style="border:none;border-top:1px solid #e5e7eb;margin:0">

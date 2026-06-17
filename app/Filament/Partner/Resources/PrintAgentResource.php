@@ -205,12 +205,19 @@ class PrintAgentResource extends Resource
                     ->modalHeading('Drucker-Zuordnung')
                     ->modalDescription(fn (PrintAgent $r) => 'Gemeldete Drucker: '
                         . (empty($r->printers) ? '— (Agent war noch nicht online)' : implode(', ', $r->printers)))
-                    ->fillForm(fn (PrintAgent $r) => [
-                        'printer_map' => collect($r->station?->printer_map ?? [])
-                            ->map(fn ($printer, $jobType) => ['job_type' => $jobType, 'printer' => $printer])
-                            ->values()
-                            ->all(),
-                    ])
+                    ->fillForm(function (PrintAgent $r) {
+                        // Nur Zuordnungen vorbelegen, deren Drucker real gemeldet wird —
+                        // veraltete Eintraege (nicht mehr existierende Drucker) fallen raus.
+                        $valid = static::printerOptions($r);
+
+                        return [
+                            'printer_map' => collect($r->station?->printer_map ?? [])
+                                ->filter(fn ($printer) => isset($valid[$printer]))
+                                ->map(fn ($printer, $jobType) => ['job_type' => $jobType, 'printer' => $printer])
+                                ->values()
+                                ->all(),
+                        ];
+                    })
                     ->form(fn (PrintAgent $r): array => [
                         Repeater::make('printer_map')
                             ->label('Zuordnung Job-Typ → Drucker')

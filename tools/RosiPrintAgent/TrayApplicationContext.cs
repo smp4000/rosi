@@ -297,6 +297,7 @@ public class TrayApplicationContext : ApplicationContext
                         }
                         else
                         {
+                            // TSC ist ein schneller Thermodrucker -> keine DYMO-Bremse.
                             for (int i = 0; i < total; i++)
                             {
                                 SetStatus(
@@ -304,10 +305,6 @@ public class TrayApplicationContext : ApplicationContext
                                     IconFactory.Printing);
                                 RawPrinterHelper.SendBytesToPrinter(
                                     target!, System.Text.Encoding.Latin1.GetBytes(job.Labels[i].Xml));
-                                if (pace)
-                                {
-                                    await Task.Delay(LabelDelayMs);
-                                }
                             }
                         }
                         await _api.AckAsync(job.Id, true, null);

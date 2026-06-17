@@ -304,8 +304,8 @@ XML;
             . "TEXT 52,92,\"0\",0,8,8,\"Betrag in Euro\"\r\n"
             . "TEXT 482,92,\"0\",0,8,8,\"Ausgabedatum\"\r\n"
             . "BAR 40,120,720,2\r\n"
-            // Mitte: Betrag in Worten
-            . "TEXT 50,140,\"0\",0,14,14,\"{{betrag_worte}}\"\r\n"
+            // Mitte: Betrag in Worten (ueber die volle Breite zentriert)
+            . "BLOCK 40,138,720,55,\"0\",0,14,14,0,2,\"{{betrag_worte}}\"\r\n"
             . "TEXT 52,208,\"0\",0,8,8,\"Betrag in Worten\"\r\n"
             . "BAR 40,236,720,2\r\n"
             // untere Zeile: Gutscheinnr. + Einloesen bis + QR

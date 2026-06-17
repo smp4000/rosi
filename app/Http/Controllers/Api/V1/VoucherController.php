@@ -359,10 +359,13 @@ class VoucherController extends ApiController
     /**
      * Platzhalter-Daten fuer ein Gutschein-Etikett.
      */
-    private function voucherLabelData(Voucher $voucher): array
+    private function voucherLabelData(Voucher $voucher, bool $isTsc = false): array
     {
+        // TSC-Thermodrucker kennen das €-Zeichen nicht -> "EUR".
+        $betrag = number_format($voucher->amount, 2, ',', '.') . ($isTsc ? ' EUR' : ' €');
+
         return [
-            'betrag' => number_format($voucher->amount, 2, ',', '.') . ' €',
+            'betrag' => $betrag,
             'betrag_worte' => Voucher::amountToWords($voucher->amount),
             'datum' => $voucher->issued_at->format('d.m.Y'),
             'gueltig_bis' => $voucher->valid_until->format('d.m.Y'),
@@ -403,7 +406,8 @@ class VoucherController extends ApiController
             return $this->error('Tankstelle nicht gefunden.', 404);
         }
 
-        $slug = $this->isTscPrinter($request->input('printer_name')) ? 'gutschein-tsc' : 'gutschein';
+        $isTsc = $this->isTscPrinter($request->input('printer_name'));
+        $slug = $isTsc ? 'gutschein-tsc' : 'gutschein';
         $template = \App\Models\LabelTemplate::findForTenant($slug, $station->tenant_id)
             ?? \App\Models\LabelTemplate::findForTenant('gutschein', $station->tenant_id);
         if (! $template) {
@@ -425,7 +429,7 @@ class VoucherController extends ApiController
 
         $labels = $vouchers->map(fn (Voucher $v) => [
             'number' => $v->voucher_number,
-            'xml' => $template->render($this->voucherLabelData($v)),
+            'xml' => $template->render($this->voucherLabelData($v, $isTsc)),
         ])->all();
 
         $reference = $vouchers->count() === 1
@@ -570,7 +574,8 @@ class VoucherController extends ApiController
             }
 
             // TSC-Drucker brauchen die TSPL-Vorlage (kein DYMO-XML).
-            $slug = $this->isTscPrinter($printerName) ? 'gutschein-tsc' : 'gutschein';
+            $isTsc = $this->isTscPrinter($printerName);
+            $slug = $isTsc ? 'gutschein-tsc' : 'gutschein';
             $template = \App\Models\LabelTemplate::findForTenant($slug, $station->tenant_id)
                 ?? \App\Models\LabelTemplate::findForTenant('gutschein', $station->tenant_id);
             if (! $template) {
@@ -582,7 +587,7 @@ class VoucherController extends ApiController
             foreach ($vouchers as $voucher) {
                 $labels[] = [
                     'number' => $voucher->voucher_number,
-                    'xml' => $template->render($this->voucherLabelData($voucher)),
+                    'xml' => $template->render($this->voucherLabelData($voucher, $isTsc)),
                 ];
             }
 

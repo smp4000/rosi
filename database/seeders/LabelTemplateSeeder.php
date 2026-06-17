@@ -295,6 +295,7 @@ XML;
         // TrueType-Schrift (Font "0", Arial-aehnlich). Layout 1:1 nach DYMO.
         return "SIZE 100 mm,50 mm\r\n"
             . "GAP 3 mm,0 mm\r\n"
+            . "CODEPAGE 1252\r\n"
             . "DIRECTION 1\r\n"
             . "CLS\r\n"
             // obere Zeile: Betrag (links) + Ausgabedatum (rechts)

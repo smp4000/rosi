@@ -303,7 +303,7 @@ public class TrayApplicationContext : ApplicationContext
                                     total > 1 ? $"Druckt {i + 1}/{total}: {job.Reference}…" : $"Druckt: {job.Reference}…",
                                     IconFactory.Printing);
                                 RawPrinterHelper.SendBytesToPrinter(
-                                    target!, System.Text.Encoding.ASCII.GetBytes(job.Labels[i].Xml));
+                                    target!, System.Text.Encoding.Latin1.GetBytes(job.Labels[i].Xml));
                                 if (pace)
                                 {
                                     await Task.Delay(LabelDelayMs);

@@ -34,6 +34,7 @@ public static class TscPrinting
         t.Append($"TEXT 40,330,\"3\",0,1,1,\"Uhrzeit: {now:HH:mm:ss}\"\r\n");
         t.Append("PRINT 1,1\r\n");
 
-        RawPrinterHelper.SendBytesToPrinter(printerName, Encoding.ASCII.GetBytes(t.ToString()));
+        // Latin-1, damit Umlaute/Sonderzeichen ueber CODEPAGE 1252 korrekt kommen.
+        RawPrinterHelper.SendBytesToPrinter(printerName, Encoding.Latin1.GetBytes(t.ToString()));
     }
 }

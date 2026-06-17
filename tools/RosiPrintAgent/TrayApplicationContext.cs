@@ -266,11 +266,34 @@ public class TrayApplicationContext : ApplicationContext
             return;
         }
 
+        // DYMO-Druckernamen einmal holen, um DYMO vs. Windows-Drucker zu unterscheiden.
+        var dymoNames = await _dymo.GetPrinterNamesAsync();
+
         foreach (var job in jobs)
         {
             try
             {
                 var total = job.Labels.Count;
+                var target = job.PrinterName;
+                var isDymo = string.IsNullOrWhiteSpace(target)
+                    || dymoNames.Any(n => n.Equals(target, StringComparison.OrdinalIgnoreCase));
+                var isTest = string.Equals(job.Reference, "TESTDRUCK", StringComparison.OrdinalIgnoreCase);
+
+                // Nicht-DYMO-Drucker (Brother/TSC): aktuell nur Testseite ueber den
+                // Windows-Spooler. DYMO-Etiketten koennen dort (noch) nicht gedruckt werden.
+                if (!isDymo)
+                {
+                    if (!isTest)
+                    {
+                        throw new Exception($"Etiketten-Druck auf '{target}' wird noch nicht unterstuetzt (nur DYMO + Testseite).");
+                    }
+
+                    SetStatus($"Druckt Testseite: {target}…", IconFactory.Printing);
+                    WindowsPrinting.PrintTestPage(target!, BuildTestLines(target!));
+                    await _api.AckAsync(job.Id, true, null);
+                    SetStatus($"Testseite gedruckt: {target}", IconFactory.Ready);
+                    continue;
+                }
 
                 // Bremsen, wenn der Server es verlangt (Nachdrucke) ODER bei
                 // groesseren Mengen — sonst ueberlaeuft der DYMO-Spooler und es
@@ -285,7 +308,7 @@ public class TrayApplicationContext : ApplicationContext
                             : $"Druckt: {job.Reference ?? job.JobType}…",
                         IconFactory.Printing);
 
-                    await _dymo.PrintAsync(job.PrinterName, job.Labels[i].Xml);
+                    await _dymo.PrintAsync(target, job.Labels[i].Xml);
 
                     if (pace)
                     {
@@ -303,6 +326,23 @@ public class TrayApplicationContext : ApplicationContext
             }
         }
     }
+
+    /// <summary>Inhalt der Testseite fuer Nicht-DYMO-Drucker (Windows-Spooler).</summary>
+    private IEnumerable<string> BuildTestLines(string printer) => new[]
+    {
+        "==========================================",
+        "          ROSI Print - Testseite",
+        "==========================================",
+        "",
+        $"Drucker:   {printer}",
+        $"Datum:     {DateTime.Now:dd.MM.yyyy HH:mm:ss}",
+        $"Server:    {_config.EffectiveServerUrl}",
+        "",
+        "Dieser Testdruck wurde erfolgreich ueber",
+        "den ROSI-Print-Agenten gesendet.",
+        "",
+        "==========================================",
+    };
 
     private async Task SafeAckFail(string jobId, string error)
     {

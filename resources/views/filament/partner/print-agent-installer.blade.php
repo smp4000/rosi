@@ -1,9 +1,10 @@
-{{-- Stations-Installer: enroll.json per "Speichern unter" in den EXE-Ordner ablegen.
-     Logik via Alpine (x-data), da <script> im Filament-Modal nicht ausgefuehrt wird. --}}
-<div style="display:flex;flex-direction:column;gap:14px"
+{{-- Stations-Installer in 2 Schritten:
+     1) Geruest installieren (generischer .cmd-Installer, Ordnerwahl + Standard)
+     2) Mit Station verbinden (enroll.json per "Speichern unter" in den Ordner)
+     Logik via Alpine (x-data), da <script> im Filament-Modal nicht laeuft. --}}
+<div style="display:flex;flex-direction:column;gap:18px"
     x-data="{
         async save(url, name, btn) {
-            const orig = btn.innerHTML;
             if (window.showSaveFilePicker) {
                 try {
                     const handle = await window.showSaveFilePicker({
@@ -26,30 +27,46 @@
             window.location = url;
         }
     }">
-    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:14px;font-size:13px;color:#1e3a8a;line-height:1.5">
-        <b>So geht's:</b>
-        <ol style="margin:6px 0 0;padding-left:18px">
-            <li>Station unten anklicken → <b>„Speichern unter"</b> öffnet sich</li>
-            <li>In den Ordner wechseln, in dem <code>RosiPrintAgent.exe</code> liegt</li>
-            <li>Speichern → <code>enroll.json</code> liegt dort, EXE starten = verbindet sich automatisch</li>
-        </ol>
+
+    {{-- Schritt 1 --}}
+    <div>
+        <h3 style="font-size:15px;font-weight:700;margin:0 0 8px">1. Geruest installieren</h3>
+        <p style="font-size:13px;color:#374151;margin:0 0 10px;line-height:1.5">
+            Lade den Installer herunter und führe ihn am Stations-PC aus. Er fragt nach dem
+            <b>Ordner</b> (Standard <code>%LOCALAPPDATA%\RosiPrintAgent</code>, frei wählbar),
+            lädt ROSI Print dorthin, richtet den Autostart ein und startet den Agent.
+        </p>
+        <a href="{{ route('print-agent.setup') }}"
+            style="display:inline-flex;align-items:center;gap:10px;background:#2563eb;color:#fff;text-decoration:none;border-radius:10px;padding:12px 18px;font-size:14px;font-weight:600">
+            <span style="font-size:18px">⬇️</span> Installer herunterladen (ROSI-Print-Setup.cmd)
+        </a>
     </div>
 
-    <div style="display:flex;flex-direction:column;gap:8px">
-        @forelse($stations as $id => $name)
-            <button type="button"
-                x-on:click="save('{{ route('print-agent.enroll', $id) }}', '{{ addslashes($name) }}', $el)"
-                style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:#16a34a;color:#fff;border:none;border-radius:10px;padding:12px 16px;font-size:14px;font-weight:600;cursor:pointer">
-                <span style="font-size:18px">💾</span>
-                <span>{{ $name }}</span>
-            </button>
-        @empty
-            <p style="color:#6b7280;font-size:13px">Keine Stationen vorhanden.</p>
-        @endforelse
-    </div>
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:0">
 
-    <p style="font-size:11px;color:#9ca3af;margin:0">
-        Hinweis: „Ordner wählen" funktioniert in Chrome/Edge. In anderen Browsern wird die
-        Datei normal heruntergeladen — dann bitte in den EXE-Ordner verschieben.
-    </p>
+    {{-- Schritt 2 --}}
+    <div>
+        <h3 style="font-size:15px;font-weight:700;margin:0 0 8px">2. Mit Station verbinden</h3>
+        <p style="font-size:13px;color:#374151;margin:0 0 10px;line-height:1.5">
+            Nach dem Start meldet sich der Agent selbst und wartet auf <b>Freigabe</b> hier im
+            Dashboard. <b>Oder</b> direkt verbinden: Station wählen → <b>„Speichern unter"</b> →
+            <code>enroll.json</code> in den Installationsordner legen.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:8px">
+            @forelse($stations as $id => $name)
+                <button type="button"
+                    x-on:click="save('{{ route('print-agent.enroll', $id) }}', '{{ addslashes($name) }}', $el)"
+                    style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:#16a34a;color:#fff;border:none;border-radius:10px;padding:12px 16px;font-size:14px;font-weight:600;cursor:pointer">
+                    <span style="font-size:18px">💾</span>
+                    <span>enroll.json für: {{ $name }}</span>
+                </button>
+            @empty
+                <p style="color:#6b7280;font-size:13px">Keine Stationen vorhanden.</p>
+            @endforelse
+        </div>
+        <p style="font-size:11px;color:#9ca3af;margin:8px 0 0">
+            „Ordner wählen" beim Speichern funktioniert in Chrome/Edge. In anderen Browsern wird
+            die Datei normal heruntergeladen — dann in den Installationsordner verschieben.
+        </p>
+    </div>
 </div>

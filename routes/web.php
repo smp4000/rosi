@@ -78,6 +78,72 @@ Route::middleware('auth')->group(function () {
         ]);
     })->name('print-agent.enroll');
 
+    // --- ROSI-Print: generischer Setup-Installer (.cmd) ---
+    // Installiert NUR das Geruest (EXE) in den gewaehlten Ordner (Standard
+    // %LOCALAPPDATA%\RosiPrintAgent, auswaehlbar), Autostart, startet den Agent.
+    // KEIN Token/keine Station — die Bindung erfolgt danach (Dashboard-Freigabe
+    // nach Self-Register ODER enroll.json in den Ordner legen).
+    Route::get('/print-agent-setup', function () {
+        $latest = \App\Models\AppVersion::published()
+            ->where('platform', 'print-agent')
+            ->whereNotNull('apk_path')
+            ->whereNotNull('version_code')
+            ->orderByDesc('version_code')
+            ->get()
+            ->first(fn ($v) => $v->hasApk());
+
+        $exeUrl = $latest
+            ? route('api.v1.print.agent.version.download', ['version' => $latest->version])
+            : '';
+
+        $ps = <<<'PS'
+$ErrorActionPreference = 'Stop'
+try {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    Add-Type -AssemblyName System.Windows.Forms
+    if ('{{EXE_URL}}' -eq '') {
+        [System.Windows.Forms.MessageBox]::Show('Es wurde noch keine Agent-Version veroeffentlicht. Bitte zuerst im Admin hochladen.', 'ROSI Print') | Out-Null
+        return
+    }
+    $default = Join-Path $env:LOCALAPPDATA 'RosiPrintAgent'
+    $dlg = New-Object System.Windows.Forms.FolderBrowserDialog
+    $dlg.Description = 'Installationsordner fuer ROSI Print waehlen (Abbrechen = Standard)'
+    $dlg.SelectedPath = $default
+    if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { $path = $dlg.SelectedPath } else { $path = $default }
+    New-Item -ItemType Directory -Force -Path $path | Out-Null
+
+    Get-Process 'RosiPrintAgent' -ErrorAction SilentlyContinue | Stop-Process -Force
+    Start-Sleep -Milliseconds 600
+
+    $exe = Join-Path $path 'RosiPrintAgent.exe'
+    Write-Host 'Lade ROSI Print herunter (kann etwas dauern)...'
+    Invoke-WebRequest -Uri '{{EXE_URL}}' -OutFile $exe
+
+    $run = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+    Set-ItemProperty -Path $run -Name 'RosiPrintAgent' -Value ('"' + $exe + '"')
+
+    Start-Process $exe
+    [System.Windows.Forms.MessageBox]::Show('ROSI Print wurde installiert in:' + [Environment]::NewLine + $path + [Environment]::NewLine + [Environment]::NewLine + 'Naechster Schritt: im Dashboard freigeben ODER die enroll.json in diesen Ordner legen.', 'ROSI Print') | Out-Null
+    Start-Process $path
+} catch {
+    [System.Windows.Forms.MessageBox]::Show('Fehler bei der Installation:' + [Environment]::NewLine + $_.Exception.Message, 'ROSI Print') | Out-Null
+}
+PS;
+
+        $ps = strtr($ps, ['{{EXE_URL}}' => $exeUrl]);
+
+        $encoded = base64_encode(mb_convert_encoding($ps, 'UTF-16LE', 'UTF-8'));
+        $cmd = "@echo off\r\n"
+            . "title ROSI Print Setup\r\n"
+            . "echo ROSI Print wird installiert...\r\n"
+            . "powershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand {$encoded}\r\n";
+
+        return response($cmd, 200, [
+            'Content-Type' => 'application/octet-stream',
+            'Content-Disposition' => 'attachment; filename="ROSI-Print-Setup.cmd"',
+        ]);
+    })->name('print-agent.setup');
+
     // --- DYMO Druck-Labels aus Session holen (fuer Browser-JS) ---
     Route::get('/dymo/print-labels', function () {
         $labels = session()->pull('dymo_print_labels', []);

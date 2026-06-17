@@ -92,12 +92,18 @@ class AppVersionController extends ApiController
      */
     public function download(string $version): StreamedResponse|JsonResponse
     {
+        // Es kann mehrere Zeilen mit gleicher Version geben (Historie-Eintrag aus
+        // dem Seeder OHNE APK + hochgeladene Zeile MIT APK). Gezielt die Zeile
+        // nehmen, die wirklich eine installierbare APK hat.
         $entry = AppVersion::published()
             ->whereIn('platform', self::APP_PLATFORMS)
             ->where('version', $version)
-            ->first();
+            ->whereNotNull('apk_path')
+            ->orderByDesc('version_code')
+            ->get()
+            ->first(fn (AppVersion $v) => $v->hasApk());
 
-        if (! $entry || ! $entry->hasApk()) {
+        if (! $entry) {
             return $this->error('Diese Version steht nicht zum Download bereit.', 404);
         }
 

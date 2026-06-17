@@ -279,35 +279,53 @@ public class TrayApplicationContext : ApplicationContext
                     || dymoNames.Any(n => n.Equals(target, StringComparison.OrdinalIgnoreCase));
                 var isTest = string.Equals(job.Reference, "TESTDRUCK", StringComparison.OrdinalIgnoreCase);
 
-                // Nicht-DYMO-Drucker (Brother/TSC): aktuell nur Testseite ueber den
-                // Windows-Spooler. DYMO-Etiketten koennen dort (noch) nicht gedruckt werden.
+                // Bremsen, wenn der Server es verlangt (Nachdrucke) ODER bei
+                // groesseren Mengen — sonst ueberlaeuft der Spooler (leere Labels).
+                var pace = job.Pace || total > PaceThreshold;
+
+                // ── Nicht-DYMO-Drucker ──
                 if (!isDymo)
                 {
-                    if (!isTest)
-                    {
-                        throw new Exception($"Etiketten-Druck auf '{target}' wird noch nicht unterstuetzt (nur DYMO + Testseite).");
-                    }
-
-                    SetStatus($"Druckt Testseite: {target}…", IconFactory.Printing);
                     if (TscPrinting.IsTsc(target))
                     {
-                        // TSC-Thermodrucker: TSPL-Etikett (Datum/Uhrzeit), Groesse wie DYMO.
-                        TscPrinting.PrintTestLabel(target!);
+                        // TSC-Thermodrucker: Testetikett generieren ODER das vom Server
+                        // gelieferte TSPL (Gutschein etc.) roh an den Drucker senden.
+                        if (isTest)
+                        {
+                            SetStatus($"Druckt Testetikett: {target}…", IconFactory.Printing);
+                            TscPrinting.PrintTestLabel(target!);
+                        }
+                        else
+                        {
+                            for (int i = 0; i < total; i++)
+                            {
+                                SetStatus(
+                                    total > 1 ? $"Druckt {i + 1}/{total}: {job.Reference}…" : $"Druckt: {job.Reference}…",
+                                    IconFactory.Printing);
+                                RawPrinterHelper.SendBytesToPrinter(
+                                    target!, System.Text.Encoding.ASCII.GetBytes(job.Labels[i].Xml));
+                                if (pace)
+                                {
+                                    await Task.Delay(LabelDelayMs);
+                                }
+                            }
+                        }
+                        await _api.AckAsync(job.Id, true, null);
+                        SetStatus($"Gedruckt: {job.Reference ?? job.JobType}", IconFactory.Ready);
+                        continue;
                     }
-                    else
+
+                    // Brother & andere: nur Testseite ueber den Windows-Spooler.
+                    if (!isTest)
                     {
-                        // Sonstige (Brother): Testseite ueber den Windows-Spooler.
-                        WindowsPrinting.PrintTestPage(target!, BuildTestLines(target!));
+                        throw new Exception($"Etiketten-Druck auf '{target}' wird noch nicht unterstuetzt (nur DYMO + TSC).");
                     }
+                    SetStatus($"Druckt Testseite: {target}…", IconFactory.Printing);
+                    WindowsPrinting.PrintTestPage(target!, BuildTestLines(target!));
                     await _api.AckAsync(job.Id, true, null);
                     SetStatus($"Testseite gedruckt: {target}", IconFactory.Ready);
                     continue;
                 }
-
-                // Bremsen, wenn der Server es verlangt (Nachdrucke) ODER bei
-                // groesseren Mengen — sonst ueberlaeuft der DYMO-Spooler und es
-                // kommen leere Labels heraus. Einzel-/Kleindrucke laufen sofort.
-                var pace = job.Pace || total > PaceThreshold;
 
                 for (int i = 0; i < total; i++)
                 {

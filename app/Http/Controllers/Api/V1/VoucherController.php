@@ -403,7 +403,9 @@ class VoucherController extends ApiController
             return $this->error('Tankstelle nicht gefunden.', 404);
         }
 
-        $template = \App\Models\LabelTemplate::findForTenant('gutschein', $station->tenant_id);
+        $slug = $this->isTscPrinter($request->input('printer_name')) ? 'gutschein-tsc' : 'gutschein';
+        $template = \App\Models\LabelTemplate::findForTenant($slug, $station->tenant_id)
+            ?? \App\Models\LabelTemplate::findForTenant('gutschein', $station->tenant_id);
         if (! $template) {
             return $this->error('Keine Gutschein-Druckvorlage vorhanden.', 422);
         }
@@ -528,6 +530,18 @@ class VoucherController extends ApiController
     }
 
     /** Map voucher_number => Anzahl Nachdrucke. */
+    /** Ist der gewaehlte Drucker ein TSC-Thermodrucker? (braucht TSPL statt DYMO-XML) */
+    private function isTscPrinter(?string $name): bool
+    {
+        if (empty($name)) {
+            return false;
+        }
+        $n = strtolower($name);
+
+        return str_contains($n, 'tsc') || str_contains($n, 'da210')
+            || str_contains($n, 'ttp') || str_contains($n, 'tdp');
+    }
+
     private function reprintCountsFor(string $tenantId, array $numbers): array
     {
         if (empty($numbers)) {
@@ -555,7 +569,10 @@ class VoucherController extends ApiController
                 return;
             }
 
-            $template = \App\Models\LabelTemplate::findForTenant('gutschein', $station->tenant_id);
+            // TSC-Drucker brauchen die TSPL-Vorlage (kein DYMO-XML).
+            $slug = $this->isTscPrinter($printerName) ? 'gutschein-tsc' : 'gutschein';
+            $template = \App\Models\LabelTemplate::findForTenant($slug, $station->tenant_id)
+                ?? \App\Models\LabelTemplate::findForTenant('gutschein', $station->tenant_id);
             if (! $template) {
                 Log::warning('Print-Job: Keine Gutschein-Druckvorlage', ['tenant_id' => $station->tenant_id]);
                 return;

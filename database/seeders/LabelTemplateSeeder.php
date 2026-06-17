@@ -123,6 +123,22 @@ class LabelTemplateSeeder extends Seeder
                 ]),
                 'xml_template' => self::stationenMonatXml(),
             ],
+            [
+                'slug' => 'gutschein-tsc',
+                'category' => 'gutschein',
+                'name' => 'Gutschein (TSC Thermo)',
+                'width' => 5.4,
+                'height' => 10.1,
+                'orientation' => 'Portrait',
+                'placeholders' => json_encode([
+                    ['key' => 'betrag', 'label' => 'Betrag', 'example' => '50,00 €'],
+                    ['key' => 'nummer', 'label' => 'Gutscheinnummer', 'example' => '4567.000'],
+                    ['key' => 'datum', 'label' => 'Ausgabedatum', 'example' => '17.06.2026'],
+                    ['key' => 'gueltig_bis', 'label' => 'Gueltig bis', 'example' => '17.06.2029'],
+                    ['key' => 'barcode', 'label' => 'QR-Code Inhalt', 'example' => 'www.aral-welle.de'],
+                ]),
+                'xml_template' => self::gutscheinTsplTspl(),
+            ],
         ];
 
         $now = now();
@@ -266,6 +282,28 @@ XML;
             . self::textObject('RefId', 'ID {{id}}', 6, false, 0.10, 1.88, 3.7, 0.18);
 
         return self::wrapLabel($objects, 'ROSI Tankbetrug Detailliert', 'Portrait', 'Shipping', 3.98, 2.13);
+    }
+
+    /**
+     * Gutschein als TSPL fuer TSC-Thermodrucker (203 dpi = 8 dots/mm).
+     * Groesse wie DYMO-Versandetikett (54 x 101 mm). Wird vom Agenten roh an
+     * den TSC gesendet. Platzhalter werden serverseitig per render() ersetzt.
+     */
+    private static function gutscheinTsplTspl(): string
+    {
+        return "SIZE 54 mm,101 mm\r\n"
+            . "GAP 2 mm,0 mm\r\n"
+            . "DIRECTION 1\r\n"
+            . "CLS\r\n"
+            . "TEXT 30,30,\"4\",0,1,1,\"GUTSCHEIN\"\r\n"
+            . "BAR 30,100,372,3\r\n"
+            . "TEXT 30,130,\"2\",0,1,1,\"Wert:\"\r\n"
+            . "TEXT 30,175,\"5\",0,1,1,\"{{betrag}}\"\r\n"
+            . "TEXT 30,330,\"3\",0,1,1,\"Nr.: {{nummer}}\"\r\n"
+            . "TEXT 30,385,\"2\",0,1,1,\"Ausgegeben: {{datum}}\"\r\n"
+            . "TEXT 30,430,\"2\",0,1,1,\"Gueltig bis: {{gueltig_bis}}\"\r\n"
+            . "QRCODE 30,490,L,6,A,0,\"{{barcode}}\"\r\n"
+            . "PRINT 1,1\r\n";
     }
 
     private static function testdruckXml(): string

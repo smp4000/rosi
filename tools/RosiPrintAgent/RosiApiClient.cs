@@ -50,6 +50,13 @@ public class RosiApiClient
     private async Task<T?> PostAsync<T>(string path, object body)
     {
         var resp = await _http.PostAsJsonAsync(path, body, JsonOpts);
+
+        // 401 = Token ungueltig/unbekannt -> Aufrufer verwirft Token + verbindet neu.
+        if ((int)resp.StatusCode == 401)
+        {
+            throw new AgentUnauthorizedException();
+        }
+
         resp.EnsureSuccessStatusCode();
 
         var wrapper = await resp.Content.ReadFromJsonAsync<ApiResponse<T>>(JsonOpts);
@@ -60,4 +67,9 @@ public class RosiApiClient
 
         return wrapper is null ? default : wrapper.Data;
     }
+}
+
+/// <summary>Token wurde vom Server abgelehnt (HTTP 401) -> neu verbinden.</summary>
+public class AgentUnauthorizedException : Exception
+{
 }

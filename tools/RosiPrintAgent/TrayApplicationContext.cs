@@ -114,6 +114,16 @@ public class TrayApplicationContext : ApplicationContext
 
             await PollAndPrint();
         }
+        catch (AgentUnauthorizedException)
+        {
+            // Token vom Server abgelehnt -> verwerfen und automatisch neu verbinden
+            // (per enroll.json bzw. Self-Register).
+            _config.Token = null;
+            _config.Save();
+            ApplyConfig();
+            _connectTick = 0;
+            SetStatus("Token ungueltig — verbinde neu…", IconFactory.Idle);
+        }
         catch (Exception ex)
         {
             SetStatus($"Server-Fehler: {Short(ex.Message)}", IconFactory.Error);

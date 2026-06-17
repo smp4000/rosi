@@ -3,7 +3,7 @@
 ; Ergebnis:     installer-output\ROSI-Print-Setup.exe
 
 #define MyAppName "ROSI Print"
-#define MyAppVersion "1.1.1"
+#define MyAppVersion "1.1.2"
 #define MyAppPublisher "ROSI"
 #define MyAppExe "RosiPrintAgent.exe"
 

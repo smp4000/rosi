@@ -72,6 +72,8 @@ Route::prefix('v1')->group(function () {
     // Geraet pruefen: Ist das Geraet noch registriert und aktiv?
     Route::get('/devices/verify', [DeviceController::class, 'verify'])
         ->name('api.v1.devices.verify');
+    Route::post('/devices/push-token', [DeviceController::class, 'savePushToken'])
+        ->name('api.v1.devices.push-token');
 
     // --- Authentifizierung (OHNE Abo-Pruefung, muss immer funktionieren) ---
 

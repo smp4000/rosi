@@ -19,7 +19,10 @@ use Illuminate\Support\Facades\Log;
  */
 class TemperaturePollService
 {
-    public function __construct(private MobileAlertsClient $client) {}
+    public function __construct(
+        private MobileAlertsClient $client,
+        private FcmService $fcm,
+    ) {}
 
     /**
      * @return array{units:int, readings:int, errors:int}
@@ -64,6 +67,7 @@ class TemperaturePollService
             if (! ($result['success'] ?? false)) {
                 $stats['errors']++;
                 Log::warning('Temperatur-Poll fehlgeschlagen', ['error' => $result['error'] ?? '?']);
+                $this->notifyError($groupUnits, $result['error'] ?? 'Unbekannter Fehler');
                 continue;
             }
 
@@ -197,7 +201,7 @@ class TemperaturePollService
             return;
         }
 
-        CoolingAlert::query()->create([
+        $alert = CoolingAlert::query()->create([
             'tenant_id' => $unit->tenant_id,
             'station_id' => $unit->station_id,
             'cooling_unit_id' => $unit->id,
@@ -207,6 +211,71 @@ class TemperaturePollService
             'status' => 'active',
             'started_at' => now(),
         ]);
+
+        // App-Push bei NEUER Stoerung
+        $this->notifyAlert($unit, $alert);
+    }
+
+    /** Push-Benachrichtigung bei neuer Stoerung an die Geraete der Station. */
+    private function notifyAlert(CoolingUnit $unit, CoolingAlert $alert): void
+    {
+        $tokens = $this->pushTokensForStation($unit->station_id);
+        if (empty($tokens)) {
+            return;
+        }
+
+        $label = CoolingAlert::TYPE_LABELS[$alert->type] ?? $alert->type;
+        $v = $alert->value !== null ? ' ' . number_format((float) $alert->value, 1, ',', '.') . ' °C' : '';
+        $title = '⚠️ ' . $label . ': ' . $unit->name;
+        $body = '#' . ($unit->device_number ?? '?') . ' ' . $unit->name . ' — ' . $label . $v;
+
+        $sent = $this->fcm->sendToTokens($tokens, $title, $body, [
+            'type' => 'cooling_alert',
+            'unit_id' => (string) $unit->id,
+            'alert_type' => $alert->type,
+        ]);
+        if ($sent > 0) {
+            $alert->update(['notified_at' => now()]);
+        }
+    }
+
+    /** Push bei technischem Abruf-Fehler (gedrosselt: 1x pro Stunde je Station). */
+    private function notifyError(array $units, string $error): void
+    {
+        $stationIds = collect($units)->pluck('station_id')->unique()->filter();
+        foreach ($stationIds as $stationId) {
+            $cacheKey = 'temp_err_notified_' . $stationId;
+            if (\Illuminate\Support\Facades\Cache::has($cacheKey)) {
+                continue;
+            }
+            $tokens = $this->pushTokensForStation($stationId);
+            if (empty($tokens)) {
+                continue;
+            }
+            $this->fcm->sendToTokens(
+                $tokens,
+                '⚠️ Temperatur-Abruf gestört',
+                'Die Temperaturen konnten nicht abgerufen werden: ' . $error,
+                ['type' => 'cooling_error'],
+            );
+            \Illuminate\Support\Facades\Cache::put($cacheKey, true, now()->addHour());
+        }
+    }
+
+    /** Aktive FCM-Tokens aller Geraete einer Station. */
+    private function pushTokensForStation(?string $stationId): array
+    {
+        if (! $stationId) {
+            return [];
+        }
+
+        return \App\Models\Device::query()
+            ->withoutGlobalScopes()
+            ->where('station_id', $stationId)
+            ->where('is_active', true)
+            ->whereNotNull('push_token')
+            ->pluck('push_token')
+            ->all();
     }
 
     /** Schliesst aktive Alarme eines Typs. */

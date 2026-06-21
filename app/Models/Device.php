@@ -27,6 +27,8 @@ class Device extends Model
         'device_os',
         'app_version',
         'device_token_hash',
+        'push_token',
+        'push_token_updated_at',
         'print_default',
         'print_alternatives',
         'is_active',

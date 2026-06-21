@@ -209,6 +209,31 @@ class DeviceController extends ApiController
     /**
      * Geraet anhand des Klartext-Tokens finden (Token ist gehasht gespeichert).
      */
+    /**
+     * POST /api/v1/devices/push-token
+     * Speichert das FCM-Push-Token des Geraets (fuer Stoerungs-Push).
+     * Body: device_token, push_token
+     */
+    public function savePushToken(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'device_token' => 'required|string',
+            'push_token' => 'required|string|max:255',
+        ]);
+
+        $device = Device::findByPlainToken($data['device_token']);
+        if (! $device) {
+            return $this->error('Geraet nicht erkannt.', 401);
+        }
+
+        $device->update([
+            'push_token' => $data['push_token'],
+            'push_token_updated_at' => now(),
+        ]);
+
+        return $this->success(null, 'Push-Token gespeichert.');
+    }
+
     private function findDeviceByToken(string $plainToken): ?Device
     {
         if (empty($plainToken)) {

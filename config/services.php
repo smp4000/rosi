@@ -40,4 +40,10 @@ return [
         'model' => env('PERPLEXITY_MODEL', 'sonar'),
     ],
 
+    // Firebase Cloud Messaging (App-Push). Pfad zur Service-Account-JSON.
+    'fcm' => [
+        'credentials' => env('FCM_CREDENTIALS'),
+        'project_id' => env('FCM_PROJECT_ID'),
+    ],
+
 ];

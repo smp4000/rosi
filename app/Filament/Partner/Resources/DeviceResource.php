@@ -371,6 +371,58 @@ class DeviceResource extends Resource
                         session()->flash('qr_expires', now()->addHours(24)->format('d.m.Y H:i'));
                     }),
 
+                // ── Drucker fuer dieses Geraet festlegen (Standard + Alternativen) ──
+                Action::make('printer_settings')
+                    ->label('Drucker')
+                    ->icon('heroicon-o-printer')
+                    ->color('gray')
+                    ->modalHeading(fn (Device $record) => 'Drucker fuer: ' . ($record->device_name ?? 'Geraet'))
+                    ->fillForm(fn (Device $record) => [
+                        'print_default' => $record->print_default,
+                        'print_alternatives' => $record->print_alternatives ?? [],
+                    ])
+                    ->form(function (Device $record) {
+                        $options = app(\App\Services\PrintDestinationService::class)
+                            ->optionsForStation($record->station);
+
+                        if (empty($options)) {
+                            return [
+                                \Filament\Forms\Components\Placeholder::make('empty')
+                                    ->label('')
+                                    ->content('Diese Station hat noch keine gemeldeten Drucker. Sobald der ROSI-Print-Agent Drucker meldet, koennen sie hier zugewiesen werden.'),
+                            ];
+                        }
+
+                        return [
+                            \Filament\Forms\Components\Placeholder::make('hint')
+                                ->label('')
+                                ->content('Standard-Drucker + optionale Alternativen fuer DIESES Geraet. In der App werden dann nur diese angezeigt (Standard vorausgewaehlt). Ohne Auswahl zeigt die App alle Drucker.'),
+                            \Filament\Forms\Components\Select::make('print_default')
+                                ->label('Standard-Drucker')
+                                ->options($options)
+                                ->searchable()
+                                ->placeholder('— nicht festgelegt —'),
+                            \Filament\Forms\Components\Select::make('print_alternatives')
+                                ->label('Alternative Drucker')
+                                ->options($options)
+                                ->multiple()
+                                ->searchable()
+                                ->helperText('Optional: weitere Drucker, die am Geraet zusaetzlich auswaehlbar bleiben.'),
+                        ];
+                    })
+                    ->action(function (Device $record, array $data) {
+                        $record->update([
+                            'print_default' => $data['print_default'] ?? null,
+                            'print_alternatives' => array_values($data['print_alternatives'] ?? []),
+                        ]);
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Drucker gespeichert')
+                            ->body('Die App zeigt am Geraet jetzt nur die festgelegten Drucker.')
+                            ->success()
+                            ->send();
+                    }),
+
                 // ── Geraet aktivieren/deaktivieren ──
                 Action::make('toggle_active')
                     ->label(fn (Device $record) => $record->is_active ? 'Deaktivieren' : 'Aktivieren')

@@ -27,6 +27,8 @@ class Device extends Model
         'device_os',
         'app_version',
         'device_token_hash',
+        'print_default',
+        'print_alternatives',
         'is_active',
         'approval_status',
         'registration_distance_m',
@@ -45,6 +47,7 @@ class Device extends Model
         return [
             'is_active' => 'boolean',
             'last_seen_at' => 'datetime',
+            'print_alternatives' => 'array',
         ];
     }
 

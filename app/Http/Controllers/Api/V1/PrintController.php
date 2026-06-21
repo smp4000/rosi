@@ -327,37 +327,47 @@ class PrintController extends ApiController
      */
     public function destinations(Request $request)
     {
-        $device = \App\Models\Device::findByPlainToken($request->query('device_token', ''));
+        $device = Device::findByPlainToken($request->query('device_token', ''));
         if (! $device) {
             return $this->error('Geraet nicht erkannt.', 401);
         }
 
-        $agents = \App\Models\PrintAgent::where('station_id', $device->station_id)
-            ->where('is_active', true)
-            ->orderByDesc('is_default')
-            ->orderBy('name')
-            ->get();
-
-        $multiAgent = $agents->count() > 1;
         $station = \App\Models\GasStation::find($device->station_id);
-        $defaultPrinter = $station?->printer_map['*'] ?? null;
+        $destinations = app(\App\Services\PrintDestinationService::class)->forStation($station);
 
-        // Ein Ziel je (Agent + Drucker). So koennen auch mehrere Drucker an
-        // EINEM PC einzeln gewaehlt werden.
-        $destinations = [];
-        foreach ($agents as $agent) {
-            foreach (($agent->printers ?? []) as $printer) {
-                $destinations[] = [
-                    'agent_id' => $agent->id,
-                    'printer_name' => $printer,
-                    'label' => $multiAgent ? ($agent->name . ' · ' . $printer) : $printer,
-                    'online' => $agent->online(),
-                    'is_default' => ($defaultPrinter !== null && $printer === $defaultPrinter),
-                ];
-            }
+        return $this->success([
+            'destinations' => $destinations,
+            // Pro-Geraet-Auswahl: Standard + Alternativen (Schluessel agent_id|printer).
+            // Leer => App zeigt als Fallback alle Drucker.
+            'device_default' => $device->print_default,
+            'device_alternatives' => $device->print_alternatives ?? [],
+        ]);
+    }
+
+    /**
+     * POST /api/v1/print/device-settings
+     * Speichert Standard-Drucker + Alternativen fuer DIESES Geraet (App-Override).
+     */
+    public function saveDeviceSettings(Request $request)
+    {
+        $validated = $request->validate([
+            'device_token' => 'required|string',
+            'default' => 'nullable|string|max:255',
+            'alternatives' => 'nullable|array',
+            'alternatives.*' => 'string|max:255',
+        ]);
+
+        $device = Device::findByPlainToken($validated['device_token']);
+        if (! $device) {
+            return $this->error('Geraet nicht erkannt.', 401);
         }
 
-        return $this->success(['destinations' => $destinations]);
+        $device->update([
+            'print_default' => $validated['default'] ?? null,
+            'print_alternatives' => array_values($validated['alternatives'] ?? []),
+        ]);
+
+        return $this->success(null, 'Druckereinstellungen gespeichert.');
     }
 
     /**

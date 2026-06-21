@@ -120,6 +120,8 @@ Route::prefix('v1')->group(function () {
         ->name('api.v1.print.test');
     Route::post('/print/agent-test', [PrintController::class, 'queueTest'])
         ->name('api.v1.print.agent-test');
+    Route::post('/print/device-settings', [PrintController::class, 'saveDeviceSettings'])
+        ->name('api.v1.print.device-settings');
     Route::post('/print/raw', [PrintController::class, 'printRaw'])
         ->name('api.v1.print.raw');
     Route::post('/print/template', [PrintController::class, 'printTemplate'])

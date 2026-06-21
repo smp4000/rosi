@@ -89,15 +89,36 @@ class CoolingUnit extends Model
     }
 
     /**
+     * Min/Max immer korrekt sortieren (verhindert vertauschte Grenzen,
+     * z.B. bei Minusgraden "-14 bis -18" -> min=-18, max=-14).
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (CoolingUnit $u) {
+            if ($u->target_min !== null && $u->target_max !== null
+                && (float) $u->target_min > (float) $u->target_max) {
+                [$u->target_min, $u->target_max] = [$u->target_max, $u->target_min];
+            }
+        });
+    }
+
+    /**
      * Bewertet einen Temperaturwert gegen den Soll-Bereich.
+     * Reihenfolge der Grenzen egal (wird intern sortiert).
      * @return string ok|high|low
      */
     public function evaluate(float $value): string
     {
-        if ($this->target_max !== null && $value > (float) $this->target_max) {
+        $min = $this->target_min !== null ? (float) $this->target_min : null;
+        $max = $this->target_max !== null ? (float) $this->target_max : null;
+        if ($min !== null && $max !== null && $min > $max) {
+            [$min, $max] = [$max, $min];
+        }
+
+        if ($max !== null && $value > $max) {
             return 'high';
         }
-        if ($this->target_min !== null && $value < (float) $this->target_min) {
+        if ($min !== null && $value < $min) {
             return 'low';
         }
 

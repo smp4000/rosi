@@ -15,6 +15,9 @@ return [
 
     'name' => env('APP_NAME', 'Laravel'),
 
+    // Token fuer den Cron-Trigger ueber URL (Hosting ohne Shell-Cron, z.B. All-Inkl KAS).
+    'cron_token' => env('CRON_TOKEN'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment

@@ -652,3 +652,21 @@ Route::get('/debug/last-errors/{token}', function (string $token) {
     return response('<pre>' . e(implode("\n", $out)) . '</pre>')
         ->header('Content-Type', 'text/html');
 });
+
+/*
+|--------------------------------------------------------------------------
+| Cron-Trigger per URL (Hosting ohne Shell-Cron, z.B. All-Inkl KAS)
+|--------------------------------------------------------------------------
+| Der KAS-Cronjob ruft alle 5 Minuten diese URL auf:
+|   https://rosi.aral-welle.com/cron-run/<CRON_TOKEN>
+| Fuehrt den Laravel-Scheduler aus (Temperatur-Poll, Druck-Cleanup, DSGVO ...).
+*/
+Route::get('/cron-run/{token}', function (string $token) {
+    $expected = config('app.cron_token');
+    abort_unless($expected && hash_equals($expected, $token), 403);
+
+    \Illuminate\Support\Facades\Artisan::call('schedule:run');
+
+    return response('OK ' . now()->toDateTimeString() . "\n" . \Illuminate\Support\Facades\Artisan::output(), 200)
+        ->header('Content-Type', 'text/plain');
+})->name('cron.run');

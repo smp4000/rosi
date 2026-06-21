@@ -339,6 +339,20 @@ return [
             ],
         ],
 
+        'partner.temperature' => [
+            'label' => 'Temperatur / Kühlmöbel', 'bereich' => 'dashboard', 'emoji' => '🌡️',
+            'aktionen' => [
+                'list' => 'Anzeigen',
+                'manage' => 'Kühlmöbel verwalten',
+                'ack' => 'Störungen quittieren',
+                'settings' => 'Einstellungen',
+            ],
+            'defaults' => [
+                'stationsleiter' => ['list', 'manage', 'ack'],
+                'buero' => ['list'],
+            ],
+        ],
+
         'partner.depreciations' => [
             'label' => 'Abschriften', 'bereich' => 'dashboard', 'emoji' => '📉',
             'aktionen' => [

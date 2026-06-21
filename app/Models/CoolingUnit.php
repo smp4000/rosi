@@ -17,12 +17,39 @@ class CoolingUnit extends Model
     use HasUuids, BelongsToTenant, SoftDeletes;
 
     protected $fillable = [
-        'tenant_id', 'station_id', 'name', 'type', 'category',
+        'tenant_id', 'station_id', 'name', 'device_number', 'type', 'category', 'preset',
         'device_id', 'sensor_type', 'channel', 'phoneid',
         'target_min', 'target_max', 'track_humidity', 'humidity_min', 'humidity_max',
         'offline_after_min',
         'last_reading_at', 'last_value', 'last_humidity', 'last_lowbat', 'last_status',
         'is_active', 'sort',
+    ];
+
+    /**
+     * Grenzwert-Presets nach ARAL HQM 7.0 (Maßnahmenkatalog Temperaturkontrolle).
+     * key => [label, type, min, max]. min/max null = einseitige Grenze.
+     */
+    public const PRESETS = [
+        'hackfleisch' => ['Kühlmöbel/-raum rohe Hackfleischprodukte', 'fridge', null, 2.0],
+        'gefluegel' => ['Kühlmöbel/-raum rohes Frischgeflügel', 'fridge', null, 4.0],
+        'kuehl_allg' => ['Kühlmöbel/-raum (allgemein)', 'fridge', null, 7.0],
+        'tiefkuehl' => ['Tiefkühlmöbel/-raum', 'freezer', null, -18.0],
+        'crushed_ice' => ['Crushed-Ice-Truhe', 'ice', -8.0, -5.0],
+        'heisshalter' => ['Heißhaltegerät', 'heat_hold', 65.0, null],
+        'fritteuse' => ['Fritteuse', 'fryer', null, 175.0],
+        'kaffee_milch' => ['Heiße Milch (Kaffeemaschine)', 'heat_other', 60.0, 72.0],
+    ];
+
+    public const TYPE_LABELS = [
+        'fridge' => 'Kühlmöbel',
+        'freezer' => 'Tiefkühlmöbel',
+        'counter' => 'Kühltheke',
+        'cold_room' => 'Kühlraum',
+        'ice' => 'Eis-Truhe',
+        'heat_hold' => 'Heißhaltegerät',
+        'fryer' => 'Fritteuse',
+        'heat_other' => 'Heißgetränk/-gerät',
+        'other' => 'Sonstiges',
     ];
 
     protected function casts(): array

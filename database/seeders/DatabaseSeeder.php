@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
         $this->call(ShiftReturnReasonsSeeder::class);
         $this->call(ArticleGroupSeeder::class);
         $this->call(LabelTemplateSeeder::class);
+        $this->call(CoolingMeasureSeeder::class);
 
         // Globale Team-ID fuer Super-Admin Rollen-Zuweisung
         app(PermissionRegistrar::class)->setPermissionsTeamId(RolesAndPermissionsSeeder::GLOBAL_TEAM_ID);

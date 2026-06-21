@@ -19,6 +19,7 @@ class CoolingAlert extends Model
         'type', 'value', 'threshold', 'status',
         'started_at', 'ended_at',
         'acknowledged_at', 'acknowledged_by', 'note', 'notified_at',
+        'measures', 'control_value', 'ticket_number',
     ];
 
     protected function casts(): array
@@ -26,6 +27,8 @@ class CoolingAlert extends Model
         return [
             'value' => 'decimal:2',
             'threshold' => 'decimal:2',
+            'control_value' => 'decimal:2',
+            'measures' => 'array',
             'started_at' => 'datetime',
             'ended_at' => 'datetime',
             'acknowledged_at' => 'datetime',

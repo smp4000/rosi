@@ -23,3 +23,6 @@ Schedule::command('rosi:cleanup-ai-chats')->monthlyOn(1, '04:30');
 
 // Druck-Warteschlange aufraeumen (TTL/Expiry, haengende Jobs, alte loeschen)
 Schedule::command('print:cleanup')->everyFiveMinutes();
+
+// Kuehlmoebel-Temperaturen abrufen + Alarme auswerten (Mobile Alerts API)
+Schedule::command('temperatures:poll')->everyFiveMinutes()->withoutOverlapping();

@@ -187,6 +187,14 @@ Route::prefix('v1')->group(function () {
     Route::get('/vouchers/by-group', [VoucherController::class, 'byGroup'])
         ->name('api.v1.vouchers.by-group');
 
+    // --- Temperatur-Management (oeffentlich, nur device_token: Anzeige) ---
+    Route::get('/temperatures/units', [\App\Http\Controllers\Api\V1\TemperatureController::class, 'units'])
+        ->name('api.v1.temperatures.units');
+    Route::get('/temperatures/units/{id}/history', [\App\Http\Controllers\Api\V1\TemperatureController::class, 'history'])
+        ->name('api.v1.temperatures.history');
+    Route::get('/temperatures/alerts', [\App\Http\Controllers\Api\V1\TemperatureController::class, 'alerts'])
+        ->name('api.v1.temperatures.alerts');
+
     // --- Adress-Etiketten (oeffentlich, nur device_token: Lesen + Suche) ---
     Route::get('/address-labels', [\App\Http\Controllers\Api\V1\AddressLabelController::class, 'index'])
         ->name('api.v1.address-labels.index');

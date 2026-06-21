@@ -131,10 +131,14 @@ class VoucherController extends ApiController
             'device_token' => 'nullable|string',
             'target_agent_id' => 'nullable|uuid',
             'printer_name' => 'nullable|string|max:255',
+            // Direkt-Druck (Station ohne PC): App druckt selbst per Bluetooth.
+            // Dann KEIN Agent-Job, stattdessen TSPL-Etiketten in der Antwort.
+            'direct_print' => 'nullable|boolean',
         ]);
 
         $user = $request->user();
         $tenantId = $user->tenant_id;
+        $directPrint = (bool) ($data['direct_print'] ?? false);
 
         // Station-ID: aus Device ableiten, oder erste Station des Tenants
         $stationId = null;
@@ -186,8 +190,14 @@ class VoucherController extends ApiController
             $first = $vouchers->first();
             $last = $vouchers->last();
 
-            // Print-Job automatisch in die Queue legen (Agent druckt an der Station)
-            $this->createPrintJob($vouchers, $stationId, $user->name, $data['target_agent_id'] ?? null, $user->id, $data['printer_name'] ?? null);
+            // Direkt-Druck (kein PC/Agent): TSPL-Etiketten zurueckgeben, App druckt
+            // per Bluetooth. Sonst: Print-Job fuer den Stations-Agenten anlegen.
+            $directLabels = [];
+            if ($directPrint) {
+                $directLabels = $this->renderTscLabels($vouchers, $stationId);
+            } else {
+                $this->createPrintJob($vouchers, $stationId, $user->name, $data['target_agent_id'] ?? null, $user->id, $data['printer_name'] ?? null);
+            }
 
             return $this->success([
                 'count' => $vouchers->count(),
@@ -196,6 +206,7 @@ class VoucherController extends ApiController
                 'last_number' => $last->voucher_number,
                 'amount' => $first->amount,
                 'valid_until' => $first->valid_until->format('Y-m-d'),
+                'labels' => $directLabels,
                 'vouchers' => $vouchers->map(fn ($v) => $this->formatVoucher($v))->all(),
             ], "{$vouchers->count()} Gutscheine generiert");
 
@@ -387,7 +398,10 @@ class VoucherController extends ApiController
             'numbers.*' => 'string|max:50',
             'target_agent_id' => 'nullable|uuid',
             'printer_name' => 'nullable|string|max:255',
+            'direct_print' => 'nullable|boolean',
         ]);
+
+        $directPrint = (bool) $request->input('direct_print', false);
 
         $user = $request->user();
         if (! $user) {
@@ -424,29 +438,37 @@ class VoucherController extends ApiController
         }
 
         $targetAgentId = $request->input('target_agent_id');
+        $jobId = null;
+        $directLabels = [];
 
-        $labels = $vouchers->map(fn (Voucher $v) => [
-            'number' => $v->voucher_number,
-            'xml' => $template->render($this->voucherLabelData($v, $isTsc)),
-        ])->all();
+        if ($directPrint) {
+            // Kein Agent — App druckt per Bluetooth. TSPL zurueckgeben.
+            $directLabels = $this->renderTscLabels($vouchers, $station->id);
+        } else {
+            $labels = $vouchers->map(fn (Voucher $v) => [
+                'number' => $v->voucher_number,
+                'xml' => $template->render($this->voucherLabelData($v, $isTsc)),
+            ])->all();
 
-        $reference = $vouchers->count() === 1
-            ? 'Nachdruck ' . $vouchers->first()->voucher_number
-            : 'Nachdruck ' . $vouchers->first()->voucher_number . '–' . $vouchers->last()->voucher_number;
+            $reference = $vouchers->count() === 1
+                ? 'Nachdruck ' . $vouchers->first()->voucher_number
+                : 'Nachdruck ' . $vouchers->first()->voucher_number . '–' . $vouchers->last()->voucher_number;
 
-        $job = app(\App\Services\PrintQueueService::class)->enqueue(
-            $station,
-            'voucher_labels',
-            $labels,
-            [
-                'reference' => $reference,
-                'reference_type' => 'voucher_reprint',
-                'created_by' => $user->name,
-                'user_id' => $user->id,
-                'target_agent_id' => $targetAgentId,
-                'printer_name' => $request->input('printer_name'),
-            ],
-        );
+            $job = app(\App\Services\PrintQueueService::class)->enqueue(
+                $station,
+                'voucher_labels',
+                $labels,
+                [
+                    'reference' => $reference,
+                    'reference_type' => 'voucher_reprint',
+                    'created_by' => $user->name,
+                    'user_id' => $user->id,
+                    'target_agent_id' => $targetAgentId,
+                    'printer_name' => $request->input('printer_name'),
+                ],
+            );
+            $jobId = $job->id;
+        }
 
         // Audit: pro nachgedruckter Nummer ein Protokoll-Eintrag
         foreach ($vouchers as $v) {
@@ -456,13 +478,14 @@ class VoucherController extends ApiController
                 'voucher_id' => $v->id,
                 'voucher_number' => $v->voucher_number,
                 'user_id' => $user->id,
-                'print_job_id' => $job->id,
+                'print_job_id' => $jobId,
                 'target_agent_id' => $targetAgentId,
             ]);
         }
 
         return $this->success([
             'count' => $vouchers->count(),
+            'labels' => $directLabels,
             'reprint_counts' => $this->reprintCountsFor($user->tenant_id, $numbers),
         ], $vouchers->count() . ' Etikett(en) zum Nachdruck gesendet.');
     }
@@ -556,6 +579,29 @@ class VoucherController extends ApiController
             ->groupBy('voucher_number')
             ->pluck('c', 'voucher_number')
             ->toArray();
+    }
+
+    /**
+     * Rendert die Gutschein-Etiketten als TSPL (Vorlage gutschein-tsc) fuer den
+     * Direkt-Druck per Bluetooth durch die App. Liefert [{number, tspl}, ...].
+     */
+    private function renderTscLabels($vouchers, ?string $stationId): array
+    {
+        $station = $stationId ? \App\Models\GasStation::find($stationId) : null;
+        $template = \App\Models\LabelTemplate::findForTenant('gutschein-tsc', $station?->tenant_id);
+        if (! $template) {
+            return [];
+        }
+
+        $labels = [];
+        foreach ($vouchers as $voucher) {
+            $labels[] = [
+                'number' => $voucher->voucher_number,
+                'tspl' => $template->render($this->voucherLabelData($voucher, true)),
+            ];
+        }
+
+        return $labels;
     }
 
     private function createPrintJob($vouchers, ?string $stationId, string $createdBy, ?string $targetAgentId = null, ?string $userId = null, ?string $printerName = null): void

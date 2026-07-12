@@ -68,6 +68,53 @@ class AppVersion extends Model
                 }
             }
         });
+
+        // ── Speicherplatz-Hygiene: Dateien nicht verwaisen lassen ──
+        //
+        // Jede APK ist ~80 MB. Ohne diese beiden Hooks blieben die Dateien
+        // fuer immer in storage/app/public/apks liegen:
+        //
+        // 1) Wird bei einer Version die APK ERSETZT (neuer Upload ueberschreibt
+        //    apk_path), loeschen wir die ALTE Datei — sofern keine andere
+        //    Version denselben Pfad nutzt.
+        static::updating(function (AppVersion $v) {
+            $oldPath = $v->getOriginal('apk_path');
+            if ($oldPath && $oldPath !== $v->apk_path) {
+                self::deleteFileIfUnused($oldPath, $v->id);
+            }
+        });
+
+        // 2) Wird eine Version GELOESCHT, fliegt ihre Datei mit raus.
+        static::deleted(function (AppVersion $v) {
+            if ($v->apk_path) {
+                self::deleteFileIfUnused($v->apk_path, $v->id);
+            }
+        });
+    }
+
+    /**
+     * Loescht eine Upload-Datei aus dem public-Storage — aber NUR, wenn kein
+     * anderer Versions-Eintrag denselben Pfad referenziert (Sicherheitsnetz,
+     * z.B. falls ein Eintrag dupliziert wurde).
+     */
+    public static function deleteFileIfUnused(string $path, ?string $exceptId = null): bool
+    {
+        $stillUsed = static::query()
+            ->where('apk_path', $path)
+            ->when($exceptId, fn ($q) => $q->where('id', '!=', $exceptId))
+            ->exists();
+
+        if ($stillUsed) {
+            return false;
+        }
+
+        $disk = \Illuminate\Support\Facades\Storage::disk('public');
+        if ($disk->exists($path)) {
+            $disk->delete($path);
+            return true;
+        }
+
+        return false;
     }
 
     // ── Scopes ───────────────────────────────────────

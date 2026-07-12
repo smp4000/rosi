@@ -213,6 +213,63 @@ class AppVersionResource extends Resource
                 Actions\EditAction::make(),
                 Actions\DeleteAction::make(),
             ])
+            ->headerActions([
+                // ── Speicherplatz freigeben: alte Upload-Dateien loeschen ──
+                //
+                // Jede APK/EXE ist 60-80 MB gross. Der Updater braucht nur die
+                // NEUESTE Datei je Plattform — aeltere Dateien liegen nutzlos im
+                // Storage und fuellen den Webspace. Diese Aktion loescht je
+                // Plattform alle Dateien AUSSER der mit dem hoechsten
+                // version_code. Die Versions-EINTRAEGE (Historie + Changelogs)
+                // bleiben vollstaendig erhalten — nur apk_path wird geleert,
+                // damit kein toter Datei-Verweis zurueckbleibt.
+                Actions\Action::make('cleanup_uploads')
+                    ->label('Alte Uploads löschen')
+                    ->icon('heroicon-o-trash')
+                    ->color('warning')
+                    ->requiresConfirmation()
+                    ->modalHeading('Alte Upload-Dateien löschen?')
+                    ->modalDescription(
+                        'Löscht je Plattform alle hochgeladenen Dateien AUSSER der neuesten '
+                        . '(höchster Version-Code). Die Versionseinträge und Changelogs bleiben '
+                        . 'erhalten — nur die alten Dateien werden vom Server entfernt. '
+                        . 'Ältere Versionen sind danach nicht mehr herunterladbar.'
+                    )
+                    ->action(function () {
+                        $deleted = 0;      // Anzahl geloeschter Dateien
+                        $freedBytes = 0;   // freigegebener Speicherplatz
+
+                        // Alle Versionen MIT Datei laden, je Plattform gruppiert,
+                        // innerhalb der Gruppe nach version_code absteigend.
+                        $withFile = AppVersion::query()
+                            ->whereNotNull('apk_path')
+                            ->orderByDesc('version_code')
+                            ->get()
+                            ->groupBy('platform');
+
+                        foreach ($withFile as $versions) {
+                            // Erste je Gruppe = hoechster version_code = BEHALTEN.
+                            // Alle weiteren: Datei loeschen + Verweis leeren.
+                            foreach ($versions->slice(1) as $old) {
+                                $freedBytes += (int) ($old->apk_size ?? 0);
+                                AppVersion::deleteFileIfUnused($old->apk_path, $old->id);
+                                // saveQuietly: KEINE Model-Events ausloesen (das
+                                // saving-Event wuerde sonst die soeben geloeschte
+                                // Datei erneut vermessen wollen).
+                                $old->forceFill(['apk_path' => null, 'apk_size' => null])->saveQuietly();
+                                $deleted++;
+                            }
+                        }
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Aufräumen abgeschlossen')
+                            ->body($deleted . ' alte Datei(en) gelöscht, '
+                                . number_format($freedBytes / 1048576, 0, ',', '.') . ' MB freigegeben. '
+                                . 'Die neueste Datei je Plattform wurde behalten.')
+                            ->success()
+                            ->send();
+                    }),
+            ])
             ->emptyStateHeading('Noch keine Versionen erfasst')
             ->emptyStateDescription('Erstellen Sie den ersten Versionseintrag.')
             ->emptyStateIcon('heroicon-o-document-text');

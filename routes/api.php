@@ -24,6 +24,35 @@ use Illuminate\Support\Facades\Route;
 | Alle Routen hier haben automatisch das Praefix /api/v1/
 | Beispiel: POST /api/v1/auth/login
 |
+|--------------------------------------------------------------------------
+| SICHERHEITS-MODELL — die drei Auth-Stufen (bitte beim Anlegen neuer
+| Routen bewusst entscheiden, wo sie hingehoeren!)
+|--------------------------------------------------------------------------
+|
+| STUFE 1 — "oeffentlich" (nur device_token):
+|   Routen AUSSERHALB der auth:sanctum-Gruppe. Der device_token ist ein
+|   DAUER-Geheimnis des registrierten Geraets (laeuft nie ab) — er beweist
+|   "dieses Geraet gehoert zur Station X", aber NICHT "ein Mitarbeiter ist
+|   angemeldet". Deshalb gilt: NUR LESE-Endpunkte und die Login-/Setup-
+|   Endpunkte selbst. (Audit A-3)
+|
+| STUFE 2 — angemeldeter Mitarbeiter (auth:sanctum + api.access):
+|   Die Gruppe weiter unten. Braucht zusaetzlich den 12h-Session-Token aus
+|   dem Login (PIN/Scan). ALLE SCHREIBENDEN Endpunkte gehoeren hierher.
+|   api.access prueft ausserdem Trial/Abo des Mandanten.
+|
+| STUFE 3 — Print-Agent (eigener Agent-Token):
+|   /print/agent/* — der Tray-Agent am Stations-PC authentifiziert sich mit
+|   seinem eigenen Token (print_agents.token_hash). Kein device_token,
+|   kein Sanctum.
+|
+| MANDANTEN-FILTER (T-1): Die Middleware SetApiTenantContext laeuft auf
+| JEDEM API-Request (bootstrap/app.php) und setzt den TenantContext aus
+| Sanctum-User bzw. device_token — dadurch filtert der TenantScope alle
+| Model-Queries automatisch auf den richtigen Mandanten. Explizite
+| where(station_id)-Filter in den Controllern bleiben trotzdem Pflicht
+| (Stations-Ebene ist feiner als Mandanten-Ebene).
+|
 */
 
 Route::prefix('v1')->group(function () {

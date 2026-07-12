@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Gutschein-API: Ausgabe, Suche, Einloesung.
+ * Gutschein-API: Ausgabe, Suche, Einloesung, Nachdruck.
  *
  * Oeffentliche Endpunkte (mit device_token):
  *   GET  /vouchers/lookup?number=4567.000
@@ -20,6 +20,28 @@ use Illuminate\Support\Facades\Log;
  * Geschuetzte Endpunkte (auth:sanctum):
  *   POST /vouchers/generate
  *   POST /vouchers/redeem
+ *   POST /vouchers/reprint
+ *
+ * ──────────────────────────────────────────────────────────────────────
+ * DIE ZWEI DRUCKWEGE (wichtig zum Verstaendnis von generate/reprint):
+ *
+ * 1) NORMALFALL — Station MIT PC ("ROSI Print"-Agent laeuft):
+ *    Etiketten werden serverseitig aus der LabelTemplate-Vorlage gerendert
+ *    und via PrintQueueService in die Druck-Queue gelegt. Der Agent holt
+ *    und druckt sie lokal. Welche VORLAGE benutzt wird, entscheidet der
+ *    gewaehlte Drucker (printer_name):
+ *      - DYMO/sonstige  -> Slug 'gutschein'      (DYMO DesktopLabel-XML V4)
+ *      - TSC (isTscPrinter: tsc/da210/ttp/tdp) -> 'gutschein-tsc' (TSPL)
+ *
+ * 2) AUSNAHME — Station OHNE PC (direct_print = true):
+ *    Die App hat einen per Bluetooth gekoppelten TSC und druckt SELBST.
+ *    Dann wird KEIN Queue-Job angelegt; stattdessen liefert die Antwort
+ *    die fertigen TSPL-Etiketten ('labels' => [{number, tspl}]) und die
+ *    App schickt sie roh ueber Bluetooth-SPP (BluetoothPrinters.kt).
+ *
+ * Merkregel Sonderzeichen TSC: Vorlage nutzt CODEPAGE 1252; das Euro-
+ * Zeichen muss als Byte 0x80 ankommen (macht Agent bzw. App beim Senden).
+ * ──────────────────────────────────────────────────────────────────────
  */
 class VoucherController extends ApiController
 {

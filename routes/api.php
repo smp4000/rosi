@@ -97,19 +97,11 @@ Route::prefix('v1')->group(function () {
     Route::get('/articles/search', [ArticleController::class, 'search'])
         ->name('api.v1.articles.search');
 
-    // --- MHD-Kontrolle ---
+    // --- MHD-Kontrolle (nur LESEN oeffentlich; Schreiben: siehe auth:sanctum-Gruppe, A-3) ---
     Route::get('/mhd', [MhdController::class, 'index'])
         ->name('api.v1.mhd.index');
     Route::get('/mhd/summary', [MhdController::class, 'summary'])
         ->name('api.v1.mhd.summary');
-    Route::post('/mhd', [MhdController::class, 'store'])
-        ->name('api.v1.mhd.store');
-    Route::put('/mhd/{id}/extend', [MhdController::class, 'extend'])
-        ->name('api.v1.mhd.extend');
-    Route::post('/mhd/{id}/dispose', [MhdController::class, 'dispose'])
-        ->name('api.v1.mhd.dispose');
-    Route::delete('/mhd/{id}', [MhdController::class, 'destroy'])
-        ->name('api.v1.mhd.destroy');
 
     // --- Drucker (oeffentlich, da DYMO nur lokal erreichbar) ---
     Route::get('/print/printers', [PrintController::class, 'printers'])
@@ -212,14 +204,33 @@ Route::prefix('v1')->group(function () {
         ->name('api.v1.kiosk.articles.lookup');
     Route::get('/kiosk/articles/by-objekt', [KioskController::class, 'lookupByObjekt'])
         ->name('api.v1.kiosk.articles.by-objekt');
-    Route::post('/kiosk/articles/upsert-pending', [KioskController::class, 'upsertPending'])
-        ->name('api.v1.kiosk.articles.upsert-pending');
+    // upsert-pending (Schreiben) wurde in die auth:sanctum-Gruppe verschoben (A-3).
 
     // ------------------------------------------------------------------
     // Geschuetzte Routen (Sanctum Session-Token + Abo-Pruefung)
     // ------------------------------------------------------------------
 
     Route::middleware(['auth:sanctum', 'api.access'])->group(function () {
+
+        // ── A-3 (Sicherheit): Schreib-Endpunkte, die frueher nur mit device_token
+        //    erreichbar waren. device_token allein ist ein Dauer-Geheimnis ohne
+        //    Ablauf — fuer LESEN ok, fuer SCHREIBEN muss zusaetzlich ein
+        //    eingeloggter Mitarbeiter (12h-Session-Token) dahinterstehen.
+        //    Die Controller lesen die Station weiterhin aus dem device_token. ──
+
+        // MHD-Kontrolle: anlegen / verlaengern / abschreiben / loeschen
+        Route::post('/mhd', [MhdController::class, 'store'])
+            ->name('api.v1.mhd.store');
+        Route::put('/mhd/{id}/extend', [MhdController::class, 'extend'])
+            ->name('api.v1.mhd.extend');
+        Route::post('/mhd/{id}/dispose', [MhdController::class, 'dispose'])
+            ->name('api.v1.mhd.dispose');
+        Route::delete('/mhd/{id}', [MhdController::class, 'destroy'])
+            ->name('api.v1.mhd.destroy');
+
+        // Kiosk: neuen (pending) Zeitungs-Artikel anlegen
+        Route::post('/kiosk/articles/upsert-pending', [KioskController::class, 'upsertPending'])
+            ->name('api.v1.kiosk.articles.upsert-pending');
 
         // Wer bin ich?
         Route::get('/me', function (Request $request) {

@@ -71,7 +71,7 @@ class BenzinpreisService
             $url = self::BASE_URL . "preise-t{$hash}-{$slug}";
 
             try {
-                $response = Http::withoutVerifying()->timeout(12)
+                $response = Http::timeout(12)
                     ->withUserAgent(self::USER_AGENT)
                     ->withHeaders(['Accept-Language' => 'de-DE,de;q=0.9'])
                     ->get($url);
@@ -99,7 +99,7 @@ class BenzinpreisService
     private function resolvePlace(string $plz): ?array
     {
         try {
-            $response = Http::withoutVerifying()->timeout(5)
+            $response = Http::timeout(5)
                 ->withUserAgent(self::USER_AGENT . ' (ROSI-App)')
                 ->get('https://nominatim.openstreetmap.org/search', [
                     'postalcode' => $plz,
@@ -169,7 +169,7 @@ class BenzinpreisService
         $url = self::BASE_URL . "{$plz}-{$citySlug}-aktuelle-e10preise?umkreis=20";
 
         try {
-            $response = Http::withoutVerifying()->timeout(15)
+            $response = Http::timeout(15)
                 ->withUserAgent(self::USER_AGENT)
                 ->withHeaders(['Accept-Language' => 'de-DE,de;q=0.9'])
                 ->get($url);

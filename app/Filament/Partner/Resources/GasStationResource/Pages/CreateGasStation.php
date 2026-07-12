@@ -122,8 +122,7 @@ class CreateGasStation extends CreateRecord
                             // Bundesland + Ortsteil per Reverse Geocoding (Koordinaten vorhanden)
                             if ($details['lat'] && $details['lng']) {
                                 try {
-                                    $geoResp = \Illuminate\Support\Facades\Http::withoutVerifying()
-                                        ->timeout(5)
+                                    $geoResp = \Illuminate\Support\Facades\Http::timeout(5)
                                         ->withUserAgent('Mozilla/5.0 (ROSI-App)')
                                         ->get('https://nominatim.openstreetmap.org/reverse', [
                                             'lat' => $details['lat'],

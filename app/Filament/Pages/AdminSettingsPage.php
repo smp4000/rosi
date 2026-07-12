@@ -567,8 +567,7 @@ class AdminSettingsPage extends Page implements HasForms
         }
 
         try {
-            $response = \Illuminate\Support\Facades\Http::withoutVerifying()
-                ->timeout(10)
+            $response = \Illuminate\Support\Facades\Http::timeout(10)
                 ->get("https://api.telegram.org/bot{$token}/getUpdates");
 
             $data = $response->json();

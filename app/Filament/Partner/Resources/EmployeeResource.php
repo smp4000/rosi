@@ -134,8 +134,7 @@ class EmployeeResource extends Resource
     protected static function lookupBankData(string $iban): array
     {
         try {
-            $response = \Illuminate\Support\Facades\Http::withoutVerifying()
-                ->timeout(5)
+            $response = \Illuminate\Support\Facades\Http::timeout(5)
                 ->get("https://openiban.com/validate/{$iban}", [
                     'getBIC' => 'true',
                     'validateBankCode' => 'true',

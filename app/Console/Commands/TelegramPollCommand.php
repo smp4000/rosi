@@ -131,8 +131,7 @@ class TelegramPollCommand extends Command
             $tokenProp->setAccessible(true);
             $token = $tokenProp->getValue($service);
 
-            $response = Http::withoutVerifying()
-                ->timeout(35) // Long polling: 30s + 5s Buffer
+            $response = Http::timeout(35) // Long polling: 30s + 5s Buffer
                 ->post("https://api.telegram.org/bot{$token}/getUpdates", [
                     'offset' => $this->offset,
                     'timeout' => 30, // Long polling

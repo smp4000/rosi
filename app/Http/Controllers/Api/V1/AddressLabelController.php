@@ -70,8 +70,7 @@ class AddressLabelController extends ApiController
 
         $results = [];
         try {
-            $resp = Http::withoutVerifying()
-                ->withHeaders(['User-Agent' => 'ROSI-App/1.0 (rosi.aral-welle.com)'])
+            $resp = Http::withHeaders(['User-Agent' => 'ROSI-App/1.0 (rosi.aral-welle.com)'])
                 ->timeout(8)
                 ->get('https://nominatim.openstreetmap.org/search', [
                     'q' => $request->q,

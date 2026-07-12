@@ -54,7 +54,6 @@ class FcmService
         foreach ($tokens as $token) {
             try {
                 $resp = Http::withToken($accessToken)
-                    ->withoutVerifying()
                     ->timeout(15)
                     ->post($url, [
                         'message' => [
@@ -96,7 +95,7 @@ class FcmService
             $jwt = $signingInput . '.' . $this->b64($signature);
 
             try {
-                $resp = Http::asForm()->withoutVerifying()->timeout(15)->post('https://oauth2.googleapis.com/token', [
+                $resp = Http::asForm()->timeout(15)->post('https://oauth2.googleapis.com/token', [
                     'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
                     'assertion' => $jwt,
                 ]);

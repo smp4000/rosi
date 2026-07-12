@@ -72,6 +72,26 @@ class AppServiceProvider extends ServiceProvider
         // aber Links fuer externe Geraete (Handy) generiert werden muessen.
         \Illuminate\Support\Facades\URL::forceRootUrl(config('app.url'));
 
+        // ── A-5 (Sicherheit): TLS-Zertifikatspruefung zentral steuern ──
+        //
+        // FRUEHER stand in ~10 Dateien `Http::withoutVerifying()`. Das schaltete
+        // die Pruefung des Server-Zertifikats KOMPLETT ab — auch in Produktion!
+        // Folge: Ein Angreifer im Netzwerk (Man-in-the-Middle) haette sich als
+        // Telegram/Firebase/Perplexity ausgeben und z.B. unsere API-Keys
+        // abgreifen koennen.
+        //
+        // JETZT gilt: Die Ausnahme gibt es NUR noch in der lokalen Entwicklung
+        // (XAMPP bringt kein CA-Zertifikat-Bundle mit, daher schlagen HTTPS-
+        // Aufrufe dort sonst fehl). Erkannt wird das an APP_ENV=local in der
+        // .env. Auf dem Server (APP_ENV=production) prueft cURL Zertifikate
+        // ganz normal — dort darf NIE 'verify' => false stehen.
+        //
+        // Fuer neue HTTP-Aufrufe heisst das: einfach `Http::...` benutzen,
+        // KEIN ->withoutVerifying() mehr anhaengen — das regelt diese Stelle.
+        if ($this->app->environment('local')) {
+            \Illuminate\Support\Facades\Http::globalOptions(['verify' => false]);
+        }
+
         // --- DSGVO: Auth-Event-Listener fuer Audit-Logging ---
         Event::listen(Login::class, LogSuccessfulLogin::class);
         Event::listen(Logout::class, LogSuccessfulLogout::class);

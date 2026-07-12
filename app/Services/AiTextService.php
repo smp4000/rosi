@@ -241,8 +241,7 @@ GUIDE,
         }
 
         try {
-            $response = Http::withoutVerifying()
-                ->timeout(90)
+            $response = Http::timeout(90)
                 ->withHeaders([
                     'Authorization' => "Bearer {$this->apiKey}",
                     'Content-Type' => 'application/json',

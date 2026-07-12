@@ -40,9 +40,9 @@ class MobileAlertsClient
         }
 
         try {
-            // XAMPP/lokal: SSL nicht verifizieren (siehe Projekt-Konvention).
-            $response = Http::withoutVerifying()
-                ->asForm()
+            // TLS-Verifikation regelt zentral der AppServiceProvider (A-5):
+            // lokal (XAMPP) aus, auf dem Server an.
+            $response = Http::asForm()
                 ->timeout(20)
                 ->post($base . '/device/lastmeasurement', $payload);
 

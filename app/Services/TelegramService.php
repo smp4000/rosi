@@ -10,7 +10,8 @@ use Illuminate\Support\Facades\Storage;
 /**
  * Telegram Bot API Service.
  * Verwaltet alle Kommunikation mit der Telegram API.
- * XAMPP: withoutVerifying() fuer lokale Entwicklung.
+ * TLS-Verifikation: zentral im AppServiceProvider geregelt (A-5) —
+ * lokal (XAMPP) aus, auf dem Server an. Kein withoutVerifying() mehr noetig.
  */
 class TelegramService
 {
@@ -210,8 +211,7 @@ class TelegramService
         }
 
         try {
-            $response = Http::withoutVerifying()
-                ->timeout(10)
+            $response = Http::timeout(10)
                 ->post("{$this->baseUrl}{$this->botToken}/{$method}", $params);
 
             $data = $response->json();
@@ -244,8 +244,7 @@ class TelegramService
         }
 
         try {
-            $request = Http::withoutVerifying()
-                ->timeout(30)
+            $request = Http::timeout(30)
                 ->asMultipart();
 
             // Parameter als Multipart-Felder

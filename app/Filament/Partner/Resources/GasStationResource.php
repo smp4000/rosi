@@ -1097,7 +1097,7 @@ class GasStationResource extends Resource
         }
 
         try {
-            $response = Http::withoutVerifying()->timeout(5)
+            $response = Http::timeout(5)
                 ->withUserAgent('Mozilla/5.0 (ROSI-App)')
                 ->get('https://nominatim.openstreetmap.org/search', [
                     'postalcode' => $zip,

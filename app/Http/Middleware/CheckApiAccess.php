@@ -76,20 +76,12 @@ class CheckApiAccess
     }
 
     /**
-     * Geraet anhand des Device-Tokens finden (gleiche Logik wie AuthController).
+     * Geraet anhand des Device-Tokens finden.
+     * Delegiert an die zentrale, schnelle Suche (A-4) — kein eigener bcrypt-Loop mehr.
+     * Wie bisher werden aktive Geraete unabhaengig vom Freigabe-Status akzeptiert.
      */
     private function findDeviceByToken(string $plainToken): ?Device
     {
-        $devices = Device::where('is_active', true)
-            ->whereNotNull('device_token_hash')
-            ->get();
-
-        foreach ($devices as $device) {
-            if (Hash::check($plainToken, $device->device_token_hash)) {
-                return $device;
-            }
-        }
-
-        return null;
+        return Device::findByPlainTokenForAuth($plainToken);
     }
 }

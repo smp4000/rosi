@@ -344,25 +344,14 @@ class AuthController extends ApiController
      * Wir muessen alle Geraete durchgehen und den Hash vergleichen,
      * weil wir den Token gehasht speichern (Sicherheit).
      */
+    /**
+     * Geraet per Token finden (fuer Login/Scan-Login).
+     * Delegiert an die zentrale, schnelle Suche (A-4). Der Freigabe-Status wird
+     * bewusst NICHT gefiltert (pending-Geraete werden gefunden; die Login-Logik
+     * entscheidet dann), $withTrashed erkennt geloeschte Geraete.
+     */
     private function findDevice(string $plainToken, bool $withTrashed = false): ?Device
     {
-        $query = Device::query();
-
-        if ($withTrashed) {
-            $query->withTrashed();
-        } else {
-            // Performance: Nur aktive Geraete pruefen
-            $query->where('is_active', true);
-        }
-
-        $devices = $query->whereNotNull('device_token_hash')->get();
-
-        foreach ($devices as $device) {
-            if (Hash::check($plainToken, $device->device_token_hash)) {
-                return $device;
-            }
-        }
-
-        return null;
+        return Device::findByPlainTokenForAuth($plainToken, $withTrashed);
     }
 }

@@ -27,6 +27,7 @@ class Device extends Model
         'device_os',
         'app_version',
         'device_token_hash',
+        'device_token_lookup',
         'push_token',
         'push_token_updated_at',
         'print_default',
@@ -75,27 +76,122 @@ class Device extends Model
 
     // ── Hilfsmethoden ────────────────────────────────────────
 
+    // ─────────────────────────────────────────────────────────────────────
+    //  Geraete-Token: Suche & Erzeugung  (siehe Migration ..._add_device_token_lookup)
+    // ─────────────────────────────────────────────────────────────────────
+    //
+    //  Ablauf in Kurzform:
+    //   - Beim Registrieren: setPlainToken() speichert den Token als bcrypt-Hash
+    //     (device_token_hash, sicher) UND als HMAC (device_token_lookup, schnell suchbar).
+    //   - Beim Zugriff: findByPlainToken() sucht das Geraet in O(1) ueber den HMAC
+    //     und verifiziert dann final mit bcrypt.
+    //
+    //  Warum zwei Werte? bcrypt salzt jeden Hash zufaellig -> nicht suchbar.
+    //  HMAC ist deterministisch -> indizierbar, aber (als reiner Wegweiser) unkritisch,
+    //  weil die echte Authentifizierung weiterhin bcrypt macht.
+
     /**
-     * Geraet anhand des Klartext-Tokens finden (Token ist gehasht gespeichert).
-     * Liefert nur Geraete, die die API nutzen duerfen (aktiv + freigegeben).
+     * Deterministischer, indizierbarer Lookup-Schluessel eines Klartext-Tokens.
+     *
+     * WICHTIG: Als HMAC-Geheimnis dient der APP_KEY. Wird der APP_KEY jemals
+     * geaendert, passen die gespeicherten device_token_lookup-Werte nicht mehr.
+     * Dann einmalig `UPDATE devices SET device_token_lookup = NULL` ausfuehren —
+     * die Geraete tragen den Wert beim naechsten Zugriff automatisch neu ein
+     * (siehe resolveByPlainToken, Fallback-Zweig).
      */
-    public static function findByPlainToken(?string $plainToken): ?self
+    public static function tokenLookup(string $plainToken): string
+    {
+        return hash_hmac('sha256', $plainToken, (string) config('app.key'));
+    }
+
+    /**
+     * Setzt einen (neuen) Klartext-Token auf dem Geraet: bcrypt-Hash + HMAC-Lookup.
+     * Speichert NICHT selbst — der Aufrufer ruft danach save()/create().
+     */
+    public function setPlainToken(string $plainToken): void
+    {
+        $this->device_token_hash = \Illuminate\Support\Facades\Hash::make($plainToken);
+        $this->device_token_lookup = self::tokenLookup($plainToken);
+    }
+
+    /**
+     * Zentrale, schnelle Geraete-Suche per Klartext-Token.
+     *
+     * @param  string|null  $plainToken  Der vom Geraet gesendete Token.
+     * @param  \Closure  $filter  Setzt die Grundbedingungen auf den Query-Builder
+     *                            (z.B. aktiv / freigegeben) und gibt ihn zurueck.
+     *                            So teilen sich alle Aufrufer denselben schnellen
+     *                            Lookup-Mechanismus, nur mit unterschiedlichen Filtern.
+     */
+    protected static function resolveByPlainToken(?string $plainToken, \Closure $filter): ?self
     {
         if (empty($plainToken)) {
             return null;
         }
 
-        $devices = self::where('is_active', true)
-            ->where('approval_status', self::APPROVAL_ACTIVE)
+        $lookup = self::tokenLookup($plainToken);
+
+        // 1) SCHNELLER WEG: indizierte Suche ueber den HMAC-Wegweiser.
+        //    Trifft alle Geraete, die bereits einen Lookup-Wert haben (Normalfall).
+        $device = $filter(self::query())
+            ->where('device_token_lookup', $lookup)
+            ->first();
+
+        if ($device && \Illuminate\Support\Facades\Hash::check($plainToken, $device->device_token_hash)) {
+            return $device;
+        }
+
+        // 2) FALLBACK fuer Alt-Geraete OHNE Lookup-Wert (vor der Migration registriert):
+        //    einmalig die bcrypt-Schleife — aber NUR ueber Geraete ohne Lookup,
+        //    nicht ueber alle. Bei Treffer wird der Lookup nachgetragen, sodass
+        //    dieses Geraet ab dann den schnellen Weg nimmt. Die teure Schleife
+        //    schrumpft so mit der Zeit auf 0.
+        $candidates = $filter(self::query())
+            ->whereNull('device_token_lookup')
+            ->whereNotNull('device_token_hash')
             ->get();
 
-        foreach ($devices as $device) {
-            if (\Illuminate\Support\Facades\Hash::check($plainToken, $device->device_token_hash)) {
-                return $device;
+        foreach ($candidates as $candidate) {
+            if (\Illuminate\Support\Facades\Hash::check($plainToken, $candidate->device_token_hash)) {
+                $candidate->forceFill(['device_token_lookup' => $lookup])->saveQuietly();
+                return $candidate;
             }
         }
 
         return null;
+    }
+
+    /**
+     * Geraet anhand des Klartext-Tokens finden — Standard fuer API-Endpunkte.
+     * Liefert nur Geraete, die die API nutzen duerfen: aktiv UND freigegeben
+     * (approval_status = active) und nicht geloescht.
+     */
+    public static function findByPlainToken(?string $plainToken): ?self
+    {
+        return self::resolveByPlainToken($plainToken, fn ($q) => $q
+            ->where('is_active', true)
+            ->where('approval_status', self::APPROVAL_ACTIVE));
+    }
+
+    /**
+     * Geraet fuer Login/Registrierung finden.
+     * Unterschied zu findByPlainToken(): der Freigabe-Status wird NICHT gefiltert,
+     * damit auch noch nicht freigegebene (pending) Geraete gefunden werden — die
+     * Login-/Setup-Logik entscheidet dann selbst, was mit einem pending-Geraet passiert.
+     *
+     * @param  bool  $withTrashed  Auch soft-geloeschte Geraete einbeziehen
+     *                             (z.B. um "Geraet wurde geloescht" zu erkennen).
+     */
+    public static function findByPlainTokenForAuth(?string $plainToken, bool $withTrashed = false): ?self
+    {
+        return self::resolveByPlainToken($plainToken, function ($q) use ($withTrashed) {
+            if ($withTrashed) {
+                // Auch geloeschte Geraete finden (kein is_active-Filter — bewusst).
+                return $q->withTrashed();
+            }
+
+            return $q->where('is_active', true);
+        });
     }
 
     /** Ist das Geraet aktiv und darf die API nutzen? */

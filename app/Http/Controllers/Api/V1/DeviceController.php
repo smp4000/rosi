@@ -62,6 +62,8 @@ class DeviceController extends ApiController
             'device_os' => $request->device_os,
             'app_version' => $request->app_version,
             'device_token_hash' => Hash::make($plainToken),
+            // A-4: zusaetzlich den schnellen HMAC-Lookup speichern (siehe Device::tokenLookup).
+            'device_token_lookup' => Device::tokenLookup($plainToken),
             'is_active' => true,
             'last_seen_at' => now(),
         ]);
@@ -184,6 +186,8 @@ class DeviceController extends ApiController
             'device_os' => $request->device_os,
             'app_version' => $request->app_version,
             'device_token_hash' => Hash::make($plainToken),
+            // A-4: zusaetzlich den schnellen HMAC-Lookup speichern (siehe Device::tokenLookup).
+            'device_token_lookup' => Device::tokenLookup($plainToken),
             'is_active' => true,
             'approval_status' => $gpsOk ? Device::APPROVAL_ACTIVE : Device::APPROVAL_PENDING,
             'registration_distance_m' => $distance,
@@ -234,20 +238,13 @@ class DeviceController extends ApiController
         return $this->success(null, 'Push-Token gespeichert.');
     }
 
+    /**
+     * Geraet per Token finden (fuer Registrierung/Setup: auch nicht-freigegebene).
+     * Delegiert an die zentrale, schnelle Suche (A-4) — kein eigener bcrypt-Loop mehr.
+     */
     private function findDeviceByToken(string $plainToken): ?Device
     {
-        if (empty($plainToken)) {
-            return null;
-        }
-
-        $devices = Device::where('is_active', true)->get();
-        foreach ($devices as $device) {
-            if (Hash::check($plainToken, $device->device_token_hash)) {
-                return $device;
-            }
-        }
-
-        return null;
+        return Device::findByPlainTokenForAuth($plainToken);
     }
 
     /**
@@ -303,6 +300,8 @@ class DeviceController extends ApiController
             'device_os' => $request->device_os,
             'app_version' => $request->app_version,
             'device_token_hash' => Hash::make($plainToken),
+            // A-4: zusaetzlich den schnellen HMAC-Lookup speichern (siehe Device::tokenLookup).
+            'device_token_lookup' => Device::tokenLookup($plainToken),
             'is_active' => true,
             'last_seen_at' => now(),
         ]);

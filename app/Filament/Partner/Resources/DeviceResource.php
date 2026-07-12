@@ -452,6 +452,7 @@ class DeviceResource extends Resource
                         $record->update([
                             'is_active' => false,
                             'device_token_hash' => 'DELETED_' . $record->id,
+                            'device_token_lookup' => null, // A-4: Wegweiser entfernen
                         ]);
                         $record->delete();
                     }),
@@ -479,6 +480,7 @@ class DeviceResource extends Resource
                             $device->update([
                                 'is_active' => false,
                                 'device_token_hash' => 'DELETED_' . $device->id,
+                                'device_token_lookup' => null, // A-4: Wegweiser entfernen
                             ]);
                             $device->delete();
                         });

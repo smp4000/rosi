@@ -280,11 +280,21 @@ CMD;
             return $pdf->stream($template->name . ' — Vorschau.pdf');
         })->name('template.preview');
 
+        // ── W-1 (Sicherheit): PDF-Downloads sind MANDANTEN-GESCOPED ──
+        //
+        // Frueher lagen alle Sammel-PDFs/Berichte flach in einem Ordner und
+        // JEDER eingeloggte Partner konnte per Dateiname JEDE Datei laden —
+        // auch die eines anderen Mandanten. Jetzt werden die Dateien beim
+        // Erzeugen in einen Unterordner mit der tenant_id gelegt (siehe
+        // PdfMergerService bzw. ViewInvoiceBatch), und diese Routen greifen
+        // NUR in den Ordner des eigenen Mandanten. basename() verhindert
+        // weiterhin Pfad-Traversal (../).
+
         // Sammel-PDF (Druck) herunterladen
         Route::get('/sammel-pdf/{filename}', function (string $filename) {
             $filename = basename($filename);
-            $path = storage_path('app/private/print_jobs/' . $filename);
-            if (! file_exists($path)) {
+            $path = storage_path('app/private/print_jobs/' . session('tenant_id') . '/' . $filename);
+            if (! session('tenant_id') || ! file_exists($path)) {
                 abort(404, 'Sammel-PDF nicht gefunden');
             }
 
@@ -294,8 +304,8 @@ CMD;
         // Versand-Bericht herunterladen
         Route::get('/versand-bericht/{filename}', function (string $filename) {
             $filename = basename($filename);
-            $path = storage_path('app/private/reports/' . $filename);
-            if (! file_exists($path)) {
+            $path = storage_path('app/private/reports/' . session('tenant_id') . '/' . $filename);
+            if (! session('tenant_id') || ! file_exists($path)) {
                 abort(404, 'Versand-Bericht nicht gefunden');
             }
 

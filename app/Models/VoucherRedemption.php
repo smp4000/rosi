@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class VoucherRedemption extends \Illuminate\Database\Eloquent\Model
 {
     use HasFactory, HasUuids, Auditable;
+    use \App\Traits\BelongsToTenant; // T-2: automatischer Mandanten-Filter (TenantScope) + tenant_id-Autofill
 
     protected $fillable = [
         'voucher_id',

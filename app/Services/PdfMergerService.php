@@ -53,7 +53,11 @@ class PdfMergerService
             }
         }
 
-        $outputFilename = 'print_jobs/Sammel_Druck_' . now()->format('Y-m-d_His') . '.pdf';
+        // W-1 (Sicherheit): Datei im MANDANTEN-Unterordner ablegen.
+        // Die Download-Route erlaubt nur Zugriff auf den Ordner des eigenen
+        // Mandanten — so kann Partner A nie die Sammel-PDFs von Partner B laden.
+        $tenantFolder = session('tenant_id') ?: 'global';
+        $outputFilename = 'print_jobs/' . $tenantFolder . '/Sammel_Druck_' . now()->format('Y-m-d_His') . '.pdf';
         $outputPath = Storage::path($outputFilename);
 
         $directory = dirname($outputPath);

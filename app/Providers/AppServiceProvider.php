@@ -23,7 +23,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // T-1: Mandanten-Kontext als scoped-Singleton — lebt genau einen
+        // Request/Job lang ("scoped" statt "singleton", damit bei Octane/
+        // Queue-Workern kein Kontext in den naechsten Request "durchsickert").
+        $this->app->scoped(\App\Support\TenantContext::class);
     }
 
     /**

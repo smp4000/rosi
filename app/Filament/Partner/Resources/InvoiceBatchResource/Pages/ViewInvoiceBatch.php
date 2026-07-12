@@ -536,7 +536,9 @@ class ViewInvoiceBatch extends ViewRecord
             $pdf->SetTextColor(0, 0, 0);
 
             // Speichern und Download
-            $filename = 'reports/Versandbericht_' . now()->format('Y-m-d_His') . '.pdf';
+            // W-1 (Sicherheit): im Mandanten-Unterordner ablegen — die Download-Route
+            // gibt nur Dateien aus dem Ordner des eigenen Mandanten heraus.
+            $filename = 'reports/' . (session('tenant_id') ?: 'global') . '/Versandbericht_' . now()->format('Y-m-d_His') . '.pdf';
             $outputPath = Storage::path($filename);
             $dir = dirname($outputPath);
             if (! file_exists($dir)) {

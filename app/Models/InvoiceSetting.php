@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Cache;
 class InvoiceSetting extends \Illuminate\Database\Eloquent\Model
 {
     use HasUuids;
+    use \App\Traits\BelongsToTenant; // T-2: automatischer Mandanten-Filter (TenantScope) + tenant_id-Autofill
 
     protected $fillable = ['tenant_id', 'key', 'value'];
 

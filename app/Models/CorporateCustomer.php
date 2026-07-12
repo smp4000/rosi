@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class CorporateCustomer extends \Illuminate\Database\Eloquent\Model
 {
     use HasFactory, HasUuids, SoftDeletes, Auditable;
+    use \App\Traits\BelongsToTenant; // T-2: automatischer Mandanten-Filter (TenantScope) + tenant_id-Autofill
 
     /** Platzhalter-E-Mail fuer Kunden ohne echte Adresse */
     const PLACEHOLDER_EMAIL = 'keine-email@platzhalter.local';

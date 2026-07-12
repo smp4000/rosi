@@ -16,6 +16,7 @@ use Carbon\Carbon;
 class Mhd extends Model
 {
     use HasFactory, SoftDeletes;
+    use \App\Traits\BelongsToTenant; // T-2: automatischer Mandanten-Filter (TenantScope) + tenant_id-Autofill
 
     protected $table = 'mhds';
 

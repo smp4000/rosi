@@ -17,6 +17,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // T-1 (Sicherheits-Audit 07/2026): Auf JEDEM API-Request den
+        // Mandanten-Kontext setzen (aus Sanctum-User oder device_token),
+        // damit der automatische tenant_id-Filter (TenantScope) auch OHNE
+        // Web-Session greift. Details: app/Http/Middleware/SetApiTenantContext.php
+        $middleware->api(append: [
+            \App\Http\Middleware\SetApiTenantContext::class,
+        ]);
+
         // Middleware-Aliase fuer Route-Gruppen
         $middleware->alias([
             'tenant' => EnsureTenantContext::class,

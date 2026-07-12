@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Article extends \Illuminate\Database\Eloquent\Model
 {
     use HasFactory, HasUuids, SoftDeletes, Auditable;
+    use \App\Traits\BelongsToTenant; // T-2: automatischer Mandanten-Filter (TenantScope) + tenant_id-Autofill
 
     protected $fillable = [
         'gas_station_id',

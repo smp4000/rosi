@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class ArticleImport extends \Illuminate\Database\Eloquent\Model
 {
     use HasUuids;
+    use \App\Traits\BelongsToTenant; // T-2: automatischer Mandanten-Filter (TenantScope) + tenant_id-Autofill
 
     protected $fillable = [
         'gas_station_id',

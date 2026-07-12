@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class CoolingReading extends Model
 {
+    use \App\Traits\BelongsToTenant; // T-2: automatischer Mandanten-Filter (TenantScope) + tenant_id-Autofill
+
     protected $fillable = [
         'cooling_unit_id', 'tenant_id', 'station_id',
         'value', 'humidity', 'measured_at', 'received_at', 'mobile_idx',

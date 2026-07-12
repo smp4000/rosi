@@ -67,10 +67,14 @@ class AuthController extends ApiController
             return $this->error('Falsche PIN.', 401);
         }
 
-        // 4. Pruefen ob MA an dieser Station arbeiten darf
+        // 4. Pruefen ob MA an dieser Station arbeiten darf (wie scanLogin)
         $worksAtStation = $user->gasStations()
             ->where('gas_stations.id', $device->station_id)
             ->exists();
+
+        if (! $worksAtStation) {
+            return $this->error('Mitarbeiter ist dieser Station nicht zugeordnet.', 403);
+        }
 
         // HINWEIS: Persoenliche Geraete-Pruefung deaktiviert.
         // Vorerst nur Stations-Geraete — jeder MA kann sich an jedem Geraet anmelden.

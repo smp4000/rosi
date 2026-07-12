@@ -235,6 +235,7 @@ class VoucherController extends ApiController
             'voucher_number' => 'required|string|max:30',
             'amount' => 'required|numeric|min:0.01|max:9999.99',
             'notes' => 'nullable|string|max:500',
+            'device_token' => 'nullable|string',
         ]);
 
         $user = $request->user();
@@ -266,11 +267,21 @@ class VoucherController extends ApiController
             );
         }
 
+        // Station der Einloesung: aus dem Geraet ableiten, sonst Station des Gutscheins
+        // (frueher wurde faelschlich die tenant_id als station_id gespeichert).
+        $stationId = $voucher->station_id;
+        if ($request->filled('device_token')) {
+            $device = $this->findDevice($request->input('device_token'));
+            if ($device && $device->station_id) {
+                $stationId = $device->station_id;
+            }
+        }
+
         try {
-            $redemption = DB::transaction(function () use ($voucher, $data, $user, $tenantId) {
+            $redemption = DB::transaction(function () use ($voucher, $data, $user, $stationId) {
                 return $voucher->redeem(
                     redeemAmount: (float) $data['amount'],
-                    stationId: $tenantId,
+                    stationId: $stationId,
                     employeeId: $user->id,
                     employeeName: $user->name,
                     notes: $data['notes'] ?? null,
